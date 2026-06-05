@@ -1,0 +1,5 @@
+# Reemplazá por tu dominio real (apuntado a la IP del VPS de Hostinger).
+# Caddy saca el certificado HTTPS solo.
+karting-zarate.com {
+    reverse_proxy app:8000
+}
