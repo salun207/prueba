@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Lista de espera — Karting Zárate{% endblock %}
 {% block content %}
+<div class="card">
 <h1>Lista de espera</h1>
 
 {% if not clientes %}
@@ -41,7 +42,8 @@
     <td><span class="pill {{ 'ok' if a.estado in ['avisado','reservado'] else 'wait' }}">{{ a.estado }}</span></td>
   </tr>
   {% else %}
-  <tr><td colspan="4" style="color:#888">Nadie anotado todavía.</td></tr>
+  <tr><td colspan="4" class="muted">Nadie anotado todavía.</td></tr>
   {% endfor %}
 </table>
+</div>
 {% endblock %}

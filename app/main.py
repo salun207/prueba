@@ -91,7 +91,43 @@ def registro_submit(
         cliente_id = cur.lastrowid or conn.execute(
             "SELECT id FROM clientes WHERE dni=?", (dni,)
         ).fetchone()["id"]
-    return RedirectResponse(f"/comprobante/{cliente_id}", status_code=303)
+    return RedirectResponse(f"/listo/{cliente_id}", status_code=303)
+
+
+def _codigo_comprobante(cliente_id: int) -> str:
+    """Devuelve el código del comprobante del cliente, creándolo si no existe.
+    Evita generar un código nuevo cada vez que se descarga el PDF."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT codigo FROM comprobantes WHERE cliente_id=? "
+            "ORDER BY creado_en DESC LIMIT 1",
+            (cliente_id,),
+        ).fetchone()
+        if row:
+            return row["codigo"]
+        codigo = secrets.token_hex(4).upper()
+        conn.execute(
+            "INSERT INTO comprobantes (cliente_id, codigo) VALUES (?,?)",
+            (cliente_id, codigo),
+        )
+        conn.commit()
+        return codigo
+
+
+@app.get("/listo/{cliente_id}", response_class=HTMLResponse)
+def listo(request: Request, cliente_id: int):
+    """Pantalla de confirmación tras guardar datos + firma."""
+    with get_conn() as conn:
+        cliente = conn.execute(
+            "SELECT * FROM clientes WHERE id=?", (cliente_id,)
+        ).fetchone()
+    if not cliente:
+        raise HTTPException(404, "Cliente no encontrado.")
+    codigo = _codigo_comprobante(cliente_id)
+    return templates.TemplateResponse(
+        "listo.html",
+        {"request": request, "c": cliente, "codigo": codigo},
+    )
 
 
 @app.get("/comprobante/{cliente_id}")
@@ -102,12 +138,7 @@ def comprobante(cliente_id: int):
         ).fetchone()
         if not cliente:
             raise HTTPException(404, "Cliente no encontrado.")
-        codigo = secrets.token_hex(4).upper()
-        conn.execute(
-            "INSERT INTO comprobantes (cliente_id, codigo) VALUES (?,?)",
-            (cliente_id, codigo),
-        )
-        conn.commit()
+    codigo = _codigo_comprobante(cliente_id)
     pdf = generar_comprobante(dict(cliente), codigo)
     return Response(
         content=pdf,
@@ -209,6 +240,30 @@ async def whatsapp_incoming(request: Request):
                 )
                 conn.commit()
     return {"status": "ok"}
+
+
+@app.get("/panel", response_class=HTMLResponse)
+def panel(request: Request):
+    """Tablero para el kartódromo: lo que recuperan y la lista de espera."""
+    with get_conn() as conn:
+        m = conn.execute(
+            """SELECT
+                 COUNT(*) FILTER (WHERE estado='esperando')  AS esperando,
+                 COUNT(*) FILTER (WHERE estado='avisado')     AS avisados,
+                 COUNT(*) FILTER (WHERE estado='reservado')   AS recuperados
+               FROM lista_espera"""
+        ).fetchone()
+        clientes = conn.execute("SELECT COUNT(*) AS n FROM clientes").fetchone()["n"]
+        anotados = conn.execute(
+            """SELECT le.fecha, le.horario, le.estado, le.avisado_en,
+                      c.nombre, c.apellido, c.telefono
+               FROM lista_espera le JOIN clientes c ON c.id = le.cliente_id
+               ORDER BY le.creado_en DESC LIMIT 100"""
+        ).fetchall()
+    return templates.TemplateResponse(
+        "panel.html",
+        {"request": request, "m": m, "clientes": clientes, "anotados": anotados},
+    )
 
 
 @app.get("/health")

@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Mis datos — Karting Zárate{% endblock %}
 {% block content %}
+<div class="card">
 <h1>Mis datos y firma</h1>
-<p style="color:#555">Cargá los datos que el karting siempre pide. Quedan guardados para no volver a escribirlos.</p>
+<p class="muted">Cargá los datos que el karting siempre pide. Quedan guardados para no volver a escribirlos.</p>
 
 <form method="post" action="/registro" onsubmit="return prepararFirma()">
   <div class="grid2">
@@ -33,5 +34,6 @@
   <p style="margin-top:18px"><button type="submit">Guardar y generar comprobante (PDF + QR)</button></p>
 </form>
 
+</div>
 <script src="/static/signature.js"></script>
 {% endblock %}

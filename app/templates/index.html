@@ -1,15 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Reservá tu turno sin vueltas 🏎️</h1>
-<p>El karting siempre está lleno. Con esto:</p>
-<ol>
-  <li><b>Cargás tus datos una vez</b> y firmás el deslinde digitalmente. Llegás, mostrás el QR y subís al kart — sin papeles.</li>
-  <li><b>Te anotás en la lista de espera</b> del día y horario que querés.</li>
-  <li><b>Te avisamos por WhatsApp</b> apenas se libera ese turno (cancelaciones). Respondés <b>SÍ</b> y queda tuyo.</li>
-</ol>
-<p style="margin-top:24px">
-  <a class="btn" href="/registro">Cargar mis datos y firmar</a>
-  <a class="btn btn-sec" href="/lista-espera">Ver lista de espera</a>
-</p>
-<p style="color:#888;font-size:13px;margin-top:30px">MVP demo · disponibilidad simulada hasta conectar el sistema real.</p>
+<div class="hero">
+  <h1>El karting siempre lleno. Nosotros te lo conseguimos. 🏎️</h1>
+  <p>Anotate en la lista de espera y te avisamos por WhatsApp apenas se libera un turno.
+     Cargás tus datos una sola vez, firmás digital y llegás sin papeles.</p>
+  <p style="margin-bottom:0">
+    <a class="btn" href="/registro">Empezar — cargar mis datos</a>
+    <a class="btn btn-ghost" href="/lista-espera">Ver disponibilidad</a>
+  </p>
+</div>
+
+<div class="steps">
+  <div class="step"><span class="n">1</span>
+    <b>Cargás tus datos y firmás</b>
+    <p class="muted">Una sola vez. Generás un comprobante con QR para el check-in.</p>
+  </div>
+  <div class="step"><span class="n">2</span>
+    <b>Te anotás en la lista</b>
+    <p class="muted">Elegís el día y horario que querés correr.</p>
+  </div>
+  <div class="step"><span class="n">3</span>
+    <b>Te avisamos por WhatsApp</b>
+    <p class="muted">Apenas se libera tu turno. Respondés SÍ y es tuyo.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Sin más papeles al llegar</h2>
+  <p class="muted">El deslinde de responsabilidad lo firmás desde el celu. Llegás,
+    mostrás el QR del comprobante y subís al kart. Listo.</p>
+  <a class="btn btn-sec" href="/registro">Cargar mis datos y firmar</a>
+</div>
+
+<p class="muted" style="text-align:center;margin-top:24px;font-size:13px">
+  MVP demo · disponibilidad simulada hasta conectar el sistema real.</p>
 {% endblock %}

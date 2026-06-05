@@ -5,33 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Karting Zárate{% endblock %}</title>
   <style>
-    :root { --rojo:#d62828; --negro:#1d1d1d; --gris:#f4f4f4; }
+    :root {
+      --rojo:#e10600; --rojo-osc:#b00500; --negro:#0d0d0f; --gris900:#16171b;
+      --gris:#f5f6f8; --texto:#1d1d1f; --muted:#6b7280; --ok:#16a34a; --warn:#d97706;
+    }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; margin:0; background:var(--gris); color:var(--negro); }
-    header { background:var(--negro); color:#fff; padding:14px 20px; display:flex; gap:18px; align-items:center; }
-    header a { color:#fff; text-decoration:none; font-size:14px; }
-    header .logo { font-weight:800; color:var(--rojo); font-size:18px; }
-    main { max-width:680px; margin:24px auto; background:#fff; padding:24px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
-    h1 { margin-top:0; }
-    label { display:block; margin:12px 0 4px; font-weight:600; font-size:14px; }
-    input, select { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:15px; }
-    button, .btn { background:var(--rojo); color:#fff; border:0; padding:12px 18px; border-radius:8px; font-size:15px; cursor:pointer; text-decoration:none; display:inline-block; }
-    .btn-sec { background:#444; }
-    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    canvas { border:2px dashed #aaa; border-radius:8px; width:100%; height:160px; touch-action:none; background:#fff; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin:0; background:var(--gris); color:var(--texto); }
+    a { color:var(--rojo); }
+    header {
+      background:var(--negro); color:#fff; padding:0 20px; display:flex; gap:6px;
+      align-items:center; flex-wrap:wrap; box-shadow:0 2px 12px rgba(0,0,0,.25);
+    }
+    header .logo { font-weight:800; font-size:18px; margin-right:18px; padding:16px 0; }
+    header .logo span { color:var(--rojo); }
+    header nav a {
+      color:#cfd1d6; text-decoration:none; font-size:14px; padding:18px 12px;
+      border-bottom:3px solid transparent; transition:.15s;
+    }
+    header nav a:hover { color:#fff; border-color:var(--rojo); }
+    main { max-width:760px; margin:26px auto; padding:0 16px; }
+    .card { background:#fff; padding:26px; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,.07); }
+    h1 { margin-top:0; font-size:26px; letter-spacing:-.5px; }
+    h2 { font-size:19px; margin-top:28px; }
+    label { display:block; margin:14px 0 5px; font-weight:600; font-size:14px; }
+    input, select {
+      width:100%; padding:11px; border:1px solid #d5d7dc; border-radius:10px;
+      font-size:15px; background:#fff;
+    }
+    input:focus, select:focus { outline:2px solid var(--rojo); border-color:var(--rojo); }
+    button, .btn {
+      background:var(--rojo); color:#fff; border:0; padding:13px 20px; border-radius:10px;
+      font-size:15px; font-weight:600; cursor:pointer; text-decoration:none;
+      display:inline-block; transition:.15s;
+    }
+    button:hover, .btn:hover { background:var(--rojo-osc); }
+    .btn-sec { background:#2b2c31; } .btn-sec:hover { background:#000; }
+    .btn-ghost { background:#fff; color:var(--texto); border:1px solid #d5d7dc; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:560px){ .grid2 { grid-template-columns:1fr; } }
+    canvas { border:2px dashed #b9bcc4; border-radius:10px; width:100%; height:170px; touch-action:none; background:#fff; }
     table { width:100%; border-collapse:collapse; margin-top:12px; }
-    th, td { text-align:left; padding:8px; border-bottom:1px solid #eee; font-size:14px; }
-    .pill { padding:2px 8px; border-radius:999px; font-size:12px; background:#eee; }
-    .ok { background:#d4edda; } .wait { background:#fff3cd; }
-    .libre { display:inline-block; margin:3px; padding:6px 10px; background:#e7f5e7; border-radius:6px; font-size:13px; }
+    th, td { text-align:left; padding:10px; border-bottom:1px solid #eef0f3; font-size:14px; }
+    th { color:var(--muted); font-weight:600; }
+    .pill { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; background:#eef0f3; color:#444; }
+    .pill.ok { background:#dcfce7; color:#166534; }
+    .pill.wait { background:#fef3c7; color:#92400e; }
+    .pill.go { background:#dbeafe; color:#1e40af; }
+    .libre { display:inline-block; margin:4px 4px 0 0; padding:7px 11px; background:#eafaef; color:#166534; border-radius:8px; font-size:13px; font-weight:600; }
+    .muted { color:var(--muted); }
+    .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:20px 0; }
+    @media (max-width:560px){ .steps { grid-template-columns:1fr; } }
+    .step { background:#fff; border:1px solid #eceef1; border-radius:14px; padding:16px; }
+    .step .n { display:inline-flex; width:30px; height:30px; align-items:center; justify-content:center; background:var(--rojo); color:#fff; border-radius:50%; font-weight:700; margin-bottom:8px; }
+    .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:8px 0 4px; }
+    @media (max-width:560px){ .kpis { grid-template-columns:repeat(2,1fr); } }
+    .kpi { background:#fff; border:1px solid #eceef1; border-radius:14px; padding:16px; text-align:center; }
+    .kpi .big { font-size:30px; font-weight:800; line-height:1; }
+    .kpi.green .big { color:var(--ok); }
+    .hero { background:linear-gradient(135deg,#0d0d0f,#2a0a0a); color:#fff; border-radius:18px; padding:30px; }
+    .hero h1 { color:#fff; } .hero p { color:#d7d9de; }
   </style>
 </head>
 <body>
   <header>
-    <span class="logo">🏁 Karting Zárate</span>
-    <a href="/">Inicio</a>
-    <a href="/registro">Mis datos / Firma</a>
-    <a href="/lista-espera">Lista de espera</a>
+    <div class="logo">🏁 Karting <span>Zárate</span></div>
+    <nav>
+      <a href="/">Inicio</a>
+      <a href="/registro">Mis datos / Firma</a>
+      <a href="/lista-espera">Lista de espera</a>
+      <a href="/panel">Panel</a>
+    </nav>
   </header>
   <main>{% block content %}{% endblock %}</main>
 </body>
