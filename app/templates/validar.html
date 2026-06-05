@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Validación de check-in{% endblock %}
+{% block content %}
+<h1>✅ Check-in válido</h1>
+<p style="color:#555">Lo que ve el operador del karting al escanear el QR.</p>
+<table>
+  <tr><th>Nombre</th><td>{{ c.nombre }} {{ c.apellido }}</td></tr>
+  <tr><th>DNI</th><td>{{ c.dni }}</td></tr>
+  <tr><th>Teléfono</th><td>{{ c.telefono }}</td></tr>
+  <tr><th>Contacto emergencia</th><td>{{ c.contacto_emergencia }} ({{ c.contacto_emergencia_tel }})</td></tr>
+  <tr><th>Deslinde</th><td>{{ "ACEPTADO" if c.deslinde_aceptado else "NO aceptado" }}</td></tr>
+  <tr><th>Código</th><td>{{ c.codigo }}</td></tr>
+</table>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Mis datos — Karting Zárate{% endblock %}
+{% block content %}
+<h1>Mis datos y firma</h1>
+<p style="color:#555">Cargá los datos que el karting siempre pide. Quedan guardados para no volver a escribirlos.</p>
+
+<form method="post" action="/registro" onsubmit="return prepararFirma()">
+  <div class="grid2">
+    <div><label>Nombre*</label><input name="nombre" required></div>
+    <div><label>Apellido*</label><input name="apellido" required></div>
+  </div>
+  <div class="grid2">
+    <div><label>DNI*</label><input name="dni" required></div>
+    <div><label>Teléfono (WhatsApp, ej 5491170581324)*</label><input name="telefono" required placeholder="549..."></div>
+  </div>
+  <div class="grid2">
+    <div><label>Email</label><input type="email" name="email"></div>
+    <div><label>Fecha de nacimiento</label><input type="date" name="fecha_nacimiento"></div>
+  </div>
+  <div class="grid2">
+    <div><label>Contacto de emergencia</label><input name="contacto_emergencia"></div>
+    <div><label>Tel. de emergencia</label><input name="contacto_emergencia_tel"></div>
+  </div>
+
+  <label style="margin-top:18px"><input type="checkbox" name="deslinde" style="width:auto" required>
+    Acepto el <b>deslinde de responsabilidad</b> y declaro que los datos son verídicos.</label>
+
+  <label>Firma*</label>
+  <canvas id="firma"></canvas>
+  <input type="hidden" name="firma_png" id="firma_png">
+  <p><button type="button" class="btn btn-sec" onclick="limpiarFirma()">Borrar firma</button></p>
+
+  <p style="margin-top:18px"><button type="submit">Guardar y generar comprobante (PDF + QR)</button></p>
+</form>
+
+<script src="/static/signature.js"></script>
+{% endblock %}

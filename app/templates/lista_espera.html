@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Lista de espera — Karting Zárate{% endblock %}
+{% block content %}
+<h1>Lista de espera</h1>
+
+{% if not clientes %}
+  <p>Primero <a href="/registro">cargá tus datos</a> para poder anotarte.</p>
+{% else %}
+<form method="post" action="/lista-espera">
+  <label>¿Quién?</label>
+  <select name="cliente_id" required>
+    {% for c in clientes %}<option value="{{ c.id }}">{{ c.nombre }} {{ c.apellido }}</option>{% endfor %}
+  </select>
+  <div class="grid2">
+    <div><label>Fecha (YYYY-MM-DD)</label><input name="fecha" required placeholder="2026-06-11"></div>
+    <div><label>Horario</label>
+      <select name="horario" required>
+        {% for h in ["17:30","18:30","19:30","20:30","21:30","22:30"] %}<option>{{ h }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <p style="margin-top:14px"><button type="submit">Anotarme — me avisan por WhatsApp</button></p>
+</form>
+{% endif %}
+
+<h2 style="margin-top:28px">Turnos libres ahora (demo)</h2>
+{% if libres %}
+  {% for fecha, slots in libres.items() %}
+    <div><b>{{ fecha }}:</b> {% for s in slots %}<span class="libre">{{ s }}</span>{% endfor %}</div>
+  {% endfor %}
+{% else %}
+  <p>No hay turnos libres en este momento. Anotate y te avisamos. 😉</p>
+{% endif %}
+
+<h2 style="margin-top:28px">Anotados</h2>
+<table>
+  <tr><th>Persona</th><th>Fecha</th><th>Horario</th><th>Estado</th></tr>
+  {% for a in anotados %}
+  <tr>
+    <td>{{ a.nombre }} {{ a.apellido }}</td><td>{{ a.fecha }}</td><td>{{ a.horario }}</td>
+    <td><span class="pill {{ 'ok' if a.estado in ['avisado','reservado'] else 'wait' }}">{{ a.estado }}</span></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4" style="color:#888">Nadie anotado todavía.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
