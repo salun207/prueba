@@ -71,5 +71,6 @@ def confirmacion_reserva(nombre: str, fecha: str, horario: str) -> str:
     return (
         f"🎉 ¡Listo, {nombre}! Tu turno quedó reservado.\n\n"
         f"📅 {fecha}  🕐 {horario}\n\n"
+        f"💵 El pago se abona en el lugar.\n"
         f"Llevá tu comprobante con QR para el check-in. ¡Nos vemos en la pista! 🏁"
     )

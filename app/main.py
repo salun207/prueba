@@ -11,6 +11,7 @@ import io
 import logging
 import secrets
 from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
@@ -191,7 +192,7 @@ def _codigo_comprobante(cliente_id: int) -> str:
 
 
 @app.get("/listo/{cliente_id}", response_class=HTMLResponse)
-def listo(request: Request, cliente_id: int, anotado: int = 0):
+def listo(request: Request, cliente_id: int, anotado: int = 0, ya: int = 0):
     """Pantalla de confirmación. Se adapta según si ya firmó el deslinde."""
     with get_conn() as conn:
         cliente = conn.execute(
@@ -204,7 +205,7 @@ def listo(request: Request, cliente_id: int, anotado: int = 0):
     return templates.TemplateResponse(
         "listo.html",
         {"request": request, "c": cliente, "codigo": codigo,
-         "firmado": firmado, "anotado": bool(anotado)},
+         "firmado": firmado, "anotado": bool(anotado), "ya": bool(ya)},
     )
 
 
@@ -229,8 +230,14 @@ def comprobante(cliente_id: int):
 def lista_espera_form(request: Request):
     return templates.TemplateResponse(
         "lista_espera.html",
-        {"request": request, "libres": cupos_libres()},
+        {"request": request, "libres": cupos_libres(),
+         "hoy": date.today().isoformat()},
     )
+
+
+def _normalizar_tel(telefono: str) -> str:
+    """Deja solo dígitos (para WhatsApp). Ej: '+54 9 11 7058-1324' -> '5491170581324'."""
+    return "".join(ch for ch in telefono if ch.isdigit())
 
 
 @app.post("/lista-espera")
@@ -242,6 +249,21 @@ async def lista_espera_submit(
     fecha: str = Form(...),
     horario: str = Form(...),
 ):
+    # Validaciones de entrada
+    try:
+        f = datetime.strptime(fecha, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Fecha inválida. Usá el formato AAAA-MM-DD.")
+    if f < date.today():
+        raise HTTPException(400, "Esa fecha ya pasó. Elegí una fecha futura.")
+    if f > date.today() + timedelta(days=60):
+        raise HTTPException(400, "Solo se puede reservar hasta 60 días en adelante.")
+    if horario not in HORARIOS:
+        raise HTTPException(400, "Horario inválido.")
+    telefono = _normalizar_tel(telefono)
+    if len(telefono) < 8:
+        raise HTTPException(400, "Teléfono inválido. Ingresá el número con código de país (549...).")
+
     # Crea o actualiza el cliente por DNI (sin tocar su firma si ya la tenía)
     with get_conn() as conn:
         conn.execute(
@@ -256,19 +278,31 @@ async def lista_espera_submit(
         cliente_id = conn.execute(
             "SELECT id FROM clientes WHERE dni=?", (dni,)
         ).fetchone()["id"]
-        conn.execute(
-            "INSERT INTO lista_espera (cliente_id, fecha, horario) VALUES (?,?,?)",
+        # Evita anotarse dos veces al mismo turno
+        duplicado = conn.execute(
+            """SELECT 1 FROM lista_espera
+               WHERE cliente_id=? AND fecha=? AND horario=?
+                 AND estado IN ('esperando','avisado','reservado')""",
             (cliente_id, fecha, horario),
-        )
-        conn.commit()
-    # Confirmación por WhatsApp (en demo se imprime en consola)
-    try:
-        await whatsapp.enviar_mensaje(
-            telefono, whatsapp.confirmacion_anotado(nombre, fecha, horario)
-        )
-    except Exception as e:  # no frenar el flujo por un error de WhatsApp
-        logging.getLogger("whatsapp").error("No se pudo confirmar: %s", e)
-    return RedirectResponse(f"/listo/{cliente_id}?anotado=1", status_code=303)
+        ).fetchone()
+        if not duplicado:
+            conn.execute(
+                "INSERT INTO lista_espera (cliente_id, fecha, horario) VALUES (?,?,?)",
+                (cliente_id, fecha, horario),
+            )
+            conn.commit()
+
+    # Confirmación por WhatsApp solo si fue un alta nueva (en demo: consola)
+    if not duplicado:
+        try:
+            await whatsapp.enviar_mensaje(
+                telefono, whatsapp.confirmacion_anotado(nombre, fecha, horario)
+            )
+        except Exception as e:  # no frenar el flujo por un error de WhatsApp
+            logging.getLogger("whatsapp").error("No se pudo confirmar: %s", e)
+
+    ya = "&ya=1" if duplicado else ""
+    return RedirectResponse(f"/listo/{cliente_id}?anotado=1{ya}", status_code=303)
 
 
 @app.get("/validar/{codigo}", response_class=HTMLResponse)

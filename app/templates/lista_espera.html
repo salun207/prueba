@@ -21,7 +21,7 @@
           <div><label>Teléfono (WhatsApp, ej 5491170581324)*</label><input name="telefono" required placeholder="549..."></div>
         </div>
         <div class="grid2">
-          <div><label>Fecha (YYYY-MM-DD)*</label><input name="fecha" required placeholder="2026-06-11"></div>
+          <div><label>Fecha*</label><input type="date" name="fecha" required min="{{ hoy }}"></div>
           <div><label>Horario*</label>
             <select name="horario" required>
               {% for h in horarios %}<option>{{ h }}</option>{% endfor %}
@@ -29,8 +29,8 @@
           </div>
         </div>
         <p style="margin-top:18px"><button class="btn btn-lg" type="submit">Anotarme — me avisan por WhatsApp</button></p>
-        <p class="muted" style="font-size:13px">Tus datos quedan guardados para la próxima. Si ya te registraste antes, usá el mismo DNI.
-          Para el check-in vas a necesitar <a href="/registro">firmar el deslinde</a>.</p>
+        <p class="muted" style="font-size:13px">💵 El pago se abona <b>en el lugar</b>. Tus datos quedan guardados para la próxima
+          (si ya te registraste, usá el mismo DNI). Para el check-in vas a necesitar <a href="/registro">firmar el deslinde</a>.</p>
       </form>
     </div>
 

@@ -6,10 +6,15 @@
     <div class="card success-hero">
       <div class="ring">✅</div>
 
-      {% if anotado %}
+      {% if anotado and ya %}
+        <h1>Ya estabas anotado, {{ c.nombre }}</h1>
+        <p class="muted">Ese turno ya figuraba en tu lista de espera. Te avisamos
+          por WhatsApp apenas se libere. 💵 El pago se abona en el lugar.</p>
+      {% elif anotado %}
         <h1>¡Te anotamos, {{ c.nombre }}!</h1>
         <p class="muted">Quedaste en la lista de espera. Apenas se libere tu turno
-          te avisamos por WhatsApp y lo confirmás con un “SÍ”.</p>
+          te avisamos por WhatsApp y lo confirmás con un “SÍ”.
+          💵 El pago se abona en el lugar.</p>
       {% else %}
         <h1>¡Listo, {{ c.nombre }}!</h1>
         <p class="muted">Guardamos tus datos y tu firma del deslinde.</p>
