@@ -16,7 +16,7 @@
     <div><label>Fecha (YYYY-MM-DD)</label><input name="fecha" required placeholder="2026-06-11"></div>
     <div><label>Horario</label>
       <select name="horario" required>
-        {% for h in ["17:30","18:30","19:30","20:30","21:30","22:30"] %}<option>{{ h }}</option>{% endfor %}
+        {% for h in horarios %}<option>{{ h }}</option>{% endfor %}
       </select>
     </div>
   </div>

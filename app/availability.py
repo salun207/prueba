@@ -10,18 +10,23 @@ from datetime import date, timedelta
 
 from .config import settings
 
-HORARIOS = ["17:30", "18:30", "19:30", "20:30", "21:30", "22:30"]
+
+def _generar_horarios(desde="17:00", hasta="23:30", paso_min=30) -> list[str]:
+    """Genera la grilla de turnos: cada `paso_min` minutos entre desde y hasta."""
+    h0, m0 = map(int, desde.split(":"))
+    h1, m1 = map(int, hasta.split(":"))
+    ini, fin = h0 * 60 + m0, h1 * 60 + m1
+    return [f"{t // 60:02d}:{t % 60:02d}" for t in range(ini, fin + 1, paso_min)]
+
+
+# Grilla real del karting: todos los días, cada 30 min desde las 17:00.
+HORARIOS = _generar_horarios("17:00", "23:30", 30)
 
 
 def _proximos_dias(n: int = 14) -> list[str]:
-    """Jueves a domingo de las próximas 2 semanas (días que opera el karting)."""
+    """Los próximos `n` días (el karting abre todos los días)."""
     hoy = date.today()
-    dias = []
-    for i in range(n):
-        d = hoy + timedelta(days=i)
-        if d.weekday() in (3, 4, 5, 6):  # jue, vie, sáb, dom
-            dias.append(d.isoformat())
-    return dias
+    return [(hoy + timedelta(days=i)).isoformat() for i in range(n)]
 
 
 def _disponibilidad_mock() -> dict[str, list[str]]:
