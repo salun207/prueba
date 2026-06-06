@@ -10,8 +10,20 @@ toca el sistema actual (SoloTurnos): se para al lado y resuelve dos dolores:
    **monitor** le avisa por **WhatsApp** apenas se libera un turno (cancelaciones).
 
 > Estado: **MVP demo**. La disponibilidad es simulada (`mock`) hasta conectar
-> el sistema real. Todo lo demás (registro, firma, PDF/QR, lista de espera,
-> envío por WhatsApp) ya funciona.
+> el sistema real. Todo lo demás ya funciona.
+
+## Funciones
+- **Landing profesional**: hero, cómo funciona, beneficios, el circuito (plano +
+  datos), galería, precios, ubicación (Google Maps) y contacto.
+- **Registro + firma digital** del deslinde → comprobante **PDF con QR**.
+- **Lista de espera** por día/horario con cupos (15 lugares por turno).
+- **WhatsApp** en todo el flujo: confirmación al anotarse, aviso al liberarse un
+  turno, confirmación al reservar (responder *SÍ*) y **recordatorio el día antes**.
+- **Botón flotante de WhatsApp** y formulario de contacto funcional.
+- **Panel del kartódromo** (protegible con clave): métricas, acciones manuales
+  (confirmar / cancelar / reanudar) y **exportar a Excel (CSV)**.
+- **Términos y privacidad** (deslinde + Ley 25.326).
+- **Datos de demo**: `python -m app.seed` carga clientes y turnos recuperados.
 
 ## Stack
 - **Backend/web:** Python + FastAPI + Jinja2

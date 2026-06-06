@@ -21,9 +21,12 @@
       Mensajes de contacto recibidos: <b>{{ contactos }}</b>.</p>
 
     <div class="card" style="margin-top:18px">
-      <h3 style="margin-top:0">Lista de espera y avisos</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <h3 style="margin:0">Lista de espera y avisos</h3>
+        <a class="btn btn-ghost" href="/panel/export.csv">⬇ Exportar a Excel (CSV)</a>
+      </div>
       <table>
-        <tr><th>Persona</th><th>Tel.</th><th>Fecha</th><th>Horario</th><th>Estado</th></tr>
+        <tr><th>Persona</th><th>Tel.</th><th>Fecha</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr>
         {% for a in anotados %}
         <tr>
           <td>{{ a.nombre }} {{ a.apellido }}</td>
@@ -36,9 +39,21 @@
             {% elif a.estado == 'cancelado' %}<span class="pill">cancelado</span>
             {% else %}<span class="pill wait">esperando</span>{% endif %}
           </td>
+          <td>
+            <div class="acciones">
+              {% if a.estado != 'reservado' %}
+              <form method="post" action="/panel/accion"><input type="hidden" name="le_id" value="{{ a.id }}"><input type="hidden" name="accion" value="confirmar"><button class="mini ok" title="Confirmar reserva">Confirmar</button></form>
+              {% endif %}
+              {% if a.estado != 'cancelado' %}
+              <form method="post" action="/panel/accion"><input type="hidden" name="le_id" value="{{ a.id }}"><input type="hidden" name="accion" value="cancelar"><button class="mini danger" title="Cancelar">Cancelar</button></form>
+              {% else %}
+              <form method="post" action="/panel/accion"><input type="hidden" name="le_id" value="{{ a.id }}"><input type="hidden" name="accion" value="reanudar"><button class="mini" title="Volver a lista de espera">Reanudar</button></form>
+              {% endif %}
+            </div>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="muted">Todavía no hay anotados.</td></tr>
+        <tr><td colspan="6" class="muted">Todavía no hay anotados.</td></tr>
         {% endfor %}
       </table>
     </div>

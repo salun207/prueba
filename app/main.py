@@ -6,6 +6,8 @@ Flujo:
   3. El monitor (background) avisa por WhatsApp cuando se libera ese turno.
 """
 import asyncio
+import csv
+import io
 import logging
 import secrets
 from contextlib import asynccontextmanager
@@ -341,7 +343,7 @@ def panel(request: Request, _: bool = Depends(requiere_panel)):
             "SELECT COUNT(*) AS n FROM contactos"
         ).fetchone()["n"]
         anotados = conn.execute(
-            """SELECT le.fecha, le.horario, le.estado, le.avisado_en,
+            """SELECT le.id, le.fecha, le.horario, le.estado, le.avisado_en,
                       c.nombre, c.apellido, c.telefono
                FROM lista_espera le JOIN clientes c ON c.id = le.cliente_id
                ORDER BY le.creado_en DESC LIMIT 100"""
@@ -350,6 +352,51 @@ def panel(request: Request, _: bool = Depends(requiere_panel)):
         "panel.html",
         {"request": request, "m": m, "clientes": clientes,
          "contactos": contactos, "anotados": anotados},
+    )
+
+
+@app.post("/panel/accion")
+def panel_accion(
+    le_id: int = Form(...),
+    accion: str = Form(...),
+    _: bool = Depends(requiere_panel),
+):
+    """Acciones manuales del operador sobre una entrada de la lista de espera."""
+    nuevo = {
+        "confirmar": "reservado",
+        "cancelar": "cancelado",
+        "reanudar": "esperando",
+    }.get(accion)
+    if nuevo:
+        with get_conn() as conn:
+            conn.execute(
+                "UPDATE lista_espera SET estado=? WHERE id=?", (nuevo, le_id)
+            )
+            conn.commit()
+    return RedirectResponse("/panel", status_code=303)
+
+
+@app.get("/panel/export.csv")
+def panel_export(_: bool = Depends(requiere_panel)):
+    """Exporta la lista de espera completa a CSV (abre en Excel)."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT le.id, c.nombre, c.apellido, c.dni, c.telefono, c.email,
+                      le.fecha, le.horario, le.estado, le.creado_en
+               FROM lista_espera le JOIN clientes c ON c.id = le.cliente_id
+               ORDER BY le.creado_en DESC"""
+        ).fetchall()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["id", "nombre", "apellido", "dni", "telefono", "email",
+                "fecha", "horario", "estado", "creado_en"])
+    for r in rows:
+        w.writerow([r["id"], r["nombre"], r["apellido"], r["dni"], r["telefono"],
+                    r["email"], r["fecha"], r["horario"], r["estado"], r["creado_en"]])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="lista-espera.csv"'},
     )
 
 

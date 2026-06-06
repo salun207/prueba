@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     whatsapp_phone_number_id: str = ""
     whatsapp_verify_token: str = "karting-zarate-verify"
 
+    # --- Mercado Pago (seña / reserva) ---
+    mp_access_token: str = ""        # Access Token de tu cuenta de Mercado Pago
+    sena_monto: int = 20000          # Monto de la seña en ARS (placeholder)
+    sena_titulo: str = "Seña reserva de karting"
+
     # --- Monitor ---
     monitor_interval: int = 60
     availability_source: str = "mock"  # "mock" | "soloturnos"
@@ -40,6 +45,10 @@ class Settings(BaseSettings):
     @property
     def whatsapp_enabled(self) -> bool:
         return bool(self.whatsapp_token and self.whatsapp_phone_number_id)
+
+    @property
+    def mp_enabled(self) -> bool:
+        return bool(self.mp_access_token)
 
     @property
     def wa_link(self) -> str:
