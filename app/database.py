@@ -56,5 +56,14 @@ def init_db() -> None:
                 codigo      TEXT NOT NULL UNIQUE, -- va dentro del QR
                 creado_en   TEXT NOT NULL DEFAULT (datetime('now'))
             );
+
+            -- Mensajes recibidos por el formulario de contacto
+            CREATE TABLE IF NOT EXISTS contactos (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre      TEXT NOT NULL,
+                contacto    TEXT NOT NULL,        -- teléfono o email
+                mensaje     TEXT NOT NULL,
+                creado_en   TEXT NOT NULL DEFAULT (datetime('now'))
+            );
             """
         )

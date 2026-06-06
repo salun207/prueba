@@ -1,21 +1,25 @@
 {% extends "base.html" %}
-{% block title %}¡Listo! — Karting Zárate{% endblock %}
-{% block content %}
-<div class="card" style="text-align:center">
-  <div style="font-size:54px;line-height:1">✅</div>
-  <h1>¡Listo, {{ c.nombre }}!</h1>
-  <p class="muted">Guardamos tus datos y tu firma del deslinde. Ya no tenés que
-    llenar papeles al llegar: mostrás el QR del comprobante y subís al kart.</p>
+{% block title %}¡Listo! — {{ brand }}{% endblock %}
+{% block body %}
+<div class="page">
+  <div class="container" style="max-width:620px">
+    <div class="card success-hero">
+      <div class="ring">✅</div>
+      <h1>¡Listo, {{ c.nombre }}!</h1>
+      <p class="muted">Guardamos tus datos y tu firma del deslinde. Ya no tenés que
+        llenar papeles al llegar: mostrás el QR del comprobante y subís al kart.</p>
 
-  <p style="margin-top:18px">
-    <a class="btn" href="/comprobante/{{ c.id }}" target="_blank">📄 Descargar comprobante (PDF + QR)</a>
-  </p>
-  <p class="muted" style="font-size:13px">Código de check-in: <b>{{ codigo }}</b></p>
+      <p style="margin-top:18px">
+        <a class="btn btn-lg" href="/comprobante/{{ c.id }}" target="_blank">📄 Descargar comprobante (PDF + QR)</a>
+      </p>
+      <p class="muted" style="font-size:13px">Código de check-in: <b>{{ codigo }}</b></p>
 
-  <hr style="border:0;border-top:1px solid #eef0f3;margin:22px 0">
+      <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
 
-  <h2 style="margin-top:0">Ahora anotate para correr</h2>
-  <p class="muted">Elegí el día y horario. Te avisamos por WhatsApp apenas se libere.</p>
-  <a class="btn btn-sec" href="/lista-espera">Anotarme en la lista de espera</a>
+      <h3 style="margin-top:0">Ahora anotate para correr</h3>
+      <p class="muted">Elegí el día y horario. Te avisamos por WhatsApp apenas se libere.</p>
+      <a class="btn btn-dark" href="/lista-espera">Anotarme en la lista de espera</a>
+    </div>
+  </div>
 </div>
 {% endblock %}

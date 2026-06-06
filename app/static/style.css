@@ -1,0 +1,230 @@
+/* ======================================================================
+   Karting Zárate — estilos (estética motorsport)
+   ====================================================================== */
+:root {
+  --bg:#0a0b0e;            /* fondo oscuro */
+  --bg-2:#111319;          /* superficie oscura */
+  --bg-3:#171a21;          /* superficie oscura 2 */
+  --light:#f5f6f8;         /* secciones claras */
+  --card:#ffffff;
+  --rojo:#e10600;          /* rojo F1 */
+  --rojo-2:#b30500;
+  --amber:#ffb703;
+  --txt:#14161b;           /* texto sobre claro */
+  --txt-muted:#6b7280;
+  --on-dark:#f3f4f6;       /* texto sobre oscuro */
+  --on-dark-muted:#9aa1ab;
+  --line:#e6e8ec;
+  --line-dark:#262a33;
+  --ok:#16a34a;
+  --radius:16px;
+  --shadow:0 10px 30px rgba(0,0,0,.10);
+  --shadow-lg:0 20px 50px rgba(0,0,0,.18);
+  --maxw:1100px;
+  --head:'Rajdhani', system-ui, sans-serif;
+  --body:'Inter', system-ui, -apple-system, sans-serif;
+}
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  margin:0; font-family:var(--body); color:var(--txt);
+  background:var(--light); line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+a { color:var(--rojo); text-decoration:none; }
+img { max-width:100%; display:block; }
+.container { max-width:var(--maxw); margin:0 auto; padding:0 20px; }
+
+h1,h2,h3 { font-family:var(--head); font-weight:700; line-height:1.1; letter-spacing:.2px; margin:0 0 .4em; }
+h1 { font-size:clamp(32px,5vw,56px); }
+h2 { font-size:clamp(26px,3.4vw,40px); }
+h3 { font-size:20px; }
+.eyebrow {
+  font-family:var(--head); font-weight:700; letter-spacing:3px; text-transform:uppercase;
+  font-size:13px; color:var(--rojo); margin-bottom:10px;
+}
+.muted { color:var(--txt-muted); }
+.center { text-align:center; }
+
+/* ----------------------------- Navbar ----------------------------- */
+.nav {
+  position:sticky; top:0; z-index:50;
+  background:rgba(10,11,14,.85); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line-dark);
+}
+.nav-inner { display:flex; align-items:center; gap:18px; height:64px; }
+.brand { display:flex; align-items:center; gap:10px; font-family:var(--head);
+  font-weight:700; font-size:20px; color:#fff; letter-spacing:.5px; }
+.brand .flag { width:26px; height:26px; }
+.brand b { color:var(--rojo); }
+.nav-links { display:flex; gap:6px; margin-left:auto; align-items:center; }
+.nav-links a { color:var(--on-dark-muted); font-weight:500; font-size:15px;
+  padding:8px 12px; border-radius:8px; transition:.15s; }
+.nav-links a:hover { color:#fff; background:rgba(255,255,255,.06); }
+.nav-cta { background:var(--rojo); color:#fff !important; font-weight:600 !important; }
+.nav-cta:hover { background:var(--rojo-2) !important; }
+.nav-toggle { display:none; margin-left:auto; background:none; border:0; cursor:pointer; padding:8px; }
+.nav-toggle span { display:block; width:24px; height:2px; background:#fff; margin:5px 0; transition:.2s; }
+
+@media (max-width:860px){
+  .nav-toggle { display:block; }
+  .nav-links {
+    position:absolute; top:64px; left:0; right:0; flex-direction:column; gap:2px;
+    background:var(--bg); border-bottom:1px solid var(--line-dark);
+    padding:10px 16px; margin:0; display:none;
+  }
+  .nav-links.open { display:flex; }
+  .nav-links a { width:100%; }
+}
+
+/* ------------------------------ Botones --------------------------- */
+.btn {
+  display:inline-flex; align-items:center; gap:8px; justify-content:center;
+  background:var(--rojo); color:#fff; border:0; cursor:pointer;
+  font-family:var(--body); font-weight:600; font-size:15px;
+  padding:13px 22px; border-radius:10px; transition:.15s; text-align:center;
+}
+.btn:hover { background:var(--rojo-2); transform:translateY(-1px); }
+.btn-lg { padding:15px 28px; font-size:16px; }
+.btn-outline { background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,.35); }
+.btn-outline:hover { background:rgba(255,255,255,.10); border-color:#fff; }
+.btn-dark { background:var(--bg-2); }
+.btn-dark:hover { background:#000; }
+.btn-wa { background:#25D366; }
+.btn-wa:hover { background:#1ebe5b; }
+.btn-ghost { background:#fff; color:var(--txt); border:1px solid var(--line); }
+.btn-ghost:hover { background:#f0f1f3; }
+
+/* ------------------------------- Hero ----------------------------- */
+.hero {
+  position:relative; background:var(--bg); color:var(--on-dark); overflow:hidden;
+  background-image:
+    radial-gradient(900px 500px at 80% -10%, rgba(225,6,0,.35), transparent 60%),
+    radial-gradient(700px 500px at 0% 110%, rgba(255,183,3,.12), transparent 55%);
+}
+.hero::after { /* franja a cuadros sutil */
+  content:""; position:absolute; inset:auto 0 0 0; height:8px;
+  background-image:linear-gradient(45deg,#fff 25%,transparent 25%),linear-gradient(-45deg,#fff 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#fff 75%),linear-gradient(-45deg,transparent 75%,#fff 75%);
+  background-size:16px 16px; background-position:0 0,0 8px,8px -8px,-8px 0; opacity:.07;
+}
+.hero-inner { padding:90px 20px 80px; max-width:var(--maxw); margin:0 auto; position:relative; z-index:1; }
+.hero h1 { color:#fff; max-width:14ch; }
+.hero h1 em { color:var(--rojo); font-style:normal; }
+.hero p { color:var(--on-dark-muted); font-size:19px; max-width:52ch; margin:18px 0 28px; }
+.hero-cta { display:flex; gap:14px; flex-wrap:wrap; }
+.hero-stats { display:flex; gap:36px; flex-wrap:wrap; margin-top:48px; padding-top:28px;
+  border-top:1px solid var(--line-dark); }
+.hero-stats .s b { font-family:var(--head); font-size:34px; color:#fff; display:block; line-height:1; }
+.hero-stats .s span { color:var(--on-dark-muted); font-size:14px; }
+
+/* ----------------------------- Secciones -------------------------- */
+.section { padding:78px 0; }
+.section.alt { background:#fff; }
+.section.dark { background:var(--bg); color:var(--on-dark); }
+.section.dark h2, .section.dark h3 { color:#fff; }
+.section.dark .muted { color:var(--on-dark-muted); }
+.section-head { max-width:62ch; margin:0 auto 44px; text-align:center; }
+.section-head p { font-size:18px; }
+
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:center; }
+@media (max-width:840px){ .grid-3 { grid-template-columns:1fr; } .grid-2 { grid-template-columns:1fr; } }
+
+.card2 { background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+  padding:26px; box-shadow:var(--shadow); transition:.18s; }
+.card2:hover { transform:translateY(-3px); box-shadow:var(--shadow-lg); }
+.icon-badge { width:50px; height:50px; border-radius:12px; display:flex; align-items:center;
+  justify-content:center; background:rgba(225,6,0,.10); color:var(--rojo); margin-bottom:14px; }
+.icon-badge svg { width:26px; height:26px; }
+
+/* Pasos numerados */
+.step2 { position:relative; background:var(--bg-2); border:1px solid var(--line-dark);
+  border-radius:var(--radius); padding:28px 24px; color:var(--on-dark); }
+.step2 .num { font-family:var(--head); font-weight:700; font-size:46px; color:var(--rojo);
+  line-height:1; opacity:.9; }
+.step2 h3 { color:#fff; margin-top:8px; }
+.step2 p { color:var(--on-dark-muted); margin:0; }
+
+/* --------------------------- El circuito -------------------------- */
+.circuit-stats { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px; }
+.circuit-stats .cs { background:rgba(255,255,255,.04); border:1px solid var(--line-dark);
+  border-radius:12px; padding:16px; }
+.circuit-stats .cs b { font-family:var(--head); font-size:30px; color:#fff; display:block; line-height:1; }
+.circuit-stats .cs span { color:var(--on-dark-muted); font-size:14px; }
+.track-wrap { background:linear-gradient(180deg,#16181f,#0c0d11); border:1px solid var(--line-dark);
+  border-radius:var(--radius); padding:18px; }
+
+/* ----------------------------- Mapa ------------------------------- */
+.map-frame { border:0; width:100%; height:380px; border-radius:var(--radius);
+  box-shadow:var(--shadow); filter:grayscale(.1); }
+
+/* ---------------------------- Contacto ---------------------------- */
+.contact-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:34px; }
+@media (max-width:840px){ .contact-grid { grid-template-columns:1fr; } }
+.info-row { display:flex; gap:12px; align-items:flex-start; margin-bottom:18px; }
+.info-row .ic { color:var(--rojo); flex:none; margin-top:2px; }
+.alert-ok { background:#dcfce7; color:#166534; border:1px solid #bbf7d0;
+  padding:12px 16px; border-radius:10px; margin-bottom:18px; font-weight:600; }
+
+/* --------------------------- Formularios -------------------------- */
+form label { display:block; margin:14px 0 6px; font-weight:600; font-size:14px; }
+input, select, textarea {
+  width:100%; padding:12px; border:1px solid var(--line); border-radius:10px;
+  font-size:15px; font-family:var(--body); background:#fff; color:var(--txt);
+}
+textarea { min-height:120px; resize:vertical; }
+input:focus, select:focus, textarea:focus { outline:2px solid var(--rojo); border-color:var(--rojo); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:560px){ .grid2 { grid-template-columns:1fr; } }
+canvas#firma { border:2px dashed #b9bcc4; border-radius:10px; width:100%; height:170px;
+  touch-action:none; background:#fff; }
+.check { display:flex; gap:10px; align-items:flex-start; margin-top:16px; font-weight:500; }
+.check input { width:auto; margin-top:4px; }
+
+/* ------------------------- Páginas internas ----------------------- */
+.page-header { background:var(--bg); color:#fff; padding:48px 0 40px; }
+.page-header h1 { color:#fff; margin:0; }
+.page-header p { color:var(--on-dark-muted); margin:6px 0 0; }
+.page { padding:40px 0 70px; }
+.card { background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+  padding:28px; box-shadow:var(--shadow); }
+
+/* Tablas / pills / cupos */
+table { width:100%; border-collapse:collapse; margin-top:12px; }
+th, td { text-align:left; padding:11px 10px; border-bottom:1px solid var(--line); font-size:14px; }
+th { color:var(--txt-muted); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.5px; }
+.pill { padding:3px 11px; border-radius:999px; font-size:12px; font-weight:600; background:#eef0f3; color:#444; }
+.pill.ok { background:#dcfce7; color:#166534; }
+.pill.wait { background:#fef3c7; color:#92400e; }
+.pill.go { background:#dbeafe; color:#1e40af; }
+.libre { display:inline-block; margin:5px 5px 0 0; padding:8px 12px; background:#eafaef;
+  color:#166534; border-radius:9px; font-size:13px; font-weight:600; border:1px solid #c9eed3; }
+
+/* KPIs panel */
+.kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:6px 0 8px; }
+@media (max-width:640px){ .kpis { grid-template-columns:repeat(2,1fr); } }
+.kpi { background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px; text-align:center; }
+.kpi .big { font-family:var(--head); font-size:38px; font-weight:700; line-height:1; }
+.kpi.green .big { color:var(--ok); }
+.kpi.red .big { color:var(--rojo); }
+
+/* Confirmación */
+.success-hero { text-align:center; }
+.success-hero .ring { width:84px; height:84px; border-radius:50%; background:#dcfce7;
+  display:flex; align-items:center; justify-content:center; margin:0 auto 14px; font-size:42px; }
+
+/* ----------------------------- Footer ----------------------------- */
+.footer { background:var(--bg); color:var(--on-dark-muted); padding:54px 0 30px; border-top:1px solid var(--line-dark); }
+.footer-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:30px; margin-bottom:30px; }
+@media (max-width:760px){ .footer-grid { grid-template-columns:1fr; } }
+.footer h4 { color:#fff; font-family:var(--head); margin:0 0 12px; font-size:16px; letter-spacing:1px; text-transform:uppercase; }
+.footer a { color:var(--on-dark-muted); display:block; padding:4px 0; }
+.footer a:hover { color:#fff; }
+.footer-bottom { border-top:1px solid var(--line-dark); padding-top:20px; font-size:13px;
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+
+/* --------------------- Botón flotante WhatsApp -------------------- */
+.fab-wa { position:fixed; right:20px; bottom:20px; z-index:60; width:58px; height:58px;
+  border-radius:50%; background:#25D366; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 8px 24px rgba(37,211,102,.45); transition:.15s; }
+.fab-wa:hover { transform:scale(1.07); }
+.fab-wa svg { width:30px; height:30px; fill:#fff; }

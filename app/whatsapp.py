@@ -46,3 +46,21 @@ def aviso_turno_liberado(nombre: str, fecha: str, horario: str) -> str:
         f"Respondé *SÍ* en los próximos 10 minutos para reservarlo. "
         f"Si no, pasa al siguiente de la lista de espera."
     )
+
+
+def confirmacion_anotado(nombre: str, fecha: str, horario: str) -> str:
+    """Confirmación al anotarse en la lista de espera."""
+    return (
+        f"✅ {nombre}, te anotamos en la lista de espera.\n\n"
+        f"📅 {fecha}  🕐 {horario}\n\n"
+        f"Apenas se libere un lugar te avisamos por acá. ¡Suerte! 🏎️"
+    )
+
+
+def confirmacion_reserva(nombre: str, fecha: str, horario: str) -> str:
+    """Confirmación cuando el cliente acepta el turno liberado."""
+    return (
+        f"🎉 ¡Listo, {nombre}! Tu turno quedó reservado.\n\n"
+        f"📅 {fecha}  🕐 {horario}\n\n"
+        f"Llevá tu comprobante con QR para el check-in. ¡Nos vemos en la pista! 🏁"
+    )

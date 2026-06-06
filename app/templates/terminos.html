@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Términos y privacidad — {{ brand }}{% endblock %}
+{% block body %}
+<div class="page-header">
+  <div class="container"><h1>Términos y privacidad</h1>
+    <p>Deslinde de responsabilidad y tratamiento de datos personales.</p></div>
+</div>
+
+<div class="page">
+  <div class="container" style="max-width:760px">
+    <div class="card">
+      <h3>Deslinde de responsabilidad</h3>
+      <p class="muted">Quien participa de la actividad de karting declara conocer y aceptar
+        el reglamento del kartódromo. La actividad se realiza de manera voluntaria,
+        asumiendo los riesgos propios del karting. Se exime de responsabilidad al
+        establecimiento por daños derivados del mal uso del vehículo o el incumplimiento
+        de las normas de seguridad. La persona confirma que los datos declarados son verídicos.</p>
+
+      <h3>Privacidad y datos personales</h3>
+      <p class="muted">Los datos que cargás (nombre, DNI, contacto y firma) se utilizan
+        únicamente para gestionar tu reserva, el aviso de disponibilidad y el check-in.
+        No se ceden a terceros con fines comerciales. Podés solicitar la baja o
+        corrección de tus datos escribiéndonos a <a href="mailto:{{ email_contacto }}">{{ email_contacto }}</a>.
+        El tratamiento se ajusta a la Ley 25.326 de Protección de Datos Personales (Argentina).</p>
+
+      <p class="muted" style="font-size:13px;margin-top:24px">
+        Borrador para revisión legal. Reemplazar/ajustar según indique el kartódromo.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

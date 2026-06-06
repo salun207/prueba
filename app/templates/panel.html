@@ -1,38 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Panel — Karting Zárate{% endblock %}
-{% block content %}
-<div class="card">
-  <h1 style="margin-bottom:4px">Panel del kartódromo</h1>
-  <p class="muted" style="margin-top:0">Lo que el sistema está recuperando para vos.</p>
-
-  <div class="kpis">
-    <div class="kpi"><div class="big">{{ clientes }}</div><div class="muted">Clientes registrados</div></div>
-    <div class="kpi"><div class="big">{{ m.esperando or 0 }}</div><div class="muted">En lista de espera</div></div>
-    <div class="kpi"><div class="big">{{ m.avisados or 0 }}</div><div class="muted">Avisados por WhatsApp</div></div>
-    <div class="kpi green"><div class="big">{{ m.recuperados or 0 }}</div><div class="muted">Turnos recuperados</div></div>
+{% block title %}Panel — {{ brand }}{% endblock %}
+{% block body %}
+<div class="page-header">
+  <div class="container">
+    <h1>Panel del kartódromo</h1>
+    <p>Lo que el sistema está recuperando para vos.</p>
   </div>
-  <p class="muted" style="font-size:13px">
-    Cada "turno recuperado" es una cancelación que se volvió a vender automáticamente.</p>
+</div>
 
-  <h2>Lista de espera y avisos</h2>
-  <table>
-    <tr><th>Persona</th><th>Tel.</th><th>Fecha</th><th>Horario</th><th>Estado</th></tr>
-    {% for a in anotados %}
-    <tr>
-      <td>{{ a.nombre }} {{ a.apellido }}</td>
-      <td class="muted">{{ a.telefono }}</td>
-      <td>{{ a.fecha }}</td>
-      <td>{{ a.horario }}</td>
-      <td>
-        {% if a.estado == 'reservado' %}<span class="pill ok">recuperado</span>
-        {% elif a.estado == 'avisado' %}<span class="pill go">avisado</span>
-        {% elif a.estado == 'cancelado' %}<span class="pill">cancelado</span>
-        {% else %}<span class="pill wait">esperando</span>{% endif %}
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="5" class="muted">Todavía no hay anotados.</td></tr>
-    {% endfor %}
-  </table>
+<div class="page">
+  <div class="container">
+    <div class="kpis">
+      <div class="kpi"><div class="big">{{ clientes }}</div><div class="muted">Clientes registrados</div></div>
+      <div class="kpi"><div class="big">{{ m.esperando or 0 }}</div><div class="muted">En lista de espera</div></div>
+      <div class="kpi"><div class="big">{{ m.avisados or 0 }}</div><div class="muted">Avisados por WhatsApp</div></div>
+      <div class="kpi green"><div class="big">{{ m.recuperados or 0 }}</div><div class="muted">Turnos recuperados</div></div>
+    </div>
+    <p class="muted" style="font-size:13px">
+      Cada "turno recuperado" es una cancelación que se volvió a vender automáticamente.
+      Mensajes de contacto recibidos: <b>{{ contactos }}</b>.</p>
+
+    <div class="card" style="margin-top:18px">
+      <h3 style="margin-top:0">Lista de espera y avisos</h3>
+      <table>
+        <tr><th>Persona</th><th>Tel.</th><th>Fecha</th><th>Horario</th><th>Estado</th></tr>
+        {% for a in anotados %}
+        <tr>
+          <td>{{ a.nombre }} {{ a.apellido }}</td>
+          <td class="muted">{{ a.telefono }}</td>
+          <td>{{ a.fecha }}</td>
+          <td>{{ a.horario }}</td>
+          <td>
+            {% if a.estado == 'reservado' %}<span class="pill ok">recuperado</span>
+            {% elif a.estado == 'avisado' %}<span class="pill go">avisado</span>
+            {% elif a.estado == 'cancelado' %}<span class="pill">cancelado</span>
+            {% else %}<span class="pill wait">esperando</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">Todavía no hay anotados.</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
 </div>
 {% endblock %}

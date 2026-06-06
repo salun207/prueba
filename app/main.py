@@ -1,6 +1,6 @@
-"""App FastAPI — Karting Zárate: registro + firma + lista de espera + WhatsApp.
+"""App FastAPI — Karting Zárate: reservas + firma + lista de espera + WhatsApp.
 
-MVP demo. Flujo:
+Flujo:
   1. El cliente carga sus datos una vez y firma el deslinde -> PDF con QR.
   2. Se anota en la lista de espera para un día/horario.
   3. El monitor (background) avisa por WhatsApp cuando se libera ese turno.
@@ -9,18 +9,20 @@ import asyncio
 import logging
 import secrets
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, Form, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
 from .availability import CAPACIDAD_POR_TURNO, HORARIOS, cupos_libres
 from .config import settings
 from .database import get_conn, init_db
 from .monitor import loop_monitor
 from .pdf import generar_comprobante
+from . import whatsapp
 
 logging.basicConfig(level=logging.INFO)
 BASE_DIR = Path(__file__).resolve().parent
@@ -34,9 +36,51 @@ async def lifespan(app: FastAPI):
     tarea.cancel()
 
 
-app = FastAPI(title="Karting Zárate — Reservas", lifespan=lifespan)
+app = FastAPI(title=f"{settings.brand_name} — Reservas", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+# Datos de marca disponibles en TODAS las plantillas (sin pasarlos uno por uno).
+templates.env.globals.update(
+    brand=settings.brand_name,
+    direccion=settings.direccion,
+    email_contacto=settings.email_contacto,
+    wa_link=settings.wa_link,
+    whatsapp_contacto=settings.whatsapp_contacto,
+    map_query=settings.map_query,
+    circuito={
+        "longitud": settings.circuito_longitud_m,
+        "ancho": settings.circuito_ancho_m,
+        "curvas": settings.circuito_curvas,
+        "rectas": settings.circuito_rectas,
+    },
+    capacidad=CAPACIDAD_POR_TURNO,
+    horarios=HORARIOS,
+)
+
+
+# --------------------- Protección opcional del panel ----------------------
+
+_basic = HTTPBasic(auto_error=False)
+
+
+def requiere_panel(cred: HTTPBasicCredentials | None = Depends(_basic)):
+    """Si PANEL_PASSWORD está seteado, pide usuario/clave (HTTP Basic).
+    Si está vacío (demo), el panel queda abierto."""
+    if not settings.panel_protegido:
+        return True
+    ok = (
+        cred is not None
+        and secrets.compare_digest(cred.username, settings.panel_user)
+        and secrets.compare_digest(cred.password, settings.panel_password)
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=401,
+            detail="No autorizado",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return True
 
 
 # ----------------------------- Páginas web --------------------------------
@@ -160,14 +204,13 @@ def lista_espera_form(request: Request):
         ).fetchall()
     return templates.TemplateResponse(
         "lista_espera.html",
-        {"request": request, "clientes": clientes, "horarios": HORARIOS,
-         "libres": cupos_libres(), "capacidad": CAPACIDAD_POR_TURNO,
-         "anotados": anotados},
+        {"request": request, "clientes": clientes,
+         "libres": cupos_libres(), "anotados": anotados},
     )
 
 
 @app.post("/lista-espera")
-def lista_espera_submit(
+async def lista_espera_submit(
     cliente_id: int = Form(...),
     fecha: str = Form(...),
     horario: str = Form(...),
@@ -178,6 +221,18 @@ def lista_espera_submit(
             (cliente_id, fecha, horario),
         )
         conn.commit()
+        cliente = conn.execute(
+            "SELECT nombre, telefono FROM clientes WHERE id=?", (cliente_id,)
+        ).fetchone()
+    # Confirmación por WhatsApp (en demo se imprime en consola)
+    if cliente:
+        try:
+            await whatsapp.enviar_mensaje(
+                cliente["telefono"],
+                whatsapp.confirmacion_anotado(cliente["nombre"], fecha, horario),
+            )
+        except Exception as e:  # no frenar el flujo por un error de WhatsApp
+            logging.getLogger("whatsapp").error("No se pudo confirmar: %s", e)
     return RedirectResponse("/lista-espera", status_code=303)
 
 
@@ -198,6 +253,28 @@ def validar(request: Request, codigo: str):
     )
 
 
+# ------------------------------ Contacto ----------------------------------
+
+@app.post("/contacto")
+def contacto_submit(
+    nombre: str = Form(...),
+    contacto: str = Form(...),
+    mensaje: str = Form(...),
+):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO contactos (nombre, contacto, mensaje) VALUES (?,?,?)",
+            (nombre, contacto, mensaje),
+        )
+        conn.commit()
+    return RedirectResponse("/?enviado=1#contacto", status_code=303)
+
+
+@app.get("/terminos", response_class=HTMLResponse)
+def terminos(request: Request):
+    return templates.TemplateResponse("terminos.html", {"request": request})
+
+
 # ----------------------- Webhook WhatsApp (Meta) --------------------------
 
 @app.get("/webhook/whatsapp")
@@ -212,11 +289,8 @@ def whatsapp_verify(request: Request):
 
 @app.post("/webhook/whatsapp")
 async def whatsapp_incoming(request: Request):
-    """Recibe respuestas del cliente (ej: 'SÍ' para confirmar el turno).
-
-    Esqueleto: cuando el cliente responde SÍ a un aviso, marcamos su última
-    entrada 'avisada' como 'reservado'. (La reserva real contra SoloTurnos se
-    conecta acá más adelante.)"""
+    """Recibe respuestas del cliente. Si responde SÍ a un aviso, confirmamos
+    su turno y le mandamos la confirmación de reserva."""
     data = await request.json()
     try:
         msg = data["entry"][0]["changes"][0]["value"]["messages"][0]
@@ -228,7 +302,7 @@ async def whatsapp_incoming(request: Request):
     if texto in ("si", "sí", "yes", "ok", "dale"):
         with get_conn() as conn:
             fila = conn.execute(
-                """SELECT le.id FROM lista_espera le
+                """SELECT le.id, le.fecha, le.horario, c.nombre FROM lista_espera le
                    JOIN clientes c ON c.id = le.cliente_id
                    WHERE c.telefono=? AND le.estado='avisado'
                    ORDER BY le.avisado_en DESC LIMIT 1""",
@@ -240,11 +314,19 @@ async def whatsapp_incoming(request: Request):
                     (fila["id"],),
                 )
                 conn.commit()
+                await whatsapp.enviar_mensaje(
+                    telefono,
+                    whatsapp.confirmacion_reserva(
+                        fila["nombre"], fila["fecha"], fila["horario"]
+                    ),
+                )
     return {"status": "ok"}
 
 
+# -------------------------------- Panel -----------------------------------
+
 @app.get("/panel", response_class=HTMLResponse)
-def panel(request: Request):
+def panel(request: Request, _: bool = Depends(requiere_panel)):
     """Tablero para el kartódromo: lo que recuperan y la lista de espera."""
     with get_conn() as conn:
         m = conn.execute(
@@ -255,6 +337,9 @@ def panel(request: Request):
                FROM lista_espera"""
         ).fetchone()
         clientes = conn.execute("SELECT COUNT(*) AS n FROM clientes").fetchone()["n"]
+        contactos = conn.execute(
+            "SELECT COUNT(*) AS n FROM contactos"
+        ).fetchone()["n"]
         anotados = conn.execute(
             """SELECT le.fecha, le.horario, le.estado, le.avisado_en,
                       c.nombre, c.apellido, c.telefono
@@ -263,7 +348,8 @@ def panel(request: Request):
         ).fetchall()
     return templates.TemplateResponse(
         "panel.html",
-        {"request": request, "m": m, "clientes": clientes, "anotados": anotados},
+        {"request": request, "m": m, "clientes": clientes,
+         "contactos": contactos, "anotados": anotados},
     )
 
 

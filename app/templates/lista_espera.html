@@ -1,52 +1,65 @@
 {% extends "base.html" %}
-{% block title %}Lista de espera — Karting Zárate{% endblock %}
-{% block content %}
-<div class="card">
-<h1>Lista de espera</h1>
+{% block title %}Reservar turno — {{ brand }}{% endblock %}
+{% block body %}
+<div class="page-header">
+  <div class="container">
+    <h1>Reservar turno</h1>
+    <p>Anotate en la lista de espera y te avisamos por WhatsApp apenas se libere tu turno.</p>
+  </div>
+</div>
 
-{% if not clientes %}
-  <p>Primero <a href="/registro">cargá tus datos</a> para poder anotarte.</p>
-{% else %}
-<form method="post" action="/lista-espera">
-  <label>¿Quién?</label>
-  <select name="cliente_id" required>
-    {% for c in clientes %}<option value="{{ c.id }}">{{ c.nombre }} {{ c.apellido }}</option>{% endfor %}
-  </select>
-  <div class="grid2">
-    <div><label>Fecha (YYYY-MM-DD)</label><input name="fecha" required placeholder="2026-06-11"></div>
-    <div><label>Horario</label>
-      <select name="horario" required>
-        {% for h in horarios %}<option>{{ h }}</option>{% endfor %}
-      </select>
+<div class="page">
+  <div class="container" style="max-width:820px">
+    <div class="card">
+      {% if not clientes %}
+        <p>Primero <a href="/registro">cargá tus datos</a> para poder anotarte.</p>
+      {% else %}
+      <form method="post" action="/lista-espera">
+        <label>¿Quién?</label>
+        <select name="cliente_id" required>
+          {% for c in clientes %}<option value="{{ c.id }}">{{ c.nombre }} {{ c.apellido }}</option>{% endfor %}
+        </select>
+        <div class="grid2">
+          <div><label>Fecha (YYYY-MM-DD)</label><input name="fecha" required placeholder="2026-06-11"></div>
+          <div><label>Horario</label>
+            <select name="horario" required>
+              {% for h in horarios %}<option>{{ h }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <p style="margin-top:16px"><button class="btn btn-lg" type="submit">Anotarme — me avisan por WhatsApp</button></p>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h3 style="margin-top:0">Turnos con lugar ahora <span class="muted" style="font-size:14px;font-weight:400">(demo)</span></h3>
+      <p class="muted" style="font-size:13px;margin-top:0">Cada turno tiene {{ capacidad }} lugares.</p>
+      {% if libres %}
+        {% for fecha, slots in libres.items() %}
+          <div style="margin-bottom:8px"><b>{{ fecha }}:</b>
+            {% for h, cupos in slots.items() %}<span class="libre">{{ h }} · {{ cupos }} lug.</span>{% endfor %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No hay turnos con lugar en este momento. Anotate y te avisamos. 😉</p>
+      {% endif %}
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h3 style="margin-top:0">Anotados</h3>
+      <table>
+        <tr><th>Persona</th><th>Fecha</th><th>Horario</th><th>Estado</th></tr>
+        {% for a in anotados %}
+        <tr>
+          <td>{{ a.nombre }} {{ a.apellido }}</td><td>{{ a.fecha }}</td><td>{{ a.horario }}</td>
+          <td><span class="pill {{ 'ok' if a.estado in ['avisado','reservado'] else 'wait' }}">{{ a.estado }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="muted">Nadie anotado todavía.</td></tr>
+        {% endfor %}
+      </table>
     </div>
   </div>
-  <p style="margin-top:14px"><button type="submit">Anotarme — me avisan por WhatsApp</button></p>
-</form>
-{% endif %}
-
-<h2 style="margin-top:28px">Turnos con lugar ahora (demo)</h2>
-<p class="muted" style="font-size:13px;margin-top:0">Cada turno tiene {{ capacidad }} lugares.</p>
-{% if libres %}
-  {% for fecha, slots in libres.items() %}
-    <div style="margin-bottom:6px"><b>{{ fecha }}:</b>
-      {% for h, cupos in slots.items() %}<span class="libre">{{ h }} · {{ cupos }} lug.</span>{% endfor %}
-    </div>
-  {% endfor %}
-{% else %}
-  <p>No hay turnos con lugar en este momento. Anotate y te avisamos. 😉</p>
-{% endif %}
-
-<h2 style="margin-top:28px">Anotados</h2>
-<table>
-  <tr><th>Persona</th><th>Fecha</th><th>Horario</th><th>Estado</th></tr>
-  {% for a in anotados %}
-  <tr>
-    <td>{{ a.nombre }} {{ a.apellido }}</td><td>{{ a.fecha }}</td><td>{{ a.horario }}</td>
-    <td><span class="pill {{ 'ok' if a.estado in ['avisado','reservado'] else 'wait' }}">{{ a.estado }}</span></td>
-  </tr>
-  {% else %}
-  <tr><td colspan="4" class="muted">Nadie anotado todavía.</td></tr>
-  {% endfor %}
-</table>
 </div>
 {% endblock %}
