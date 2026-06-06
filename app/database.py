@@ -46,7 +46,8 @@ def init_db() -> None:
                 horario     TEXT NOT NULL,        -- HH:MM
                 estado      TEXT NOT NULL DEFAULT 'esperando',  -- esperando | avisado | reservado | cancelado
                 creado_en   TEXT NOT NULL DEFAULT (datetime('now')),
-                avisado_en  TEXT
+                avisado_en  TEXT,
+                recordatorio_enviado INTEGER NOT NULL DEFAULT 0
             );
 
             -- Comprobantes de check-in (formulario + firma) generados
@@ -67,3 +68,15 @@ def init_db() -> None:
             );
             """
         )
+        _migrar(conn)
+
+
+def _migrar(conn: sqlite3.Connection) -> None:
+    """Migraciones suaves: agrega columnas nuevas a bases ya existentes."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(lista_espera)")}
+    if "recordatorio_enviado" not in cols:
+        conn.execute(
+            "ALTER TABLE lista_espera ADD COLUMN recordatorio_enviado "
+            "INTEGER NOT NULL DEFAULT 0"
+        )
+        conn.commit()

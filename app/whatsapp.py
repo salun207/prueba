@@ -57,6 +57,15 @@ def confirmacion_anotado(nombre: str, fecha: str, horario: str) -> str:
     )
 
 
+def recordatorio_turno(nombre: str, fecha: str, horario: str) -> str:
+    """Recordatorio que se envía el día antes del turno."""
+    return (
+        f"⏰ ¡Hola {nombre}! Te recordamos tu turno de karting para *mañana*.\n\n"
+        f"📅 {fecha}  🕐 {horario}\n\n"
+        f"Llevá tu comprobante con QR para el check-in. ¡Te esperamos en la pista! 🏁"
+    )
+
+
 def confirmacion_reserva(nombre: str, fecha: str, horario: str) -> str:
     """Confirmación cuando el cliente acepta el turno liberado."""
     return (
