@@ -20,7 +20,12 @@ def _generar_horarios(desde="17:00", hasta="23:30", paso_min=30) -> list[str]:
 
 
 # Grilla real del karting: todos los días, cada 30 min desde las 17:00.
-HORARIOS = _generar_horarios("17:00", "23:30", 30)
+# Último turno 22:30 (termina a las 23:00, hora de cierre).
+HORARIOS = _generar_horarios("17:00", "22:30", 30)
+
+# Cupos (karts) por turno. Se usa para decidir si un turno está lleno o
+# disponible cuando conectemos los datos reales de SoloTurnos.
+CAPACIDAD_POR_TURNO = 15
 
 
 def _proximos_dias(n: int = 14) -> list[str]:
@@ -29,24 +34,31 @@ def _proximos_dias(n: int = 14) -> list[str]:
     return [(hoy + timedelta(days=i)).isoformat() for i in range(n)]
 
 
-def _disponibilidad_mock() -> dict[str, list[str]]:
-    """Simula disponibilidad: la mayoría de los turnos están ocupados
-    (como en la realidad), y algunos pocos se 'liberan' al azar."""
+def _disponibilidad_mock() -> dict[str, dict[str, int]]:
+    """Simula disponibilidad con CUPOS por turno (sobre CAPACIDAD_POR_TURNO).
+    La mayoría de los turnos están llenos (como en la realidad) y unos pocos
+    tienen lugares libres por cancelaciones."""
     rng = random.Random()  # aleatorio en cada chequeo -> simula cancelaciones
-    libres: dict[str, list[str]] = {}
+    cupos: dict[str, dict[str, int]] = {}
     for dia in _proximos_dias():
-        slots = [h for h in HORARIOS if rng.random() < 0.15]  # ~15% libres
-        if slots:
-            libres[dia] = slots
-    return libres
+        libres_dia = {
+            h: rng.randint(1, CAPACIDAD_POR_TURNO)
+            for h in HORARIOS
+            if rng.random() < 0.15  # ~15% de los turnos tienen algún lugar
+        }
+        if libres_dia:
+            cupos[dia] = libres_dia
+    return cupos
 
 
-def _disponibilidad_soloturnos() -> dict[str, list[str]]:
+def _disponibilidad_soloturnos() -> dict[str, dict[str, int]]:
     """TODO: implementar con los endpoints reales de SoloTurnos.
 
+    Debe devolver {fecha: {horario: cupos_libres}}, donde cupos_libres es
+    CAPACIDAD_POR_TURNO menos los reservados.
     Pasos previstos:
       1. GET de disponibilidad del 'empresa/kartodromo' (JSON que usa la SPA).
-      2. Parsear fechas/horarios libres.
+      2. Parsear fechas/horarios y calcular cupos libres.
     Para descubrir los endpoints: abrir la página en Chrome -> F12 -> Network
     -> Fetch/XHR -> navegar fechas y copiar las URLs JSON.
     """
@@ -55,8 +67,13 @@ def _disponibilidad_soloturnos() -> dict[str, list[str]]:
     )
 
 
-def turnos_libres() -> dict[str, list[str]]:
-    """Punto de entrada único. Devuelve {fecha: [horarios libres]}."""
+def cupos_libres() -> dict[str, dict[str, int]]:
+    """Punto de entrada único. Devuelve {fecha: {horario: cupos_libres}}."""
     if settings.availability_source == "soloturnos":
         return _disponibilidad_soloturnos()
     return _disponibilidad_mock()
+
+
+def turnos_libres() -> dict[str, list[str]]:
+    """Lista de horarios con al menos un cupo libre. {fecha: [horarios]}."""
+    return {dia: list(slots.keys()) for dia, slots in cupos_libres().items()}

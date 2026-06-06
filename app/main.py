@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
-from .availability import HORARIOS, turnos_libres
+from .availability import CAPACIDAD_POR_TURNO, HORARIOS, cupos_libres
 from .config import settings
 from .database import get_conn, init_db
 from .monitor import loop_monitor
@@ -161,7 +161,8 @@ def lista_espera_form(request: Request):
     return templates.TemplateResponse(
         "lista_espera.html",
         {"request": request, "clientes": clientes, "horarios": HORARIOS,
-         "libres": turnos_libres(), "anotados": anotados},
+         "libres": cupos_libres(), "capacidad": CAPACIDAD_POR_TURNO,
+         "anotados": anotados},
     )
 
 

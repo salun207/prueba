@@ -24,13 +24,16 @@
 </form>
 {% endif %}
 
-<h2 style="margin-top:28px">Turnos libres ahora (demo)</h2>
+<h2 style="margin-top:28px">Turnos con lugar ahora (demo)</h2>
+<p class="muted" style="font-size:13px;margin-top:0">Cada turno tiene {{ capacidad }} lugares.</p>
 {% if libres %}
   {% for fecha, slots in libres.items() %}
-    <div><b>{{ fecha }}:</b> {% for s in slots %}<span class="libre">{{ s }}</span>{% endfor %}</div>
+    <div style="margin-bottom:6px"><b>{{ fecha }}:</b>
+      {% for h, cupos in slots.items() %}<span class="libre">{{ h }} · {{ cupos }} lug.</span>{% endfor %}
+    </div>
   {% endfor %}
 {% else %}
-  <p>No hay turnos libres en este momento. Anotate y te avisamos. 😉</p>
+  <p>No hay turnos con lugar en este momento. Anotate y te avisamos. 😉</p>
 {% endif %}
 
 <h2 style="margin-top:28px">Anotados</h2>
