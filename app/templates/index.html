@@ -91,24 +91,12 @@
 <!-- ========================= EL CIRCUITO ========================= -->
 <section class="section dark" id="circuito">
   <div class="container">
-    <div class="grid-2">
+    <div class="{{ 'grid-2' if circuito_img else '' }}">
+      {% if circuito_img %}
       <div class="track-wrap">
-        <svg viewBox="0 0 500 320" width="100%" role="img" aria-label="Plano del circuito">
-          <defs>
-            <pattern id="chk" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-32)">
-              <rect width="14" height="14" fill="#fff"/>
-              <rect width="7" height="7" fill="#111"/>
-              <rect x="7" y="7" width="7" height="7" fill="#111"/>
-            </pattern>
-          </defs>
-          <path d="M 90 235 C 25 205 25 110 92 90 C 155 71 185 132 252 122 C 322 112 318 42 392 62 C 455 80 472 152 420 192 C 380 223 298 200 250 222 C 188 250 150 262 90 235 Z"
-                fill="none" stroke="#2c2f37" stroke-width="30" stroke-linejoin="round"/>
-          <path d="M 90 235 C 25 205 25 110 92 90 C 155 71 185 132 252 122 C 322 112 318 42 392 62 C 455 80 472 152 420 192 C 380 223 298 200 250 222 C 188 250 150 262 90 235 Z"
-                fill="none" stroke="#4a4f5a" stroke-width="2" stroke-dasharray="6 10"/>
-          <rect x="78" y="222" width="26" height="20" fill="url(#chk)" transform="rotate(58 91 232)"/>
-          <text x="118" y="250" fill="#9aa1ab" font-size="13" font-family="Inter">Largada / Meta</text>
-        </svg>
+        <img src="{{ circuito_img }}" alt="Circuito del kartódromo de Zárate" style="border-radius:12px;width:100%">
       </div>
+      {% endif %}
       <div>
         <div class="eyebrow">El circuito</div>
         <h2>Velocidad de verdad en Zárate</h2>
@@ -125,24 +113,22 @@
   </div>
 </section>
 
+{% if galeria %}
 <!-- =========================== GALERÍA =========================== -->
 <section class="section alt" id="galeria">
   <div class="container">
     <div class="section-head">
       <div class="eyebrow">Galería</div>
       <h2>Así se vive en la pista</h2>
-      <p class="muted">Fotos de ejemplo — se reemplazan por las reales del kartódromo.</p>
     </div>
     <div class="gallery">
-      {% for t in ["El circuito","Los karts","Largada","Boxes","Buffet","Premiación"] %}
-      <div class="photo">
-        <div class="ph-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>
-        <span>{{ t }}</span>
-      </div>
+      {% for src in galeria %}
+      <div class="photo"><img src="{{ src }}" alt="Foto del kartódromo de Zárate" loading="lazy"></div>
       {% endfor %}
     </div>
   </div>
 </section>
+{% endif %}
 
 <!-- =========================== PRECIOS =========================== -->
 <section class="section" id="precios">

@@ -87,9 +87,39 @@ def requiere_panel(cred: HTTPBasicCredentials | None = Depends(_basic)):
 
 # ----------------------------- Páginas web --------------------------------
 
+IMG_DIR = BASE_DIR / "static" / "img"
+_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+def _listar_galeria() -> list[str]:
+    """Fotos que el kartódromo deja en static/img/galeria/ (aparecen solas)."""
+    d = IMG_DIR / "galeria"
+    if not d.exists():
+        return []
+    return sorted(
+        f"/static/img/galeria/{p.name}"
+        for p in d.iterdir()
+        if p.suffix.lower() in _EXTS
+    )
+
+
+def _circuito_img() -> str | None:
+    """Foto/plano real del circuito si existe (static/img/circuito.*)."""
+    if not IMG_DIR.exists():
+        return None
+    for p in sorted(IMG_DIR.iterdir()):
+        if p.stem.lower() == "circuito" and p.suffix.lower() in _EXTS:
+            return f"/static/img/{p.name}"
+    return None
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "galeria": _listar_galeria(),
+         "circuito_img": _circuito_img()},
+    )
 
 
 @app.get("/registro", response_class=HTMLResponse)
