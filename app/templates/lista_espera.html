@@ -11,25 +11,27 @@
 <div class="page">
   <div class="container" style="max-width:820px">
     <div class="card">
-      {% if not clientes %}
-        <p>Primero <a href="/registro">cargá tus datos</a> para poder anotarte.</p>
-      {% else %}
       <form method="post" action="/lista-espera">
-        <label>¿Quién?</label>
-        <select name="cliente_id" required>
-          {% for c in clientes %}<option value="{{ c.id }}">{{ c.nombre }} {{ c.apellido }}</option>{% endfor %}
-        </select>
         <div class="grid2">
-          <div><label>Fecha (YYYY-MM-DD)</label><input name="fecha" required placeholder="2026-06-11"></div>
-          <div><label>Horario</label>
+          <div><label>Nombre*</label><input name="nombre" required></div>
+          <div><label>Apellido*</label><input name="apellido" required></div>
+        </div>
+        <div class="grid2">
+          <div><label>DNI*</label><input name="dni" required></div>
+          <div><label>Teléfono (WhatsApp, ej 5491170581324)*</label><input name="telefono" required placeholder="549..."></div>
+        </div>
+        <div class="grid2">
+          <div><label>Fecha (YYYY-MM-DD)*</label><input name="fecha" required placeholder="2026-06-11"></div>
+          <div><label>Horario*</label>
             <select name="horario" required>
               {% for h in horarios %}<option>{{ h }}</option>{% endfor %}
             </select>
           </div>
         </div>
-        <p style="margin-top:16px"><button class="btn btn-lg" type="submit">Anotarme — me avisan por WhatsApp</button></p>
+        <p style="margin-top:18px"><button class="btn btn-lg" type="submit">Anotarme — me avisan por WhatsApp</button></p>
+        <p class="muted" style="font-size:13px">Tus datos quedan guardados para la próxima. Si ya te registraste antes, usá el mismo DNI.
+          Para el check-in vas a necesitar <a href="/registro">firmar el deslinde</a>.</p>
       </form>
-      {% endif %}
     </div>
 
     <div class="card" style="margin-top:22px">
@@ -44,21 +46,6 @@
       {% else %}
         <p>No hay turnos con lugar en este momento. Anotate y te avisamos. 😉</p>
       {% endif %}
-    </div>
-
-    <div class="card" style="margin-top:22px">
-      <h3 style="margin-top:0">Anotados</h3>
-      <table>
-        <tr><th>Persona</th><th>Fecha</th><th>Horario</th><th>Estado</th></tr>
-        {% for a in anotados %}
-        <tr>
-          <td>{{ a.nombre }} {{ a.apellido }}</td><td>{{ a.fecha }}</td><td>{{ a.horario }}</td>
-          <td><span class="pill {{ 'ok' if a.estado in ['avisado','reservado'] else 'wait' }}">{{ a.estado }}</span></td>
-        </tr>
-        {% else %}
-        <tr><td colspan="4" class="muted">Nadie anotado todavía.</td></tr>
-        {% endfor %}
-      </table>
     </div>
   </div>
 </div>

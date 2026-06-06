@@ -191,18 +191,20 @@ def _codigo_comprobante(cliente_id: int) -> str:
 
 
 @app.get("/listo/{cliente_id}", response_class=HTMLResponse)
-def listo(request: Request, cliente_id: int):
-    """Pantalla de confirmación tras guardar datos + firma."""
+def listo(request: Request, cliente_id: int, anotado: int = 0):
+    """Pantalla de confirmación. Se adapta según si ya firmó el deslinde."""
     with get_conn() as conn:
         cliente = conn.execute(
             "SELECT * FROM clientes WHERE id=?", (cliente_id,)
         ).fetchone()
     if not cliente:
         raise HTTPException(404, "Cliente no encontrado.")
-    codigo = _codigo_comprobante(cliente_id)
+    firmado = bool(cliente["deslinde_aceptado"]) and bool(cliente["firma_png"])
+    codigo = _codigo_comprobante(cliente_id) if firmado else None
     return templates.TemplateResponse(
         "listo.html",
-        {"request": request, "c": cliente, "codigo": codigo},
+        {"request": request, "c": cliente, "codigo": codigo,
+         "firmado": firmado, "anotado": bool(anotado)},
     )
 
 
@@ -225,47 +227,48 @@ def comprobante(cliente_id: int):
 
 @app.get("/lista-espera", response_class=HTMLResponse)
 def lista_espera_form(request: Request):
-    with get_conn() as conn:
-        clientes = conn.execute(
-            "SELECT id, nombre, apellido FROM clientes ORDER BY nombre"
-        ).fetchall()
-        anotados = conn.execute(
-            """SELECT le.fecha, le.horario, le.estado, c.nombre, c.apellido
-               FROM lista_espera le JOIN clientes c ON c.id = le.cliente_id
-               ORDER BY le.creado_en DESC LIMIT 50"""
-        ).fetchall()
     return templates.TemplateResponse(
         "lista_espera.html",
-        {"request": request, "clientes": clientes,
-         "libres": cupos_libres(), "anotados": anotados},
+        {"request": request, "libres": cupos_libres()},
     )
 
 
 @app.post("/lista-espera")
 async def lista_espera_submit(
-    cliente_id: int = Form(...),
+    nombre: str = Form(...),
+    apellido: str = Form(...),
+    dni: str = Form(...),
+    telefono: str = Form(...),
     fecha: str = Form(...),
     horario: str = Form(...),
 ):
+    # Crea o actualiza el cliente por DNI (sin tocar su firma si ya la tenía)
     with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO clientes (nombre, apellido, dni, telefono)
+               VALUES (?,?,?,?)
+               ON CONFLICT(dni) DO UPDATE SET
+                 nombre=excluded.nombre, apellido=excluded.apellido,
+                 telefono=excluded.telefono""",
+            (nombre, apellido, dni, telefono),
+        )
+        conn.commit()
+        cliente_id = conn.execute(
+            "SELECT id FROM clientes WHERE dni=?", (dni,)
+        ).fetchone()["id"]
         conn.execute(
             "INSERT INTO lista_espera (cliente_id, fecha, horario) VALUES (?,?,?)",
             (cliente_id, fecha, horario),
         )
         conn.commit()
-        cliente = conn.execute(
-            "SELECT nombre, telefono FROM clientes WHERE id=?", (cliente_id,)
-        ).fetchone()
     # Confirmación por WhatsApp (en demo se imprime en consola)
-    if cliente:
-        try:
-            await whatsapp.enviar_mensaje(
-                cliente["telefono"],
-                whatsapp.confirmacion_anotado(cliente["nombre"], fecha, horario),
-            )
-        except Exception as e:  # no frenar el flujo por un error de WhatsApp
-            logging.getLogger("whatsapp").error("No se pudo confirmar: %s", e)
-    return RedirectResponse("/lista-espera", status_code=303)
+    try:
+        await whatsapp.enviar_mensaje(
+            telefono, whatsapp.confirmacion_anotado(nombre, fecha, horario)
+        )
+    except Exception as e:  # no frenar el flujo por un error de WhatsApp
+        logging.getLogger("whatsapp").error("No se pudo confirmar: %s", e)
+    return RedirectResponse(f"/listo/{cliente_id}?anotado=1", status_code=303)
 
 
 @app.get("/validar/{codigo}", response_class=HTMLResponse)

@@ -5,20 +5,39 @@
   <div class="container" style="max-width:620px">
     <div class="card success-hero">
       <div class="ring">✅</div>
-      <h1>¡Listo, {{ c.nombre }}!</h1>
-      <p class="muted">Guardamos tus datos y tu firma del deslinde. Ya no tenés que
-        llenar papeles al llegar: mostrás el QR del comprobante y subís al kart.</p>
 
-      <p style="margin-top:18px">
-        <a class="btn btn-lg" href="/comprobante/{{ c.id }}" target="_blank">📄 Descargar comprobante (PDF + QR)</a>
-      </p>
-      <p class="muted" style="font-size:13px">Código de check-in: <b>{{ codigo }}</b></p>
+      {% if anotado %}
+        <h1>¡Te anotamos, {{ c.nombre }}!</h1>
+        <p class="muted">Quedaste en la lista de espera. Apenas se libere tu turno
+          te avisamos por WhatsApp y lo confirmás con un “SÍ”.</p>
+      {% else %}
+        <h1>¡Listo, {{ c.nombre }}!</h1>
+        <p class="muted">Guardamos tus datos y tu firma del deslinde.</p>
+      {% endif %}
+
+      {% if firmado %}
+        <p style="margin-top:18px">
+          <a class="btn btn-lg" href="/comprobante/{{ c.id }}" target="_blank">📄 Descargar comprobante (PDF + QR)</a>
+        </p>
+        <p class="muted" style="font-size:13px">Código de check-in: <b>{{ codigo }}</b>. Mostralo al llegar.</p>
+      {% else %}
+        <div class="alert-ok" style="background:#fef3c7;color:#92400e;border-color:#fde68a;margin-top:18px">
+          ⚠️ Falta un paso: firmá el deslinde para tener tu comprobante de check-in.
+        </div>
+        <p style="margin-top:6px">
+          <a class="btn btn-lg" href="/registro">Firmar el deslinde ahora</a>
+        </p>
+      {% endif %}
 
       <hr style="border:0;border-top:1px solid var(--line);margin:24px 0">
 
-      <h3 style="margin-top:0">Ahora anotate para correr</h3>
-      <p class="muted">Elegí el día y horario. Te avisamos por WhatsApp apenas se libere.</p>
-      <a class="btn btn-dark" href="/lista-espera">Anotarme en la lista de espera</a>
+      {% if anotado %}
+        <a class="btn btn-dark" href="/">Volver al inicio</a>
+      {% else %}
+        <h3 style="margin-top:0">Ahora anotate para correr</h3>
+        <p class="muted">Elegí el día y horario. Te avisamos por WhatsApp apenas se libere.</p>
+        <a class="btn btn-dark" href="/lista-espera">Anotarme en la lista de espera</a>
+      {% endif %}
     </div>
   </div>
 </div>
