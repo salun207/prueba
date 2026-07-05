@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-AR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Huntly — Prospección de chatbots</title>
+<title>Huntly — Panel</title>
 <style>
   :root {
     --brand: #2a78d6;
@@ -81,7 +81,6 @@
   }
   button { font: inherit; cursor: pointer; }
   input, select, textarea { font: inherit; color: var(--ink); }
-  code { background: var(--page); border: 1px solid var(--hairline); border-radius: 5px; padding: 0 4px; font-size: 12px; }
 
   .layout { display: flex; min-height: 100vh; }
 
@@ -120,7 +119,8 @@
   .topbar h1 { font-size: 22px; letter-spacing: -.02em; }
   .topbar .sub { color: var(--ink-2); font-size: 13px; }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
-  .theme-toggle { width: 36px; height: 36px; border-radius: 99px; border: 1px solid var(--hairline); background: var(--surface-1); display: grid; place-items: center; font-size: 15px; }
+  .theme-toggle { width: 36px; height: 36px; border-radius: 99px; border: 1px solid var(--hairline); background: var(--surface-1); display: grid; place-items: center; color: var(--ink-2); }
+  .theme-toggle:hover { color: var(--ink); border-color: var(--muted); }
   .avatar { width: 36px; height: 36px; border-radius: 99px; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
 
   .card { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -135,7 +135,7 @@
     width: 100%; padding: 10px 12px; border-radius: 9px;
     border: 1px solid var(--hairline); background: var(--page); outline: none;
   }
-  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--brand); }
+  .field input:focus, .field select:focus { border-color: var(--brand); }
   .btn-primary {
     align-self: end;
     padding: 10px 22px; border-radius: 9px; border: none;
@@ -158,9 +158,8 @@
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr)); gap: 14px; margin-bottom: 20px; }
   .tile { padding: 16px 18px; }
   .tile .t-label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
-  .tile .t-value { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin-top: 4px; }
+  .tile .t-value { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
   .tile .t-foot { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .tile .t-foot .up { color: var(--good-text); font-weight: 600; }
 
   /* ── Mini charts ─────────────────────────── */
   .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
@@ -229,18 +228,24 @@
     width: 30px; height: 30px; border-radius: 8px;
     border: 1px solid var(--hairline); background: var(--surface-1);
     display: inline-grid; place-items: center; color: var(--ink-2);
-    text-decoration: none; font-size: 14px;
+    text-decoration: none;
   }
+  .icon-btn svg { width: 15px; height: 15px; }
   .icon-btn:hover { border-color: var(--brand); color: var(--brand); }
   .icon-btn.saved { background: var(--brand); border-color: var(--brand); color: #fff; }
   .icon-btn:focus-visible, .btn-primary:focus-visible, .btn-ghost:focus-visible, .nav-item:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
   .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-  .empty .emoji { font-size: 34px; margin-bottom: 10px; }
+  .empty .empty-icon svg { width: 34px; height: 34px; color: var(--muted); margin-bottom: 10px; }
   .empty h4 { color: var(--ink-2); font-size: 15px; margin-bottom: 4px; }
 
   .lead-state { padding: 5px 9px; border-radius: 8px; border: 1px solid var(--hairline); background: var(--surface-1); font-size: 12px; }
-  .btn-ghost { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--hairline); background: var(--surface-1); color: var(--ink-2); font-size: 13px; font-weight: 500; }
+  .btn-ghost {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--hairline);
+    background: var(--surface-1); color: var(--ink-2); font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+  }
+  .btn-ghost svg { width: 14px; height: 14px; }
   .btn-ghost:hover { border-color: var(--brand); color: var(--brand); }
 
   /* ── Ajustes ─────────────────────────────── */
@@ -249,7 +254,6 @@
   .settings-card .hint { color: var(--ink-2); font-size: 13px; margin-bottom: 16px; }
   .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .settings-grid .full { grid-column: 1 / -1; }
-  .settings-card .field input { background: var(--page); }
   .settings-actions { margin-top: 18px; }
 
   /* ── Modal ───────────────────────────────── */
@@ -298,7 +302,6 @@
 
   .view { display: none; }
   .view.on { display: block; }
-  .section-title { font-size: 15px; font-weight: 700; margin: 4px 0 12px; }
 
   @media (max-width: 960px) {
     .sidebar { display: none; }
@@ -338,7 +341,7 @@
     <div class="plan-card">
       <h4>Plan Pro</h4>
       <p>Búsquedas ilimitadas · <span id="searchesUsedLbl">0</span> realizadas</p>
-      <button class="btn-upgrade" onclick="toast('Esto es una demo: aquí iría la gestión del plan 🙂')">Gestionar plan</button>
+      <button class="btn-upgrade" onclick="toast('Es una demo: acá iría la gestión del plan')">Gestionar plan</button>
     </div>
   </aside>
 
@@ -347,11 +350,11 @@
     <div class="topbar">
       <div>
         <h1 id="viewTitle">Panel</h1>
-        <div class="sub" id="viewSub">Encuentra negocios donde tu chatbot puede vender por ti</div>
+        <div class="sub" id="viewSub">Encontrá negocios que pierden consultas y ganalos con tu chatbot</div>
       </div>
       <div class="topbar-right">
-        <button class="theme-toggle" id="themeBtn" title="Cambiar tema">🌙</button>
-        <div class="avatar" id="avatar">JD</div>
+        <button class="theme-toggle" id="themeBtn" title="Cambiar tema"></button>
+        <div class="avatar" id="avatar">H</div>
       </div>
     </div>
 
@@ -360,15 +363,15 @@
 
       <div class="card search-card">
         <h2>Nueva búsqueda</h2>
-        <p class="hint">Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, citas solo por teléfono…) y prepara un mensaje de WhatsApp personalizado para ofrecerles tu chatbot.</p>
+        <p class="hint">Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.</p>
         <form class="search-form" id="searchForm">
           <div class="field">
-            <label for="nicho">Nicho</label>
+            <label for="nicho">Rubro</label>
             <select id="nicho"></select>
           </div>
           <div class="field">
-            <label for="ciudad">Ciudad</label>
-            <input id="ciudad" type="text" placeholder="p. ej. Madrid" value="Madrid" required>
+            <label for="ciudad">Ciudad o zona</label>
+            <input id="ciudad" type="text" placeholder="p. ej. Rosario" value="Buenos Aires" required>
           </div>
           <button class="btn-primary" type="submit" id="searchBtn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
@@ -383,29 +386,29 @@
 
       <div class="tiles">
         <div class="card tile">
-          <div class="t-label">🔎 Negocios analizados</div>
-          <div class="t-value num" id="statScanned">0</div>
+          <div class="t-label">Negocios analizados</div>
+          <div class="t-value" id="statScanned">0</div>
           <div class="t-foot">en la última búsqueda</div>
         </div>
         <div class="card tile">
-          <div class="t-label">🎯 Oportunidades altas</div>
-          <div class="t-value num" id="statHot">0</div>
-          <div class="t-foot">puntuación chatbot ≥ 70</div>
+          <div class="t-label">Oportunidades altas</div>
+          <div class="t-value" id="statHot">0</div>
+          <div class="t-foot">puntuación 70 o más</div>
         </div>
         <div class="card tile">
-          <div class="t-label">📵 Consultas perdidas</div>
-          <div class="t-value num" id="statLost">0</div>
-          <div class="t-foot">estimadas al mes, en total</div>
+          <div class="t-label">Consultas perdidas</div>
+          <div class="t-value" id="statLost">0</div>
+          <div class="t-foot">estimadas por mes, en total</div>
         </div>
         <div class="card tile">
-          <div class="t-label">💶 Valor potencial</div>
-          <div class="t-value num" id="statValue">0 €</div>
-          <div class="t-foot">al mes si cierras las altas</div>
+          <div class="t-label">Valor potencial</div>
+          <div class="t-value" id="statValue">$ 0</div>
+          <div class="t-foot">por mes si cerrás las altas</div>
         </div>
         <div class="card tile">
-          <div class="t-label">📁 Leads guardados</div>
-          <div class="t-value num" id="statSaved">0</div>
-          <div class="t-foot"><span class="up">en tu cartera</span></div>
+          <div class="t-label">Leads guardados</div>
+          <div class="t-value" id="statSaved">0</div>
+          <div class="t-foot">en tu cartera</div>
         </div>
       </div>
 
@@ -426,10 +429,10 @@
         <div class="results-head">
           <div>
             <h3>Resultados</h3>
-            <div class="meta" id="resultsMeta">Lanza una búsqueda para ver oportunidades</div>
+            <div class="meta" id="resultsMeta">Lanzá una búsqueda para ver oportunidades</div>
           </div>
           <div class="filters">
-            <label class="chk"><input type="checkbox" id="onlyHot"> Solo altas (≥ 70)</label>
+            <label class="chk"><input type="checkbox" id="onlyHot"> Solo altas (70 o más)</label>
             <select id="sortBy">
               <option value="score">Ordenar: puntuación</option>
               <option value="lost">Ordenar: consultas perdidas</option>
@@ -454,9 +457,9 @@
           </table>
         </div>
         <div class="empty" id="resultsEmpty">
-          <div class="emoji">🗺️</div>
-          <h4>Aún no hay resultados</h4>
-          <p>Elige un nicho y una ciudad y pulsa «Buscar negocios».</p>
+          <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <h4>Todavía no hay resultados</h4>
+          <p>Elegí un rubro y una ciudad y tocá «Buscar negocios».</p>
         </div>
       </div>
     </section>
@@ -465,24 +468,24 @@
     <section class="view" id="view-leads">
       <div class="tiles">
         <div class="card tile">
-          <div class="t-label">📁 Leads en cartera</div>
-          <div class="t-value num" id="lStatTotal">0</div>
+          <div class="t-label">Leads en cartera</div>
+          <div class="t-value" id="lStatTotal">0</div>
           <div class="t-foot">sin contar descartados</div>
         </div>
         <div class="card tile">
-          <div class="t-label">💬 Contactados</div>
-          <div class="t-value num" id="lStatContacted">0</div>
+          <div class="t-label">Contactados</div>
+          <div class="t-value" id="lStatContacted">0</div>
           <div class="t-foot" id="lStatContactedPct">—</div>
         </div>
         <div class="card tile">
-          <div class="t-label">🤝 Clientes cerrados</div>
-          <div class="t-value num" id="lStatClients">0</div>
+          <div class="t-label">Clientes cerrados</div>
+          <div class="t-value" id="lStatClients">0</div>
           <div class="t-foot">estado «Cliente»</div>
         </div>
         <div class="card tile">
-          <div class="t-label">💶 Ingreso mensual</div>
-          <div class="t-value num" id="lStatMrr">0 €</div>
-          <div class="t-foot">clientes × tu tarifa</div>
+          <div class="t-label">Ingreso mensual</div>
+          <div class="t-value" id="lStatMrr">$ 0</div>
+          <div class="t-foot">clientes por tu tarifa</div>
         </div>
       </div>
       <div class="card">
@@ -514,9 +517,9 @@
           </table>
         </div>
         <div class="empty" id="leadsEmpty">
-          <div class="emoji">📁</div>
+          <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
           <h4>Tu cartera está vacía</h4>
-          <p>Guarda leads desde los resultados de búsqueda para hacer seguimiento aquí.</p>
+          <p>Guardá leads desde los resultados de búsqueda para hacer el seguimiento acá.</p>
         </div>
       </div>
     </section>
@@ -525,29 +528,29 @@
     <section class="view" id="view-analitica">
       <div class="tiles">
         <div class="card tile">
-          <div class="t-label">🔎 Búsquedas realizadas</div>
-          <div class="t-value num" id="aStatSearches">0</div>
-          <div class="t-foot">desde que usas Huntly</div>
+          <div class="t-label">Búsquedas realizadas</div>
+          <div class="t-value" id="aStatSearches">0</div>
+          <div class="t-foot">desde que usás Huntly</div>
         </div>
         <div class="card tile">
-          <div class="t-label">🧲 Leads captados</div>
-          <div class="t-value num" id="aStatLeads">0</div>
+          <div class="t-label">Leads captados</div>
+          <div class="t-value" id="aStatLeads">0</div>
           <div class="t-foot">guardados en total</div>
         </div>
         <div class="card tile">
-          <div class="t-label">📈 Tasa de contacto</div>
-          <div class="t-value num" id="aStatContactRate">—</div>
+          <div class="t-label">Tasa de contacto</div>
+          <div class="t-value" id="aStatContactRate">—</div>
           <div class="t-foot">leads contactados o más</div>
         </div>
         <div class="card tile">
-          <div class="t-label">🏆 Tasa de cierre</div>
-          <div class="t-value num" id="aStatCloseRate">—</div>
+          <div class="t-label">Tasa de cierre</div>
+          <div class="t-value" id="aStatCloseRate">—</div>
           <div class="t-foot">de contactado a cliente</div>
         </div>
         <div class="card tile">
-          <div class="t-label">💶 Pipeline</div>
-          <div class="t-value num" id="aStatPipeline">0 €</div>
-          <div class="t-foot">leads activos × tu tarifa</div>
+          <div class="t-label">Pipeline</div>
+          <div class="t-value" id="aStatPipeline">$ 0</div>
+          <div class="t-foot">leads activos por tu tarifa</div>
         </div>
       </div>
 
@@ -558,7 +561,7 @@
           <div id="chartFunnel"></div>
         </div>
         <div class="card chart-card">
-          <h3>Leads por nicho</h3>
+          <h3>Leads por rubro</h3>
           <div class="chart-sub">Dónde estás encontrando más oportunidades</div>
           <div id="chartNichos"></div>
         </div>
@@ -576,7 +579,7 @@
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th>Nicho</th>
+                <th>Rubro</th>
                 <th>Ciudad</th>
                 <th>Analizados</th>
                 <th>Oportunidades altas</th>
@@ -587,9 +590,9 @@
           </table>
         </div>
         <div class="empty" id="historyEmpty">
-          <div class="emoji">🕘</div>
+          <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
           <h4>Todavía no hay búsquedas</h4>
-          <p>Cada búsqueda que hagas quedará registrada aquí.</p>
+          <p>Cada búsqueda que hagas queda registrada acá.</p>
         </div>
       </div>
     </section>
@@ -597,28 +600,28 @@
     <!-- ── Vista: Ajustes ── -->
     <section class="view" id="view-ajustes">
       <div class="card settings-card">
-        <h3>Tu oferta de chatbot</h3>
-        <p class="hint">Estos datos se usan para personalizar los mensajes de WhatsApp y calcular el valor de tu pipeline.</p>
+        <h3>Tu oferta</h3>
+        <p class="hint">Estos datos se usan para armar los mensajes y calcular cuánto vale tu pipeline.</p>
         <div class="settings-grid">
           <div class="field">
             <label for="myName">Tu nombre</label>
             <input id="myName" type="text" placeholder="p. ej. Julián">
           </div>
           <div class="field">
-            <label for="myProduct">Nombre de tu chatbot / servicio</label>
-            <input id="myProduct" type="text" placeholder="p. ej. RespondeBot">
+            <label for="myProduct">Nombre de tu chatbot / servicio (opcional)</label>
+            <input id="myProduct" type="text" placeholder="p. ej. TurnosBot">
           </div>
           <div class="field">
             <label for="myDemo">Enlace a tu demo (opcional)</label>
             <input id="myDemo" type="url" placeholder="https://…">
           </div>
           <div class="field">
-            <label for="myPrice">Tu tarifa mensual (€)</label>
+            <label for="myPrice">Tu tarifa mensual ($)</label>
             <input id="myPrice" type="number" min="0" step="1" placeholder="49">
           </div>
           <div class="field full">
-            <label for="myPd">Posdata fija (opcional, se añade al final de cada mensaje)</label>
-            <input id="myPd" type="text" placeholder="p. ej. PD: la primera semana es gratis, sin permanencia.">
+            <label for="myPd">Posdata fija (opcional, va al final de cada mensaje)</label>
+            <input id="myPd" type="text" placeholder="p. ej. PD: el primer mes va de regalo, sin permanencia.">
           </div>
         </div>
         <div class="settings-actions">
@@ -645,14 +648,14 @@
       <div class="mini-stat"><div class="ms-l">Sin responder (est.)</div><div class="ms-v" id="mPerdidas">—</div></div>
       <div class="mini-stat"><div class="ms-l">Horario</div><div class="ms-v" id="mHorario" style="font-size:13px">—</div></div>
     </div>
-    <h4>💬 Mensaje de WhatsApp personalizado <span style="color:var(--muted);font-weight:400">(puedes editarlo antes de enviar)</span></h4>
+    <h4>Mensaje de WhatsApp <span style="color:var(--muted);font-weight:400">(editalo antes de mandarlo)</span></h4>
     <textarea id="mMsg" spellcheck="false"></textarea>
     <div class="modal-actions">
       <button class="btn-primary wa-btn" id="mWhatsapp">Abrir WhatsApp</button>
       <button class="btn-ghost" id="mCopy">Copiar mensaje</button>
-      <button class="btn-ghost" id="mVariant">↻ Otra variante</button>
-      <button class="btn-ghost" id="mSave">＋ Guardar lead</button>
-      <a class="btn-ghost" id="mCall" href="#" style="text-decoration:none">📞 Llamar</a>
+      <button class="btn-ghost" id="mVariant">Otra variante</button>
+      <button class="btn-ghost" id="mSave">Guardar lead</button>
+      <a class="btn-ghost" id="mCall" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Llamar</a>
     </div>
   </div>
 </div>
@@ -661,6 +664,17 @@
 
 <script>
 "use strict";
+
+/* ══ Iconos SVG ═══════════════════════════════ */
+const ICONS = {
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>',
+  sun: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32 1.41-1.41"/></svg>',
+  moon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+};
 
 /* ══ Estado y almacenamiento ══════════════════ */
 const LS = {
@@ -686,197 +700,234 @@ let settings = Object.assign(
 );
 let results = [];
 let lastQuery = null;
-const saved = load(LS.last, null);
-if (saved) { results = saved.results || []; lastQuery = saved.query || null; }
+const savedSearch = load(LS.last, null);
+if (savedSearch) { results = savedSearch.results || []; lastQuery = savedSearch.query || null; }
 
-/* ══ Catálogo de nichos ═══════════════════════ */
-/* Cada nicho define: nombres, si funciona con cita previa, volumen de
-   consultas, caso de uso del chatbot, beneficios concretos y descripciones. */
-const SUF_COMUN = ["Central", "Norte", "Sur", "del Parque", "la Plaza", "San Miguel", "Europa", "Levante", "Avenida", "del Río"];
+/* ══ Catálogo de rubros ═══════════════════════ */
+/* Cada rubro define: nombres típicos, si funciona con turnos, volumen de
+   consultas, caso de uso del asistente, qué hace el bot (en voz natural,
+   se inyecta en los mensajes) y descripciones base. */
+const SUF_COMUN = ["Centro", "Norte", "Sur", "del Parque", "Palermo", "San Martín", "Avenida", "Belgrano", "Urquiza", "Mitre"];
 
 const NICHOS = {
   /* ── Salud y clínicas ── */
-  "clinica-dental": { g: "Salud y clínicas", label: "Clínicas dentales", cita: true, factor: 1.6,
-    pre: ["Clínica Dental", "Dental", "Centro Dental"], suf: ["Sonrisa", "Blanco", "Dr. Herrera", "Dra. Prieto", "Perla", "Vital", "Family"],
-    uso: "Citas y recordatorios",
-    bot: ["agenda y confirma citas él solo", "envía recordatorios que reducen las ausencias", "responde dudas de precios, seguros y urgencias"],
-    descs: ["Clínica dental familiar", "Clínica dental moderna con varias consultas", "Clínica dental de barrio muy consolidada"] },
+  "clinica-dental": { g: "Salud y clínicas", label: "Odontólogos y clínicas dentales", cita: true, factor: 1.6,
+    pre: ["Clínica Dental", "Odontología", "Centro Odontológico"], suf: ["Sonrisa", "Blanco", "Dr. Herrera", "Dra. Prieto", "Perla", "Vital", "Family"],
+    uso: "Turnos y recordatorios",
+    bot: ["agenda y confirma turnos solo", "manda recordatorios y bajan un montón las ausencias", "contesta precios, obras sociales y urgencias"],
+    descs: ["Clínica dental familiar", "Clínica dental moderna con varios consultorios", "Consultorio odontológico de barrio muy consolidado"] },
   "clinica-estetica": { g: "Salud y clínicas", label: "Clínicas de estética", cita: true, factor: 1.8,
     pre: ["Clínica Estética", "Centro de Medicina Estética", "Estética"], suf: ["Belleza", "Luz", "Piel", "Renova", "Aura", "Lumen"],
-    uso: "Citas de valoración",
-    bot: ["agenda citas de valoración al momento", "responde precios de tratamientos sin hacer esperar", "hace seguimiento post-tratamiento automático"],
+    uso: "Turnos de valoración",
+    bot: ["agenda turnos de valoración al toque", "contesta precios de tratamientos sin hacer esperar a nadie", "hace el seguimiento post-tratamiento solo"],
     descs: ["Clínica de medicina estética", "Centro de estética avanzada", "Clínica estética boutique"] },
-  "clinica-fisio": { g: "Salud y clínicas", label: "Clínicas de fisioterapia", cita: true, factor: 1.5,
-    pre: ["Fisioterapia", "Clínica Fisio", "Centro de Fisioterapia"], suf: ["Movimiento", "Equilibrio", "Axis", "Vital", "Corporal", "Activa"],
+  "kinesiologia": { g: "Salud y clínicas", label: "Kinesiología y fisioterapia", cita: true, factor: 1.5,
+    pre: ["Kinesiología", "Centro de Kinesiología", "Fisioterapia"], suf: ["Movimiento", "Equilibrio", "Axis", "Vital", "Corporal", "Activa"],
     uso: "Reserva de sesiones",
-    bot: ["reserva y reprograma sesiones sin llamadas", "responde qué tratamientos ofrecéis y precios", "recuerda las citas y llena los huecos libres"],
-    descs: ["Clínica de fisioterapia y readaptación", "Centro de fisioterapia deportiva", "Consulta de fisioterapia de barrio"] },
-  "clinica-veterinaria": { g: "Salud y clínicas", label: "Clínicas veterinarias", cita: true, factor: 1.7,
-    pre: ["Clínica Veterinaria", "Veterinaria", "Hospital Veterinario"], suf: ["Patitas", "Animalia", "Zarpa", "Mascota Feliz", "Fauna", "Amigo Fiel"],
-    uso: "Citas y triaje 24/7",
-    bot: ["da cita y orienta urgencias a cualquier hora", "recuerda vacunas y desparasitaciones", "responde dudas frecuentes de los dueños"],
-    descs: ["Clínica veterinaria de referencia en la zona", "Clínica veterinaria familiar", "Centro veterinario con urgencias"] },
-  "clinica-podologia": { g: "Salud y clínicas", label: "Clínicas de podología", cita: true, factor: 1.2,
-    pre: ["Podología", "Clínica del Pie", "Centro Podológico"], suf: ["Paso", "Planta", "Confort", "Salud", "Andar"],
-    uso: "Citas 24/7",
-    bot: ["agenda citas fuera de horario", "responde precios y tratamientos", "envía recordatorios automáticos"],
-    descs: ["Clínica podológica", "Consulta de podología y biomecánica", "Centro podológico de barrio"] },
-  "clinica-psicologia": { g: "Salud y clínicas", label: "Consultas de psicología", cita: true, factor: 1.3,
-    pre: ["Psicología", "Centro de Psicología", "Gabinete"], suf: ["Mente", "Bienestar", "Calma", "Ariadna", "Emocional", "Norte"],
+    bot: ["reserva y reprograma sesiones sin llamadas", "contesta qué tratamientos hacen y cuánto salen", "recuerda los turnos y llena los huecos que quedan libres"],
+    descs: ["Centro de kinesiología y rehabilitación", "Consultorio de kinesiología deportiva", "Consultorio de kinesiología de barrio"] },
+  "veterinaria": { g: "Salud y clínicas", label: "Veterinarias", cita: true, factor: 1.7,
+    pre: ["Veterinaria", "Clínica Veterinaria", "Hospital Veterinario"], suf: ["Patitas", "Animalia", "Zarpa", "Mascota Feliz", "Fauna", "Amigo Fiel"],
+    uso: "Turnos y urgencias 24/7",
+    bot: ["da turnos y orienta urgencias a cualquier hora", "recuerda vacunas y desparasitaciones", "contesta las dudas de los dueños al toque"],
+    descs: ["Veterinaria de referencia en la zona", "Veterinaria familiar", "Clínica veterinaria con urgencias"] },
+  "podologia": { g: "Salud y clínicas", label: "Podología", cita: true, factor: 1.2,
+    pre: ["Podología", "Consultorio Podológico", "Centro del Pie"], suf: ["Paso", "Planta", "Confort", "Salud", "Andar"],
+    uso: "Turnos 24/7",
+    bot: ["agenda turnos fuera de horario", "contesta precios y tratamientos", "manda recordatorios solo"],
+    descs: ["Consultorio podológico", "Consultorio de podología y pie diabético", "Centro podológico de barrio"] },
+  "psicologia": { g: "Salud y clínicas", label: "Psicólogos y terapia", cita: true, factor: 1.3,
+    pre: ["Psicología", "Centro de Psicología", "Consultorio"], suf: ["Mente", "Bienestar", "Calma", "Ariadna", "Emocional", "Espacio"],
     uso: "Primera consulta",
-    bot: ["gestiona la primera consulta con discreción", "responde tarifas, modalidades y horarios", "reduce los no-shows con recordatorios"],
-    descs: ["Consulta de psicología sanitaria", "Centro de psicología y terapia", "Gabinete psicológico"] },
-  "clinica-oftalmo": { g: "Salud y clínicas", label: "Clínicas oftalmológicas", cita: true, factor: 1.4,
+    bot: ["coordina la primera consulta con discreción", "contesta honorarios, modalidades y horarios", "baja los no-shows con recordatorios"],
+    descs: ["Consultorio de psicología", "Centro de psicología y terapia", "Consultorio psicológico"] },
+  "oftalmologia": { g: "Salud y clínicas", label: "Oftalmología", cita: true, factor: 1.4,
     pre: ["Clínica Oftalmológica", "Oftalmología", "Centro de la Visión"], suf: ["Visión", "Mirada", "Iris", "Lente", "Clara"],
-    uso: "Citas y revisiones",
-    bot: ["agenda revisiones y consultas", "responde dudas de cirugías y precios", "recuerda revisiones anuales a los pacientes"],
-    descs: ["Clínica oftalmológica", "Centro oftalmológico con cirugía", "Consulta de oftalmología"] },
-  "clinica-nutricion": { g: "Salud y clínicas", label: "Consultas de nutrición", cita: true, factor: 1.1,
-    pre: ["Nutrición", "Consulta de Nutrición", "Centro de Nutrición"], suf: ["Equilibrio", "Sano", "Vida", "Bienestar", "Natural"],
-    uso: "Planes y citas",
-    bot: ["agenda primeras visitas y revisiones", "explica tus planes y tarifas", "hace seguimiento semanal automático"],
-    descs: ["Consulta de nutrición y dietética", "Centro de nutrición clínica y deportiva", "Consulta de dietista-nutricionista"] },
+    uso: "Turnos y controles",
+    bot: ["agenda controles y consultas", "contesta dudas de cirugías y precios", "recuerda los controles anuales a los pacientes"],
+    descs: ["Clínica oftalmológica", "Centro oftalmológico con cirugía", "Consultorio de oftalmología"] },
+  "nutricion": { g: "Salud y clínicas", label: "Nutricionistas", cita: true, factor: 1.1,
+    pre: ["Nutrición", "Consultorio de Nutrición", "Centro de Nutrición"], suf: ["Equilibrio", "Sano", "Vida", "Bienestar", "Natural"],
+    uso: "Planes y turnos",
+    bot: ["agenda primeras visitas y controles", "explica los planes y honorarios", "hace el seguimiento semanal solo"],
+    descs: ["Consultorio de nutrición", "Centro de nutrición clínica y deportiva", "Consultorio de nutricionista"] },
 
   /* ── Belleza y bienestar ── */
   "peluqueria": { g: "Belleza y bienestar", label: "Peluquerías", cita: true, factor: 2.2,
-    pre: ["Peluquería", "Salón", "Estilo"], suf: ["Marta", "Rocío", "Urban", "Rizos", "Look", "Mediterráneo", "Chic"],
-    uso: "Reservas sin llamadas",
-    bot: ["reserva huecos mientras el equipo atiende", "rellena cancelaciones de último minuto", "responde precios y servicios al instante"],
+    pre: ["Peluquería", "Salón", "Estudio"], suf: ["Marta", "Rocío", "Urban", "Rizos", "Look", "De Autor", "Chic"],
+    uso: "Turnos sin llamadas",
+    bot: ["reserva turnos mientras el equipo atiende", "llena las cancelaciones de último momento", "contesta precios y servicios al instante"],
     descs: ["Peluquería con clientela fiel", "Salón de peluquería moderno", "Peluquería de barrio muy valorada"] },
   "barberia": { g: "Belleza y bienestar", label: "Barberías", cita: true, factor: 2.0,
     pre: ["Barbería", "Barber", "La Barbería de"], suf: ["Álvaro", "Clásica", "Navaja", "El Patrón", "Vintage", "Bros"],
-    uso: "Reservas sin llamadas",
-    bot: ["gestiona reservas por WhatsApp automáticamente", "avisa de huecos libres a los clientes habituales", "responde horarios y precios sin interrumpir un corte"],
+    uso: "Turnos sin llamadas",
+    bot: ["maneja los turnos por WhatsApp solo", "avisa de huecos libres a los clientes de siempre", "contesta horarios y precios sin cortar un corte"],
     descs: ["Barbería clásica", "Barbería moderna con mucha demanda", "Barbería de referencia en la zona"] },
   "centro-unas": { g: "Belleza y bienestar", label: "Centros de uñas", cita: true, factor: 1.9,
     pre: ["Uñas", "Nails", "Estudio de Uñas"], suf: ["& Beauty", "Deluxe", "Arte", "Glam", "Studio", "Rosa"],
-    uso: "Reservas y catálogo",
-    bot: ["reserva citas y muestra el catálogo de diseños", "responde precios y duración de cada servicio", "recupera clientas con recordatorios de retoque"],
-    descs: ["Centro de uñas y manicura", "Estudio de uñas con mucha rotación", "Salón de manicura y pedicura"] },
+    uso: "Turnos y catálogo",
+    bot: ["reserva turnos y muestra el catálogo de diseños", "contesta precios y cuánto tarda cada servicio", "trae de vuelta clientas con recordatorios de retoque"],
+    descs: ["Centro de uñas y manicuría", "Estudio de uñas con mucha rotación", "Salón de manicuría y pedicuría"] },
   "spa": { g: "Belleza y bienestar", label: "Spas y masajes", cita: true, factor: 1.5,
     pre: ["Spa", "Centro de Masajes", "Wellness"], suf: ["Zen", "Oasis", "Sentidos", "Agua", "Serenidad"],
-    uso: "Reservas y bonos",
-    bot: ["reserva sesiones y vende bonos regalo", "responde qué incluye cada ritual", "gestiona cambios de hora sin llamadas"],
-    descs: ["Spa urbano", "Centro de masajes y bienestar", "Spa boutique con rituales"] },
+    uso: "Reservas y gift cards",
+    bot: ["reserva sesiones y vende gift cards", "contesta qué incluye cada masaje o ritual", "maneja los cambios de horario sin llamadas"],
+    descs: ["Spa urbano", "Centro de masajes y bienestar", "Spa boutique"] },
 
-  /* ── Hostelería ── */
-  "restaurante": { g: "Hostelería", label: "Restaurantes", cita: true, factor: 3.0,
-    pre: ["Restaurante", "Casa", "Mesón", "Taberna"], suf: ["Pepe", "Lucía", "del Puerto", "la Abuela", "Ibérico", "los Arcos"],
+  /* ── Gastronomía ── */
+  "restaurante": { g: "Gastronomía", label: "Restaurantes y parrillas", cita: true, factor: 3.0,
+    pre: ["Restaurante", "Parrilla", "Bodegón", "Cantina"], suf: ["Don Pepe", "La Estancia", "El Fogón", "Doña Lucía", "del Puerto", "Los Arcos"],
     uso: "Reservas de mesa",
-    bot: ["confirma reservas de mesa al momento, también en servicio", "responde el menú, alérgenos y horarios", "recupera mesas de cancelaciones con lista de espera"],
-    descs: ["Restaurante de cocina casera", "Restaurante muy demandado los fines de semana", "Restaurante familiar con terraza"] },
-  "cafeteria": { g: "Hostelería", label: "Cafeterías y brunch", cita: false, factor: 2.4,
-    pre: ["Cafetería", "Café", "Brunch &"], suf: ["Aroma", "la Esquina", "Molino", "Ámbar", "Cortado", "Miel"],
+    bot: ["confirma reservas al momento, también en pleno servicio", "contesta el menú, los precios y los horarios", "recupera mesas de cancelaciones con lista de espera"],
+    descs: ["Parrilla de barrio", "Restaurante muy pedido los fines de semana", "Bodegón familiar con mesas afuera"] },
+  "cafeteria": { g: "Gastronomía", label: "Cafeterías y brunch", cita: false, factor: 2.4,
+    pre: ["Cafetería", "Café", "Brunch &"], suf: ["Aroma", "La Esquina", "Molino", "Ámbar", "Cortado", "Miel"],
     uso: "Pedidos y encargos",
-    bot: ["recoge encargos de tartas y desayunos para llevar", "responde horarios y carta al instante", "avisa de novedades a los clientes habituales"],
-    descs: ["Cafetería de especialidad", "Cafetería con brunch los fines de semana", "Café-pastelería artesanal"] },
-  "pizzeria": { g: "Hostelería", label: "Pizzerías y comida a domicilio", cita: false, factor: 2.8,
-    pre: ["Pizzería", "Pizza", "Trattoria"], suf: ["Napoli", "del Horno", "Bella", "Roma", "Forno", "Da Luigi"],
+    bot: ["toma encargos de tortas y desayunos solo", "contesta horarios y carta al instante", "avisa novedades a los clientes de siempre"],
+    descs: ["Cafetería de especialidad", "Cafetería con brunch los fines de semana", "Café y pastelería artesanal"] },
+  "pizzeria": { g: "Gastronomía", label: "Pizzerías y delivery", cita: false, factor: 2.8,
+    pre: ["Pizzería", "Pizza", "La Pizzería de"], suf: ["Napoli", "del Horno", "La Clásica", "Roma", "Don Luigi", "La Piedra"],
     uso: "Pedidos por WhatsApp",
-    bot: ["toma pedidos por WhatsApp sin errores ni esperas", "responde la carta y las ofertas del día", "avisa cuando el pedido sale de camino"],
-    descs: ["Pizzería artesanal", "Pizzería con mucho reparto a domicilio", "Trattoria de barrio"] },
-  "catering": { g: "Hostelería", label: "Caterings y eventos", cita: true, factor: 1.2,
-    pre: ["Catering", "Eventos", "Cocina & Eventos"], suf: ["Gourmet", "Selecto", "la Fiesta", "Sabores", "Deluxe"],
+    bot: ["toma pedidos por WhatsApp sin errores ni esperas", "contesta la carta y las promos del día", "avisa cuando el pedido sale"],
+    descs: ["Pizzería artesanal", "Pizzería con mucho delivery", "Pizzería de barrio"] },
+  "catering": { g: "Gastronomía", label: "Caterings y eventos", cita: true, factor: 1.2,
+    pre: ["Catering", "Eventos", "Cocina & Eventos"], suf: ["Gourmet", "Selecto", "La Fiesta", "Sabores", "Deluxe"],
     uso: "Presupuestos 24/7",
-    bot: ["recoge los datos del evento y pasa presupuesto solo", "responde menús y precios por comensal", "hace seguimiento de cada presupuesto enviado"],
-    descs: ["Catering para bodas y empresas", "Servicio de catering y eventos", "Catering artesanal"] },
+    bot: ["levanta los datos del evento y pasa presupuesto solo", "contesta menús y precios por persona", "hace el seguimiento de cada presupuesto enviado"],
+    descs: ["Catering para casamientos y empresas", "Servicio de catering y eventos", "Catering artesanal"] },
 
-  /* ── Fitness ── */
+  /* ── Fitness y deporte ── */
   "gimnasio": { g: "Fitness y deporte", label: "Gimnasios", cita: false, factor: 2.0,
     pre: ["Gimnasio", "Centro Fitness", "Club"], suf: ["Titán", "Forma", "Energy", "Olimpo", "Pulso", "Arena"],
     uso: "Altas y clases",
-    bot: ["responde tarifas y horarios de clases a cualquier hora", "agenda visitas y sesiones de prueba", "recupera socios que dejaron de venir"],
-    descs: ["Gimnasio de barrio con clases dirigidas", "Centro fitness 24 horas", "Club deportivo con piscina"] },
+    bot: ["contesta aranceles y horarios de clases a cualquier hora", "agenda visitas y clases de prueba", "recupera socios que dejaron de ir"],
+    descs: ["Gimnasio de barrio con clases grupales", "Centro fitness 24 horas", "Club deportivo con pileta"] },
   "yoga-pilates": { g: "Fitness y deporte", label: "Estudios de yoga y pilates", cita: true, factor: 1.4,
     pre: ["Estudio", "Yoga", "Pilates"], suf: ["Om", "Flow", "Balance", "Prana", "Core", "Alma"],
     uso: "Reserva de clases",
-    bot: ["gestiona reservas y listas de espera de clases", "responde niveles, horarios y bonos", "avisa de plazas libres por cancelación"],
-    descs: ["Estudio de yoga con grupos reducidos", "Centro de pilates máquina", "Estudio de yoga y meditación"] },
+    bot: ["maneja reservas y listas de espera de las clases", "contesta niveles, horarios y packs", "avisa cuando se libera un lugar"],
+    descs: ["Estudio de yoga con grupos reducidos", "Centro de pilates con camas", "Estudio de yoga y meditación"] },
 
   /* ── Hogar y urgencias ── */
-  "fontanero": { g: "Hogar y urgencias", label: "Fontaneros", cita: false, factor: 1.8,
-    pre: ["Fontanería", "Fontaneros", "Instalaciones"], suf: ["Ruiz", "24 Horas", "Aguaclara", "Express", "el Grifo", "Caudal"],
+  "plomeria": { g: "Hogar y urgencias", label: "Plomerías", cita: false, factor: 1.8,
+    pre: ["Plomería", "Plomeros", "Destapaciones"], suf: ["Ruiz", "24 Horas", "Express", "El Caño", "Zona Norte", "Del Centro"],
     uso: "Urgencias y presupuestos",
-    bot: ["atiende urgencias cuando estáis con las manos en la obra", "recoge fotos y datos de la avería para presupuestar", "filtra y prioriza los avisos reales"],
-    descs: ["Empresa de fontanería con urgencias", "Fontanero autónomo muy solicitado", "Fontanería e instalaciones"] },
+    bot: ["atiende las urgencias cuando están con las manos en la obra", "pide fotos del problema y arma el presupuesto", "filtra los avisos que valen la pena"],
+    descs: ["Plomería con urgencias 24 h", "Plomero matriculado muy pedido", "Plomería y destapaciones"] },
   "electricista": { g: "Hogar y urgencias", label: "Electricistas", cita: false, factor: 1.7,
     pre: ["Electricidad", "Electricistas", "Instalaciones Eléctricas"], suf: ["Voltio", "Luz", "Chispa", "Fase", "Rayo", "Ohm"],
     uso: "Avisos y presupuestos",
-    bot: ["recoge avisos con fotos mientras estáis en obra", "pasa presupuesto orientativo de trabajos comunes", "agenda visitas sin llamadas cruzadas"],
-    descs: ["Electricista con boletines e instalaciones", "Empresa de instalaciones eléctricas", "Electricista de urgencias"] },
-  "cerrajero": { g: "Hogar y urgencias", label: "Cerrajeros", cita: false, factor: 1.9,
-    pre: ["Cerrajería", "Cerrajeros"], suf: ["24h", "Seguridad", "la Llave", "Apertura", "Bombín", "Total"],
+    bot: ["levanta avisos con fotos mientras están en obra", "pasa precio estimado de los trabajos comunes", "agenda visitas sin llamadas cruzadas"],
+    descs: ["Electricista matriculado", "Empresa de instalaciones eléctricas", "Electricista de urgencias"] },
+  "cerrajeria": { g: "Hogar y urgencias", label: "Cerrajerías", cita: false, factor: 1.9,
+    pre: ["Cerrajería", "Cerrajeros"], suf: ["24h", "Seguridad", "La Llave", "Apertura", "Total", "Del Centro"],
     uso: "Urgencias 24/7",
-    bot: ["responde urgencias al segundo, a cualquier hora", "da precio orientativo de aperturas y cambios", "envía la ubicación del cliente directa al técnico"],
+    bot: ["contesta urgencias al segundo, a cualquier hora", "da precio estimado de aperturas y cambios de cerradura", "manda la ubicación del cliente directo al técnico"],
     descs: ["Cerrajería de urgencias 24 h", "Cerrajero de zona con respuesta rápida", "Cerrajería y seguridad"] },
   "reformas": { g: "Hogar y urgencias", label: "Empresas de reformas", cita: true, factor: 1.1,
-    pre: ["Reformas", "Construcciones", "Obras y Reformas"], suf: ["Integral", "Hogar", "Nova", "Levante", "Hermanos Gil", "Total"],
+    pre: ["Reformas", "Construcciones", "Obras y Reformas"], suf: ["Integral", "Hogar", "Nova", "Del Sur", "Hermanos Gil", "Total"],
     uso: "Presupuestos 24/7",
-    bot: ["recoge los datos de la reforma y pide fotos", "pasa una horquilla de precio automática", "hace seguimiento de presupuestos sin contestar"],
+    bot: ["levanta los datos de la obra y pide fotos", "pasa un rango de precio al toque", "hace seguimiento de los presupuestos que quedaron en el aire"],
     descs: ["Empresa de reformas integrales", "Reformas de cocinas y baños", "Constructora de reformas"] },
   "limpieza": { g: "Hogar y urgencias", label: "Empresas de limpieza", cita: true, factor: 1.3,
     pre: ["Limpiezas", "Limpieza", "Servicios de Limpieza"], suf: ["Brillo", "Impecable", "Estrella", "Cristal", "Hogar", "Pro"],
     uso: "Presupuestos y agenda",
-    bot: ["cotiza limpiezas por m² y frecuencia automáticamente", "agenda el servicio y los repasos", "responde dudas de productos y seguros"],
-    descs: ["Empresa de limpieza para hogares y oficinas", "Servicio de limpieza a domicilio", "Limpiezas de comunidades"] },
+    bot: ["cotiza limpiezas por metros y frecuencia solo", "agenda el servicio y los repasos", "contesta dudas de productos y seguros"],
+    descs: ["Empresa de limpieza para casas y oficinas", "Servicio de limpieza a domicilio", "Limpieza de consorcios"] },
 
-  /* ── Automoción ── */
-  "taller": { g: "Automoción", label: "Talleres mecánicos", cita: true, factor: 1.8,
-    pre: ["Talleres", "Auto Taller", "Mecánica"], suf: ["Hermanos Gil", "Rápido", "Paco", "Motor Sur", "AutoFix", "Turbo"],
-    uso: "Citas de taller",
-    bot: ["da cita de taller sin que nadie deje la llave inglesa", "informa del estado de la reparación automáticamente", "recuerda ITV y revisiones a los clientes"],
+  /* ── Automotor ── */
+  "taller": { g: "Automotor", label: "Talleres mecánicos", cita: true, factor: 1.8,
+    pre: ["Talleres", "Taller Mecánico", "Mecánica"], suf: ["Hermanos Gil", "Rápido", "Paco", "Motor Sur", "AutoFix", "Turbo"],
+    uso: "Turnos de taller",
+    bot: ["da turnos sin que nadie suelte la llave inglesa", "avisa solo cómo viene la reparación", "recuerda la VTV y los services a los clientes"],
     descs: ["Taller mecánico multimarca", "Taller de barrio con mucha confianza", "Taller de mecánica rápida"] },
-  "autoescuela": { g: "Automoción", label: "Autoescuelas", cita: false, factor: 1.5,
-    pre: ["Autoescuela", "Escuela de Conductores"], suf: ["Stop", "Vía Libre", "el Volante", "Semáforo", "Ruta", "Éxito"],
-    uso: "Matrículas y dudas",
-    bot: ["responde precios, plazos y ofertas de matrícula", "agenda la primera clase o la prueba", "resuelve dudas de teórica a los alumnos"],
-    descs: ["Autoescuela con alta tasa de aprobados", "Autoescuela de barrio", "Autoescuela con cursos intensivos"] },
+  "escuela-manejo": { g: "Automotor", label: "Escuelas de manejo", cita: false, factor: 1.5,
+    pre: ["Escuela de Manejo", "Academia de Conducción"], suf: ["Primera", "Al Volante", "Semáforo", "En Marcha", "Ruta 1", "Confianza"],
+    uso: "Inscripciones y dudas",
+    bot: ["contesta precios, planes y promos de inscripción", "agenda la primera clase", "les saca las dudas del teórico a los alumnos"],
+    descs: ["Escuela de manejo con alta tasa de aprobados", "Escuela de manejo de barrio", "Academia con clases intensivas"] },
 
-  /* ── Profesional y otros ── */
-  "abogados": { g: "Profesional y otros", label: "Despachos de abogados", cita: true, factor: 1.2,
-    pre: ["Abogados", "Bufete", "Despacho"], suf: ["Serrano", "& Asociados", "Lex", "Vega y Torres", "Iuris", "Castillo"],
+  /* ── Profesionales y otros ── */
+  "estudio-juridico": { g: "Profesionales y otros", label: "Estudios jurídicos", cita: true, factor: 1.2,
+    pre: ["Estudio Jurídico", "Abogados", "Estudio"], suf: ["Serrano", "& Asociados", "Lex", "Vega y Torres", "Iuris", "Castillo"],
     uso: "Primera consulta",
-    bot: ["hace una pre-consulta y agenda la primera cita", "filtra los casos según vuestra especialidad", "responde tarifas y documentación necesaria"],
-    descs: ["Despacho de abogados generalista", "Bufete especializado en civil y laboral", "Despacho jurídico de proximidad"] },
-  "gestoria": { g: "Profesional y otros", label: "Gestorías y asesorías", cita: true, factor: 1.3,
-    pre: ["Gestoría", "Asesoría", "Asesores"], suf: ["Fiscal", "Pyme", "Integral", "Balance", "Norte", "& Cía"],
+    bot: ["hace una consulta previa y agenda la primera reunión", "filtra los casos según la especialidad del estudio", "contesta honorarios y qué papeles hay que llevar"],
+    descs: ["Estudio jurídico generalista", "Estudio especializado en laboral y civil", "Estudio de abogados de cercanía"] },
+  "estudio-contable": { g: "Profesionales y otros", label: "Estudios contables", cita: true, factor: 1.3,
+    pre: ["Estudio Contable", "Contadores", "Asesoría Contable"], suf: ["Balance", "Pyme", "& Asoc.", "Integral", "Norte", "Fiscal"],
     uso: "Captación de pymes",
-    bot: ["responde dudas de autónomos y pymes al instante", "agenda reuniones y recopila documentación", "avisa de plazos fiscales a los clientes"],
-    descs: ["Gestoría administrativa y fiscal", "Asesoría para autónomos y pymes", "Gestoría integral"] },
-  "inmobiliaria": { g: "Profesional y otros", label: "Inmobiliarias", cita: true, factor: 2.2,
-    pre: ["Inmobiliaria", "Fincas", "Gestión Inmobiliaria"], suf: ["Hogar", "Urbis", "Casas", "Mediterránea", "Llave", "Vista"],
-    uso: "Cualificar compradores",
-    bot: ["cualifica interesados antes de la visita", "agenda visitas y envía fichas de los pisos", "responde 24/7 los anuncios de los portales"],
-    descs: ["Inmobiliaria de zona", "Agencia inmobiliaria con cartera propia", "Inmobiliaria boutique"] },
-  "academia": { g: "Profesional y otros", label: "Academias y formación", cita: false, factor: 1.6,
-    pre: ["Academia", "Centro de Estudios", "Escuela"], suf: ["Alfa", "Éxito", "Idiomas Sol", "Futuro", "Delta", "Saber"],
-    uso: "Matrículas 24/7",
-    bot: ["responde precios, horarios y plazas al momento", "matricula alumnos fuera de horario", "recuerda pagos y renovaciones"],
-    descs: ["Academia de idiomas", "Centro de estudios y refuerzo", "Academia de oposiciones"] },
-  "fotografo": { g: "Profesional y otros", label: "Fotógrafos", cita: true, factor: 1.0,
+    bot: ["contesta dudas de monotributo y pymes al instante", "agenda reuniones y junta la documentación", "avisa los vencimientos a los clientes"],
+    descs: ["Estudio contable para pymes", "Estudio contable y de gestión", "Contadores para monotributistas y pymes"] },
+  "inmobiliaria": { g: "Profesionales y otros", label: "Inmobiliarias", cita: true, factor: 2.2,
+    pre: ["Inmobiliaria", "Propiedades", "Gestión Inmobiliaria"], suf: ["Hogar", "Urbis", "Casas", "Del Centro", "Llave", "Vista"],
+    uso: "Filtrar interesados",
+    bot: ["filtra interesados antes de la visita", "agenda visitas y manda las fichas de las propiedades", "contesta los avisos de los portales 24/7"],
+    descs: ["Inmobiliaria de zona", "Inmobiliaria con cartera propia", "Inmobiliaria boutique"] },
+  "instituto": { g: "Profesionales y otros", label: "Institutos y academias", cita: false, factor: 1.6,
+    pre: ["Instituto", "Academia", "Centro de Estudios"], suf: ["Alfa", "Éxito", "de Inglés Sol", "Futuro", "Delta", "Saber"],
+    uso: "Inscripciones 24/7",
+    bot: ["contesta aranceles, horarios y vacantes al momento", "inscribe alumnos fuera de horario", "recuerda cuotas y renovaciones"],
+    descs: ["Instituto de inglés", "Instituto de apoyo escolar", "Academia de oficios"] },
+  "fotografo": { g: "Profesionales y otros", label: "Fotógrafos", cita: true, factor: 1.0,
     pre: ["Estudio", "Fotografía", "Fotos"], suf: ["Luz", "Enfoque", "Instantes", "Retrato", "Píxel", "Aurora"],
     uso: "Presupuestos de sesión",
-    bot: ["pasa presupuesto de bodas y sesiones automáticamente", "muestra el porfolio según lo que pidan", "agenda sesiones y recordatorios"],
-    descs: ["Estudio de fotografía de bodas y eventos", "Fotógrafo de retrato y producto", "Estudio fotográfico familiar"] },
-  "agencia-viajes": { g: "Profesional y otros", label: "Agencias de viajes", cita: false, factor: 1.7,
+    bot: ["pasa presupuesto de books y eventos solo", "muestra el portfolio según lo que pidan", "agenda sesiones y manda recordatorios"],
+    descs: ["Estudio de fotografía de casamientos y eventos", "Fotógrafo de retrato y producto", "Estudio fotográfico familiar"] },
+  "agencia-viajes": { g: "Profesionales y otros", label: "Agencias de viajes", cita: false, factor: 1.7,
     pre: ["Viajes", "Agencia de Viajes", "Travel"], suf: ["Mundo", "Horizonte", "Destino", "Brújula", "Estrella", "Sur"],
     uso: "Cotizar viajes 24/7",
-    bot: ["recoge fechas y presupuesto y propone destinos", "responde dudas de reservas ya hechas", "avisa de chollos a clientes frecuentes"],
+    bot: ["levanta fechas y presupuesto y propone destinos", "contesta dudas de reservas ya hechas", "avisa promos a los clientes frecuentes"],
     descs: ["Agencia de viajes de barrio", "Agencia especializada en viajes a medida", "Agencia de viajes y escapadas"] },
 };
 
-const CALLES = ["C/ Mayor", "Av. de la Constitución", "C/ Real", "Pza. de España", "C/ San Juan", "Av. del Parque", "C/ Cervantes", "Rda. Norte", "C/ La Fuente", "Paseo Marítimo"];
+/* Nombres cortos por rubro para que los mensajes suenen naturales:
+   [plural: "laburo con X", singular: "un ejemplo de X"] */
+const RUBRO_CORTO = {
+  "clinica-dental": ["clínicas dentales", "una clínica dental"],
+  "clinica-estetica": ["clínicas de estética", "una clínica de estética"],
+  "kinesiologia": ["centros de kinesiología", "un centro de kinesiología"],
+  "veterinaria": ["veterinarias", "una veterinaria"],
+  "podologia": ["consultorios de podología", "un consultorio de podología"],
+  "psicologia": ["consultorios de psicología", "un consultorio de psicología"],
+  "oftalmologia": ["clínicas oftalmológicas", "una clínica oftalmológica"],
+  "nutricion": ["consultorios de nutrición", "un consultorio de nutrición"],
+  "peluqueria": ["peluquerías", "una peluquería"],
+  "barberia": ["barberías", "una barbería"],
+  "centro-unas": ["centros de uñas", "un centro de uñas"],
+  "spa": ["spas", "un spa"],
+  "restaurante": ["restaurantes", "un restaurante"],
+  "cafeteria": ["cafeterías", "una cafetería"],
+  "pizzeria": ["pizzerías", "una pizzería"],
+  "catering": ["caterings", "un catering"],
+  "gimnasio": ["gimnasios", "un gimnasio"],
+  "yoga-pilates": ["estudios de yoga y pilates", "un estudio de yoga"],
+  "plomeria": ["plomerías", "una plomería"],
+  "electricista": ["electricistas", "un electricista"],
+  "cerrajeria": ["cerrajerías", "una cerrajería"],
+  "reformas": ["empresas de reformas", "una empresa de reformas"],
+  "limpieza": ["empresas de limpieza", "una empresa de limpieza"],
+  "taller": ["talleres mecánicos", "un taller"],
+  "escuela-manejo": ["escuelas de manejo", "una escuela de manejo"],
+  "estudio-juridico": ["estudios jurídicos", "un estudio jurídico"],
+  "estudio-contable": ["estudios contables", "un estudio contable"],
+  "inmobiliaria": ["inmobiliarias", "una inmobiliaria"],
+  "instituto": ["institutos", "un instituto"],
+  "fotografo": ["fotógrafos", "un estudio de fotografía"],
+  "agencia-viajes": ["agencias de viajes", "una agencia de viajes"],
+};
+
+const CALLES = ["Av. Corrientes", "Av. Santa Fe", "Calle San Martín", "Av. Rivadavia", "Calle Belgrano", "Av. Mitre", "Calle Sarmiento", "Av. del Libertador", "Calle 25 de Mayo", "Bv. Oroño"];
 const HORARIOS = [
-  { txt: "L–V 9:00–14:00 y 16:30–20:00", gap: true },
-  { txt: "L–V 9:00–17:00", gap: true },
-  { txt: "L–S 10:00–20:00", gap: false },
-  { txt: "L–V 8:30–15:30", gap: true },
-  { txt: "L–S 9:30–13:30 y 17:00–20:30", gap: true },
+  { txt: "Lun–Vie 9 a 13 y 16 a 20", gap: true },
+  { txt: "Lun–Vie 9 a 17", gap: true },
+  { txt: "Lun–Sáb 10 a 20", gap: false },
+  { txt: "Lun–Vie 8:30 a 15:30", gap: true },
+  { txt: "Lun–Sáb 9:30 a 13:30 y 17 a 20:30", gap: true },
 ];
-const HORARIOS_HOSTELERIA = [
-  { txt: "M–D 12:30–16:00 y 19:30–23:30", gap: true },
-  { txt: "L–D 8:00–21:00", gap: false },
-  { txt: "X–D 13:00–16:30 y 20:00–24:00", gap: true },
+const HORARIOS_GASTRO = [
+  { txt: "Mar–Dom 12 a 16 y 20 a 24", gap: true },
+  { txt: "Lun–Dom 8 a 21", gap: false },
+  { txt: "Mié–Dom 12:30 a 16 y 20 a 0:30", gap: true },
 ];
 
 function rnd(n) { return Math.floor(Math.random() * n); }
@@ -901,7 +952,7 @@ function genBusinesses(nichoKey, ciudad) {
     const web = webRoll < 0.42 ? "no" : webRoll < 0.78 ? "sinchat" : "conchat";
     const respondeResenas = Math.random() < 0.32;
     const citaTelefono = cfg.cita && Math.random() < 0.85;
-    const horario = pick(cfg.g === "Hostelería" ? HORARIOS_HOSTELERIA : HORARIOS);
+    const horario = pick(cfg.g === "Gastronomía" ? HORARIOS_GASTRO : HORARIOS);
 
     const consultas = Math.max(8, Math.round(reviews * cfg.factor * (0.8 + Math.random() * 0.6) / 3));
     let lossRate = 0.14;
@@ -923,9 +974,9 @@ function genBusinesses(nichoKey, ciudad) {
     out.push({
       id: `b-${seq}-${i}`,
       name, nicho: nichoKey, nichoLabel: cfg.label, grupo: cfg.g, ciudad,
-      address: `${pick(CALLES)}, ${1 + rnd(120)}`,
+      address: `${pick(CALLES)} ${100 + rnd(4800)}`,
       rating, reviews,
-      phone: `+34 6${rnd(10)}${rnd(10)} ${100 + rnd(900)} ${100 + rnd(900)}`,
+      phone: `+54 9 11 ${2000 + rnd(8000)}-${1000 + rnd(9000)}`,
       web, respondeResenas, citaTelefono,
       horario: horario.txt, horarioGap: horario.gap,
       consultas, perdidas, score,
@@ -941,63 +992,110 @@ function genBusinesses(nichoKey, ciudad) {
 function bizDescription(b) {
   const cfg = NICHOS[b.nicho];
   const base = cfg ? cfg.descs[b.descIdx % cfg.descs.length] : b.nichoLabel;
-  const rep = b.reviews > 180 ? "con mucho movimiento" : b.reviews > 60 ? "con actividad constante" : "con clientela de proximidad";
+  const rep = b.reviews > 180 ? "con mucho movimiento" : b.reviews > 60 ? "con actividad constante" : "con clientela de cercanía";
   let señal;
   if (b.web === "no") señal = "No tiene página web ni ningún canal digital de atención";
   else if (b.web === "sinchat") señal = "Tiene web, pero sin chat ni reservas online";
   else señal = "Tiene web con chat, aunque con margen de mejora";
   const extra = [];
-  if (b.citaTelefono) extra.push("todo se gestiona por teléfono");
+  if (b.citaTelefono) extra.push("todo se maneja por teléfono");
   if (!b.respondeResenas) extra.push("no responden reseñas");
   if (b.horarioGap) extra.push("hay muchas horas al día sin nadie que atienda");
-  return `${base} ${rep} en ${b.ciudad} (${b.rating.toFixed(1)}★, ${b.reviews} reseñas). ${señal}${extra.length ? "; " + extra.join(", ") : ""}. Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} se quedan sin respuesta.`;
+  return `${base} ${rep} en ${b.ciudad} (${b.rating.toFixed(1)}★, ${b.reviews} reseñas). ${señal}${extra.length ? "; " + extra.join(", ") : ""}. Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} quedan sin respuesta.`;
 }
 
-/* ══ Mensaje de WhatsApp personalizado ════════ */
-const SALUDOS = ["Hola 👋", "¡Hola! 😊", "Buenas 👋"];
-const CIERRES = [
-  "¿Os preparo una demo de 2 minutos hecha con vuestro caso? Sin compromiso.",
-  "Si os encaja, os monto una demo gratuita con vuestros datos para que la veáis funcionando. ¿Os la paso?",
-  "¿Queréis que os enseñe cómo quedaría en vuestro caso? La demo es gratis y tarda 2 minutos.",
-];
+/* ══ Mensaje de WhatsApp (argentino, sin olor a venta) ══
+   La lógica: arrancar con un dato real de SU ficha, hacer una pregunta
+   genuina según SU señal, recién ahí contar a qué te dedicás (corto,
+   un solo beneficio) y cerrar con salida fácil. Nada de "oferta",
+   "promoción", "demo gratis" ni párrafos largos. */
+const SALUDOS = ["Hola, ¿qué tal?", "¡Hola! ¿Cómo andan?", "Buenas, ¿cómo va?"];
 
 function buildMessage(b, seed) {
-  const cfg = NICHOS[b.nicho] || { bot: ["responde a vuestros clientes 24/7"], label: b.nichoLabel };
+  const cfg = NICHOS[b.nicho] || { bot: ["contesta las consultas al toque"], label: b.nichoLabel };
   const s = seed ?? b.msgSeed ?? 0;
   const v = (arr, off = 0) => arr[(s + off) % arr.length];
+  const firma = settings.name.trim();
+  const producto = settings.product.trim();
+  const [rubro, rubroSg] = RUBRO_CORTO[b.nicho] || [cfg.label.toLowerCase(), "un negocio como el de ustedes"];
 
-  const firma = settings.name || "";
-  const producto = settings.product || "un chatbot de WhatsApp";
+  // Apertura: un dato real de su ficha, sin chamuyo
+  const aperturas = [
+    `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me quedé mirando la ficha de ustedes: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas, un montón.`,
+    `Estaba mirando ${rubro} en ${b.ciudad} y ${b.name} me apareció de los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota que laburan bien.`,
+    `Me crucé con la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y les quería hacer una consulta cortita.`,
+  ];
 
-  // Gancho: un dato real de SU ficha
-  const gancho = `os he encontrado en Google Maps buscando ${cfg.label.toLowerCase()} en ${b.ciudad} y me quedé con vuestra ficha: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas. Enhorabuena, no es fácil.`;
+  // Cada rubro agenda algo distinto: turnos, reservas, consultas…
+  const AGENDA = {
+    restaurante: ["las reservas", "las", "tomando"],
+    catering: ["las reservas", "las", "tomando"],
+    spa: ["las reservas", "las", "tomando"],
+    "yoga-pilates": ["las reservas", "las", "tomando"],
+    inmobiliaria: ["las visitas", "las", "coordinando"],
+    "estudio-juridico": ["las consultas", "las", "coordinando"],
+    "estudio-contable": ["las reuniones", "las", "coordinando"],
+    psicologia: ["las consultas", "las", "coordinando"],
+    fotografo: ["las sesiones", "las", "coordinando"],
+  };
+  const [agN, agPron, agVerb] = AGENDA[b.nicho] || ["los turnos", "los", "dando"];
 
-  // Dolor: según sus señales concretas
-  let dolor;
-  if (b.web === "no") dolor = "He visto que aún no tenéis web ni ningún canal automático de atención";
-  else if (b.web === "sinchat") dolor = "He visto que vuestra web no tiene chat ni reservas online";
-  else dolor = "He visto que ya tenéis presencia online";
-  if (b.citaTelefono) dolor += " y que todo se gestiona por teléfono";
-  dolor += b.horarioGap
-    ? ", así que fuera de horario los mensajes se quedan sin responder."
-    : ", y en las horas punta es imposible llegar a todo.";
+  // Pregunta gancho: según SUS señales, y es una pregunta de verdad
+  let pregunta;
+  if (b.citaTelefono && b.web === "no") {
+    pregunta = v([
+      `Una pregunta: ¿${agN} ${agPron} manejan solo por teléfono? Vi que no tienen página ni nada online.`,
+      `¿Todo lo que les entra lo atienden por teléfono? Busqué una página de ustedes y no encontré.`,
+    ], 1);
+  } else if (b.citaTelefono) {
+    pregunta = v([
+      `Una pregunta: ¿${agN} ${agPron} siguen ${agVerb} por teléfono?`,
+      `¿Cómo manejan ${agN}? ¿Por teléfono nomás?`,
+    ], 1);
+  } else if (b.web === "no") {
+    pregunta = v([
+      `Una pregunta: ¿las consultas les entran todas por teléfono? Vi que no tienen página.`,
+      `¿Por dónde les llega la gente? ¿Teléfono y boca en boca? No les encontré nada online.`,
+    ], 1);
+  } else if (b.web === "sinchat") {
+    pregunta = v([
+      `Entré a la web de ustedes y no encontré por dónde escribirles. ¿Las consultas van todas al teléfono?`,
+      `Vi que tienen web pero no hay forma de escribirles por ahí. ¿Todo cae al teléfono?`,
+    ], 1);
+  } else {
+    pregunta = v([
+      `Una pregunta: ¿quién les contesta lo que entra fuera de horario?`,
+      `¿Cómo vienen manejando las consultas que llegan fuera de horario?`,
+    ], 1);
+  }
 
-  // Propuesta: beneficios del bot para SU nicho
-  const b1 = v(cfg.bot, 0), b2 = v(cfg.bot, 1);
-  const propuesta = `Me dedico a montar ${producto} para ${cfg.label.toLowerCase()}: ${b1} y ${b2}, las 24 horas y sin que nadie del equipo esté pendiente.`;
+  // Por qué pregunto: presentación corta, un beneficio concreto, cero humo
+  const puentes = [
+    `Te cuento por qué pregunto: armo asistentes de WhatsApp para ${rubro}${producto ? ` (le puse ${producto})` : ""}. El asistente ${v(cfg.bot, 0)}, incluso a las 2 de la mañana${b.horarioGap ? ", que es justo cuando nadie puede atender" : ""}.`,
+    `Lo pregunto porque me dedico a eso: armo un asistente de WhatsApp que ${v(cfg.bot, 0)}, solo, sin que nadie esté colgado al teléfono.${producto ? ` Le puse ${producto}.` : ""}`,
+    `Es que laburo con ${rubro}: les armo un asistente de WhatsApp que ${v(cfg.bot, 1)}. Y no suena a robot — contesta como contestarían ustedes.`,
+  ];
 
-  // Dato de impacto estimado
-  const impacto = `En un negocio con vuestro movimiento eso suele significar unas ${b.perdidas} consultas al mes que hoy se pierden.`;
+  // Cierre con salida fácil, sin presión
+  const cierres = [
+    `Si te interesa te muestro uno andando, son dos minutos. Y si no, todo bien, ya les dejo el saludo igual.`,
+    `¿Te copa que te muestre cómo funciona en ${rubroSg}? Si no es lo de ustedes, no pasa nada.`,
+    `Si querés te mando un video cortito de uno funcionando en ${rubroSg} y lo ves cuando puedas. Sin vueltas.`,
+  ];
+
+  const firmas = firma
+    ? [`Abrazo, ${firma}`, `¡Saludos! ${firma}`, `Cualquier cosa me escribís por acá. ${firma}`]
+    : [`Un abrazo`, `¡Saludos!`, `Cualquier cosa me escribís por acá`];
 
   const partes = [
-    `${v(SALUDOS)} ¿Hablo con el equipo de ${b.name}?`,
-    `Soy ${firma || "…"}${firma && producto !== "un chatbot de WhatsApp" ? `, de ${producto}` : ""} — ${gancho}`,
-    `${dolor}`,
-    `${propuesta} ${impacto}`,
-    v(CIERRES, 1),
+    `${v(SALUDOS)} ${v(aperturas)}`,
+    pregunta,
+    v(puentes, 2),
+    v(cierres, 1),
   ];
-  if (settings.demo) partes.push(`Aquí podéis ver un ejemplo real: ${settings.demo}`);
+  if (settings.demo) partes.push(`Acá hay uno andando por si querés chusmear: ${settings.demo}`);
   if (settings.pd) partes.push(settings.pd);
+  partes.push(v(firmas, 2));
   return partes.join("\n\n");
 }
 
@@ -1006,20 +1104,20 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<"
 function scoreColor(s) { return s >= 70 ? "var(--good)" : s >= 45 ? "var(--warning)" : "var(--serious)"; }
 function scoreTag(s) { return s >= 70 ? "Alta" : s >= 45 ? "Media" : "Baja"; }
 function stars(r) { const f = Math.round(r); return "★".repeat(f) + "☆".repeat(5 - f); }
-function fmtEur(n) { return n.toLocaleString("es-ES") + " €"; }
+function fmtMoney(n) { return "$ " + n.toLocaleString("es-AR"); }
 
 function signalPills(b, max = 99) {
   const p = [];
   if (b.web === "no") p.push(`<span class="pill pill-critical"><span class="dot"></span>Sin web</span>`);
   if (b.web === "sinchat") p.push(`<span class="pill pill-serious"><span class="dot"></span>Web sin chat</span>`);
-  if (b.citaTelefono) p.push(`<span class="pill pill-info"><span class="dot"></span>Cita por teléfono</span>`);
+  if (b.citaTelefono) p.push(`<span class="pill pill-info"><span class="dot"></span>Turnos por teléfono</span>`);
   if (!b.respondeResenas) p.push(`<span class="pill pill-warning"><span class="dot"></span>No responde reseñas</span>`);
   if (b.horarioGap) p.push(`<span class="pill pill-warning"><span class="dot"></span>Horas sin atención</span>`);
   if (b.web === "conchat") p.push(`<span class="pill pill-good"><span class="dot"></span>Ya tiene chat</span>`);
   return p.slice(0, max).join("");
 }
 
-/* ══ Selector de nichos agrupado ══════════════ */
+/* ══ Selector de rubros agrupado ══════════════ */
 (function fillNichos() {
   const sel = document.getElementById("nicho");
   const groups = {};
@@ -1045,7 +1143,7 @@ const SCAN_STEPS = [
   [50, "Detectando webs y canales de chat…"],
   [68, "Extrayendo teléfonos y horarios…"],
   [84, "Calculando consultas perdidas…"],
-  [96, "Redactando mensajes personalizados…"],
+  [96, "Armando los mensajes personalizados…"],
 ];
 
 document.getElementById("searchForm").addEventListener("submit", (e) => {
@@ -1089,7 +1187,7 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
         history = history.slice(0, 20);
         save(LS.history, history);
         renderAll();
-        toast(`Búsqueda completada: ${results.length} negocios analizados en ${ciudad}`);
+        toast(`Listo: ${results.length} negocios analizados en ${ciudad}`);
       }, 350);
     }
   }, 420);
@@ -1122,7 +1220,7 @@ function renderResults() {
     table.style.display = "none";
     empty.style.display = "block";
     empty.querySelector("h4").textContent = "Sin resultados con estos filtros";
-    empty.querySelector("p").textContent = "Prueba a desactivar «Solo altas».";
+    empty.querySelector("p").textContent = "Probá destildando «Solo altas».";
     return;
   }
   table.style.display = "table";
@@ -1140,7 +1238,7 @@ function renderResults() {
         <div class="rev-count num">${b.reviews} reseñas</div>
       </td>
       <td><div class="pills">${signalPills(b, 3)}</div></td>
-      <td><span class="chip-uso">🤖 ${esc(b.uso)}</span></td>
+      <td><span class="chip-uso">${esc(b.uso)}</span></td>
       <td>
         <div class="score">
           <span class="score-num">${b.score}</span>
@@ -1150,9 +1248,9 @@ function renderResults() {
       </td>
       <td>
         <div class="actions">
-          <a class="icon-btn" href="tel:${b.phone.replace(/\s/g, "")}" title="Llamar al ${esc(b.phone)}">📞</a>
-          <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${b.id}')">💬</button>
-          <button class="icon-btn ${isSaved ? "saved" : ""}" title="${isSaved ? "Quitar de mi cartera" : "Guardar lead"}" onclick="toggleLead('${b.id}')">${isSaved ? "✓" : "＋"}</button>
+          <a class="icon-btn" href="tel:${b.phone.replace(/[\s-]/g, "")}" title="Llamar al ${esc(b.phone)}">${ICONS.phone}</a>
+          <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${b.id}')">${ICONS.chat}</button>
+          <button class="icon-btn ${isSaved ? "saved" : ""}" title="${isSaved ? "Quitar de mi cartera" : "Guardar lead"}" onclick="toggleLead('${b.id}')">${isSaved ? ICONS.check : ICONS.plus}</button>
         </div>
       </td>
     </tr>`;
@@ -1178,7 +1276,7 @@ function renderSearchCharts() {
   const señales = [
     ["Sin web", pct(results.filter(b => b.web === "no").length)],
     ["Web sin chat", pct(results.filter(b => b.web === "sinchat").length)],
-    ["Cita por teléfono", pct(results.filter(b => b.citaTelefono).length)],
+    ["Turnos por teléfono", pct(results.filter(b => b.citaTelefono).length)],
     ["No responde reseñas", pct(results.filter(b => !b.respondeResenas).length)],
     ["Horas sin atención", pct(results.filter(b => b.horarioGap).length)],
   ];
@@ -1200,8 +1298,8 @@ function renderStats() {
   const hot = results.filter(b => b.score >= 70).length;
   document.getElementById("statScanned").textContent = results.length;
   document.getElementById("statHot").textContent = hot;
-  document.getElementById("statLost").textContent = lost.toLocaleString("es-ES");
-  document.getElementById("statValue").textContent = fmtEur(hot * (Number(settings.price) || 0));
+  document.getElementById("statLost").textContent = lost.toLocaleString("es-AR");
+  document.getElementById("statValue").textContent = fmtMoney(hot * (Number(settings.price) || 0));
   document.getElementById("statSaved").textContent = leads.length;
   document.getElementById("searchesUsedLbl").textContent = searchesUsed;
   document.getElementById("leadCount").textContent = leads.length;
@@ -1237,14 +1335,14 @@ function renderLeads() {
   document.getElementById("lStatContactedPct").textContent =
     activos.length ? `${Math.round(contactados.length / activos.length * 100)} % de la cartera` : "—";
   document.getElementById("lStatClients").textContent = clientes.length;
-  document.getElementById("lStatMrr").textContent = fmtEur(clientes.length * (Number(settings.price) || 0));
+  document.getElementById("lStatMrr").textContent = fmtMoney(clientes.length * (Number(settings.price) || 0));
 
   if (!list.length) {
     table.style.display = "none";
     empty.style.display = "block";
     if (leads.length) {
       empty.querySelector("h4").textContent = "Nada con este estado";
-      empty.querySelector("p").textContent = "Prueba con otro filtro.";
+      empty.querySelector("p").textContent = "Probá con otro filtro.";
     }
     return;
   }
@@ -1254,7 +1352,7 @@ function renderLeads() {
   body.innerHTML = list.map(l => `<tr>
     <td>
       <div class="biz-name">${esc(l.name)}</div>
-      <div class="biz-cat">${esc(l.nichoLabel)} · <span class="chip-uso" style="font-size:10px">🤖 ${esc(l.uso || "Chatbot")}</span></div>
+      <div class="biz-cat">${esc(l.nichoLabel)} · ${esc(l.uso || "")}</div>
     </td>
     <td>${esc(l.ciudad)}</td>
     <td class="phone">${esc(l.phone)}</td>
@@ -1271,9 +1369,9 @@ function renderLeads() {
     </td>
     <td>
       <div class="actions">
-        <a class="icon-btn" href="tel:${l.phone.replace(/\s/g, "")}" title="Llamar">📞</a>
-        <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${l.id}')">💬</button>
-        <button class="icon-btn" title="Eliminar de la cartera" onclick="toggleLead('${l.id}')">🗑</button>
+        <a class="icon-btn" href="tel:${l.phone.replace(/[\s-]/g, "")}" title="Llamar">${ICONS.phone}</a>
+        <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${l.id}')">${ICONS.chat}</button>
+        <button class="icon-btn" title="Eliminar de la cartera" onclick="toggleLead('${l.id}')">${ICONS.trash}</button>
       </div>
     </td>
   </tr>`).join("");
@@ -1291,9 +1389,9 @@ function renderAnalytics() {
   document.getElementById("aStatCloseRate").textContent =
     contactados.length ? `${Math.round(clientes.length / contactados.length * 100)} %` : "—";
   const pipeline = activos.filter(l => l.state !== "Cliente").length * (Number(settings.price) || 0);
-  document.getElementById("aStatPipeline").textContent = fmtEur(pipeline);
+  document.getElementById("aStatPipeline").textContent = fmtMoney(pipeline);
 
-  // Embudo por estado (ordinal, un solo tono que se oscurece)
+  // Embudo por estado (un solo tono que se va oscureciendo)
   const funnelStates = ["Nuevo", "Contactado", "Interesado", "Demo agendada", "Cliente"];
   const seq = ["var(--seq-1)", "var(--seq-2)", "var(--seq-3)", "var(--seq-4)", "var(--seq-5)"];
   const counts = funnelStates.map(s => leads.filter(l => l.state === s).length);
@@ -1302,9 +1400,9 @@ function renderAnalytics() {
   document.getElementById("chartFunnel").innerHTML = leads.length
     ? funnelStates.map((s, i) => hbar(s, counts[i], maxC, "", seq[i])).join("") +
       `<div class="chart-sub" style="margin:8px 0 0">Descartados: ${descartados}</div>`
-    : `<div class="chart-empty">Guarda leads para ver tu embudo.</div>`;
+    : `<div class="chart-empty">Guardá leads para ver tu embudo.</div>`;
 
-  // Leads por nicho (top 6)
+  // Leads por rubro (top 6)
   const porNicho = {};
   leads.forEach(l => { porNicho[l.nichoLabel] = (porNicho[l.nichoLabel] || 0) + 1; });
   const top = Object.entries(porNicho).sort((a, b) => b[1] - a[1]).slice(0, 6);
@@ -1322,12 +1420,12 @@ function renderAnalytics() {
     hTable.style.display = "table";
     hEmpty.style.display = "none";
     hBody.innerHTML = history.map(h => `<tr>
-      <td class="num">${new Date(h.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+      <td class="num">${new Date(h.fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
       <td>${esc(h.nicho)}</td>
       <td>${esc(h.ciudad)}</td>
       <td class="num">${h.total}</td>
       <td class="num">${h.altas}</td>
-      <td class="num">${h.perdidas.toLocaleString("es-ES")}</td>
+      <td class="num">${h.perdidas.toLocaleString("es-AR")}</td>
     </tr>`).join("");
   }
 }
@@ -1348,21 +1446,22 @@ window.openMsg = function (id) {
   document.getElementById("mSub").textContent =
     `${b.nichoLabel} · ${b.address}, ${b.ciudad} · ${b.rating.toFixed(1)}★ (${b.reviews} reseñas) · ${b.phone}`;
   document.getElementById("mDesc").textContent = bizDescription(b);
-  document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">🤖 ${esc(b.uso || "Chatbot")}</span>`;
+  document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(b.uso || "")}</span>`;
   document.getElementById("mConsultas").textContent = `~${b.consultas ?? "—"}`;
   document.getElementById("mPerdidas").textContent = `~${b.perdidas ?? "—"}`;
   document.getElementById("mHorario").textContent = b.horario || "—";
-  document.getElementById("mMsg").value = buildMessage(b);
-  document.getElementById("mCall").href = "tel:" + b.phone.replace(/\s/g, "");
+  const ta = document.getElementById("mMsg");
+  ta.value = buildMessage(b);
+  document.getElementById("mCall").href = "tel:" + b.phone.replace(/[\s-]/g, "");
   updateModalSaveBtn();
   modalBack.classList.add("on");
-  document.getElementById("mMsg").focus();
+  ta.scrollTop = 0;
 };
 
 function updateModalSaveBtn() {
   if (!modalBiz) return;
   const isSaved = leads.some(l => l.id === modalBiz.id);
-  document.getElementById("mSave").textContent = isSaved ? "✓ Guardado" : "＋ Guardar lead";
+  document.getElementById("mSave").textContent = isSaved ? "Guardado" : "Guardar lead";
 }
 
 function closeModal() { modalBack.classList.remove("on"); modalBiz = null; }
@@ -1381,12 +1480,12 @@ document.getElementById("mCopy").addEventListener("click", async () => {
   const text = document.getElementById("mMsg").value;
   try {
     await navigator.clipboard.writeText(text);
-    toast("Mensaje copiado al portapapeles");
+    toast("Mensaje copiado");
   } catch {
     const ta = document.getElementById("mMsg");
     ta.select();
-    try { document.execCommand("copy"); toast("Mensaje copiado al portapapeles"); }
-    catch { toast("No se pudo copiar automáticamente: selecciónalo y copia manualmente"); }
+    try { document.execCommand("copy"); toast("Mensaje copiado"); }
+    catch { toast("No se pudo copiar: seleccionalo y copialo a mano"); }
   }
 });
 
@@ -1432,8 +1531,8 @@ window.setLeadState = function (id, state) {
 document.getElementById("leadFilter").addEventListener("change", renderLeads);
 
 document.getElementById("exportCsv").addEventListener("click", () => {
-  if (!leads.length) { toast("No hay leads que exportar"); return; }
-  const rows = [["Negocio", "Nicho", "Ciudad", "Dirección", "Teléfono", "Valoración", "Reseñas", "Puntuación", "Estado", "Caso de uso", "Descripción", "Mensaje WhatsApp"]];
+  if (!leads.length) { toast("No hay leads para exportar"); return; }
+  const rows = [["Negocio", "Rubro", "Ciudad", "Dirección", "Teléfono", "Valoración", "Reseñas", "Puntuación", "Estado", "Caso de uso", "Descripción", "Mensaje WhatsApp"]];
   leads.forEach(l => rows.push([
     l.name, l.nichoLabel, l.ciudad, l.address, l.phone, l.rating, l.reviews,
     l.score, l.state, l.uso || "", bizDescription(l), buildMessage(l),
@@ -1444,7 +1543,7 @@ document.getElementById("exportCsv").addEventListener("click", () => {
   a.download = "huntly-leads.csv";
   a.click();
   URL.revokeObjectURL(a.href);
-  toast("CSV exportado (incluye descripción y mensaje)");
+  toast("CSV exportado, con descripción y mensaje incluidos");
 });
 
 /* ══ Filtros de resultados ════════════════════ */
@@ -1453,10 +1552,10 @@ document.getElementById("sortBy").addEventListener("change", renderResults);
 
 /* ══ Navegación ═══════════════════════════════ */
 const VIEW_META = {
-  panel: ["Panel", "Encuentra negocios donde tu chatbot puede vender por ti"],
+  panel: ["Panel", "Encontrá negocios que pierden consultas y ganalos con tu chatbot"],
   leads: ["Mis leads", "Tu cartera de clientes potenciales"],
-  analitica: ["Analítica", "Tu actividad de prospección de un vistazo"],
-  ajustes: ["Ajustes", "Personaliza tu oferta y tus mensajes"],
+  analitica: ["Analítica", "Tu prospección de un vistazo"],
+  ajustes: ["Ajustes", "Personalizá tu oferta y tus mensajes"],
 };
 document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -1476,6 +1575,13 @@ document.getElementById("myDemo").value = settings.demo;
 document.getElementById("myPrice").value = settings.price;
 document.getElementById("myPd").value = settings.pd;
 
+function applyAvatar() {
+  document.getElementById("avatar").textContent = settings.name
+    ? settings.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase()
+    : "H";
+}
+applyAvatar();
+
 document.getElementById("saveSettings").addEventListener("click", () => {
   settings = {
     name: document.getElementById("myName").value.trim(),
@@ -1485,22 +1591,18 @@ document.getElementById("saveSettings").addEventListener("click", () => {
     pd: document.getElementById("myPd").value.trim(),
   };
   save(LS.settings, settings);
-  const ini = settings.name ? settings.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() : "JD";
-  document.getElementById("avatar").textContent = ini;
+  applyAvatar();
   renderAll();
-  toast("Ajustes guardados: los mensajes ya usan tus datos");
+  toast("Ajustes guardados: los mensajes ya salen con tus datos");
 });
-if (settings.name) {
-  document.getElementById("avatar").textContent =
-    settings.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
-}
 
 /* ══ Tema ═════════════════════════════════════ */
 const themeBtn = document.getElementById("themeBtn");
 function applyTheme(t) {
   if (t) document.documentElement.dataset.theme = t;
   else delete document.documentElement.dataset.theme;
-  themeBtn.textContent = (t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "☀️" : "🌙";
+  const isDark = (t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark";
+  themeBtn.innerHTML = isDark ? ICONS.sun : ICONS.moon;
 }
 let theme = load(LS.theme, null);
 applyTheme(theme);
