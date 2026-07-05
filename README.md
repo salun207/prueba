@@ -1,9 +1,10 @@
-# Huntly — réplica del dashboard
+# Huntly — prospección de clientes para tu chatbot
 
-Réplica funcional del panel de [tryhuntly.com](https://tryhuntly.com/es), una
-herramienta de prospección para freelancers y agencias que venden sitios web:
-escanea Google Maps por nicho y ciudad, detecta negocios sin página web,
-extrae su teléfono y les asigna una puntuación de oportunidad.
+Panel inspirado en [tryhuntly.com](https://tryhuntly.com/es), reorientado a
+**vender chatbots de WhatsApp**: escanea Google Maps por nicho y ciudad
+(simulado, datos ficticios generados en el cliente), detecta negocios que
+pierden consultas y prepara un **mensaje de WhatsApp personalizado para cada
+negocio** para ofrecerles tu chatbot.
 
 ## Cómo usarla
 
@@ -12,16 +13,33 @@ todo (HTML, CSS y JS) va en un único archivo.
 
 ## Funcionalidades
 
-- **Búsqueda por nicho y ciudad** con escaneo simulado de Google Maps
-  (los datos de negocios son ficticios y se generan en el cliente).
-- **Tabla de resultados**: valoración y reseñas, teléfono, estado del sitio
-  web (sin web / web obsoleta / con web) y puntuación de oportunidad 0–99.
-- **Acciones por lead**: llamar (`tel:`), abrir WhatsApp con un mensaje de
-  apertura auto-generado (`wa.me`) y guardar en la cartera.
-- **Mis leads**: cartera persistente en `localStorage`, con estados
-  (Nuevo → Contactado → En negociación → Cliente) y exportación a CSV.
-- **Ajustes**: plantilla del mensaje de WhatsApp con variables
-  `{negocio}`, `{ciudad}`, `{nicho}` y firma.
-- **Plan Gratis** simulado con límite de 3 búsquedas.
+- **31 nichos** agrupados: 8 tipos de clínicas (dental, estética, fisio,
+  veterinaria, podología, psicología, oftalmología, nutrición), belleza,
+  hostelería, fitness, hogar y urgencias, automoción y servicios
+  profesionales.
+- **Señales de oportunidad por negocio**: sin web, web sin chat, cita solo
+  por teléfono, no responde reseñas, horas del día sin atención — con una
+  puntuación de idoneidad para chatbot (0–99).
+- **Descripción generada de cada negocio** con su reputación, sus señales y
+  una estimación de consultas al mes que pierde.
+- **Mensaje de WhatsApp personalizado por negocio**: usa su nombre, su
+  valoración real, sus señales concretas y el caso de uso de su nicho.
+  Se abre en un modal donde puedes editarlo, pedir otra variante, copiarlo
+  o abrir WhatsApp con el texto ya cargado.
+- **Paneles de datos**: KPIs de la búsqueda (oportunidades altas, consultas
+  perdidas estimadas, valor potencial €/mes según tu tarifa), gráficos de
+  señales detectadas y distribución de puntuaciones.
+- **Mis leads**: cartera persistente (`localStorage`) con embudo de estados
+  (Nuevo → Contactado → Interesado → Demo agendada → Cliente / Descartado),
+  KPIs de contacto y cierre, filtro por estado y export CSV con la
+  descripción y el mensaje incluidos.
+- **Analítica**: embudo de ventas, leads por nicho, tasa de contacto y de
+  cierre, pipeline en € e historial de búsquedas.
+- **Ajustes**: tu nombre, el nombre de tu chatbot, enlace a demo, tarifa
+  mensual y posdata fija — todo se inyecta en los mensajes y en los
+  cálculos de valor.
 - Tema claro/oscuro (sigue el sistema, con conmutador manual) y diseño
   adaptable a móvil.
+
+> Los negocios mostrados son ficticios. Para encontrar negocios reales
+> haría falta un backend conectado a la API de Google Places.

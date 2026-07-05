@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Huntly — Panel</title>
+<title>Huntly — Prospección de chatbots</title>
 <style>
   :root {
     --brand: #2a78d6;
@@ -21,10 +21,14 @@
     --warning: #fab219;
     --serious: #ec835a;
     --critical: #d03b3b;
+    --seq-1: #86b6ef;
+    --seq-2: #5598e7;
+    --seq-3: #2a78d6;
+    --seq-4: #1c5cab;
+    --seq-5: #104281;
     --radius: 12px;
     --shadow: 0 1px 2px rgba(11,11,11,.05), 0 4px 16px rgba(11,11,11,.05);
   }
-  :root[data-theme="dark"], :root[data-theme="dark"] body { color-scheme: dark; }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --brand: #3987e5;
@@ -38,6 +42,11 @@
       --hairline: #2c2c2a;
       --border: rgba(255,255,255,0.10);
       --good-text: #0ca30c;
+      --seq-1: #9ec5f4;
+      --seq-2: #86b6ef;
+      --seq-3: #6da7ec;
+      --seq-4: #3987e5;
+      --seq-5: #256abf;
       --shadow: 0 1px 2px rgba(0,0,0,.4);
     }
   }
@@ -53,7 +62,13 @@
     --hairline: #2c2c2a;
     --border: rgba(255,255,255,0.10);
     --good-text: #0ca30c;
+    --seq-1: #9ec5f4;
+    --seq-2: #86b6ef;
+    --seq-3: #6da7ec;
+    --seq-4: #3987e5;
+    --seq-5: #256abf;
     --shadow: 0 1px 2px rgba(0,0,0,.4);
+    color-scheme: dark;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -65,39 +80,24 @@
     line-height: 1.5;
   }
   button { font: inherit; cursor: pointer; }
-  input, select { font: inherit; color: var(--ink); }
+  input, select, textarea { font: inherit; color: var(--ink); }
+  code { background: var(--page); border: 1px solid var(--hairline); border-radius: 5px; padding: 0 4px; font-size: 12px; }
 
   .layout { display: flex; min-height: 100vh; }
 
   /* ── Sidebar ─────────────────────────────── */
   .sidebar {
-    width: 240px;
-    flex-shrink: 0;
+    width: 240px; flex-shrink: 0;
     background: var(--surface-1);
     border-right: 1px solid var(--hairline);
-    display: flex;
-    flex-direction: column;
+    display: flex; flex-direction: column;
     padding: 20px 14px;
-    position: sticky;
-    top: 0;
-    height: 100vh;
+    position: sticky; top: 0; height: 100vh;
   }
-  .logo {
-    display: flex; align-items: center; gap: 10px;
-    padding: 0 8px 20px;
-    font-size: 20px; font-weight: 800; letter-spacing: -.02em;
-  }
-  .logo-mark {
-    width: 32px; height: 32px; border-radius: 9px;
-    background: var(--brand);
-    display: grid; place-items: center;
-    color: #fff; font-size: 16px;
-  }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+  .logo-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; color: #fff; font-size: 16px; }
   .nav { display: flex; flex-direction: column; gap: 2px; }
-  .nav-label {
-    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--muted); padding: 14px 10px 6px;
-  }
+  .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 14px 10px 6px; }
   .nav-item {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 10px; border-radius: 8px;
@@ -107,114 +107,84 @@
   .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
   .nav-item:hover { background: var(--page); color: var(--ink); }
   .nav-item.active { background: var(--brand-soft); color: var(--brand-strong); font-weight: 600; }
-  .nav-item .badge-count {
-    margin-left: auto; background: var(--brand); color: #fff;
-    border-radius: 99px; font-size: 11px; font-weight: 700;
-    padding: 1px 7px;
-  }
-  .plan-card {
-    margin-top: auto;
-    border: 1px solid var(--hairline);
-    border-radius: var(--radius);
-    padding: 14px;
-    background: var(--page);
-  }
+  .nav-item .badge-count { margin-left: auto; background: var(--brand); color: #fff; border-radius: 99px; font-size: 11px; font-weight: 700; padding: 1px 7px; }
+  .plan-card { margin-top: auto; border: 1px solid var(--hairline); border-radius: var(--radius); padding: 14px; background: var(--page); }
   .plan-card h4 { font-size: 13px; margin-bottom: 2px; }
   .plan-card p { font-size: 12px; color: var(--ink-2); margin-bottom: 10px; }
-  .plan-meter { height: 6px; border-radius: 99px; background: var(--hairline); overflow: hidden; margin-bottom: 10px; }
-  .plan-meter > div { height: 100%; background: var(--brand); border-radius: 99px; transition: width .3s; }
-  .btn-upgrade {
-    width: 100%; padding: 8px; border-radius: 8px; border: none;
-    background: var(--brand); color: #fff; font-weight: 600; font-size: 13px;
-  }
+  .btn-upgrade { width: 100%; padding: 8px; border-radius: 8px; border: none; background: var(--brand); color: #fff; font-weight: 600; font-size: 13px; }
   .btn-upgrade:hover { background: var(--brand-strong); }
 
   /* ── Main ────────────────────────────────── */
   .main { flex: 1; min-width: 0; padding: 24px 32px 48px; }
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px;
-  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .topbar h1 { font-size: 22px; letter-spacing: -.02em; }
   .topbar .sub { color: var(--ink-2); font-size: 13px; }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
-  .theme-toggle {
-    width: 36px; height: 36px; border-radius: 99px;
-    border: 1px solid var(--hairline); background: var(--surface-1);
-    display: grid; place-items: center; font-size: 15px;
-  }
-  .avatar {
-    width: 36px; height: 36px; border-radius: 99px;
-    background: var(--brand); color: #fff;
-    display: grid; place-items: center; font-weight: 700; font-size: 14px;
-  }
+  .theme-toggle { width: 36px; height: 36px; border-radius: 99px; border: 1px solid var(--hairline); background: var(--surface-1); display: grid; place-items: center; font-size: 15px; }
+  .avatar { width: 36px; height: 36px; border-radius: 99px; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+
+  .card { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--radius); box-shadow: var(--shadow); }
 
   /* ── Search card ─────────────────────────── */
-  .card {
-    background: var(--surface-1);
-    border: 1px solid var(--hairline);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-  }
   .search-card { padding: 22px; margin-bottom: 20px; }
   .search-card h2 { font-size: 16px; margin-bottom: 4px; }
   .search-card .hint { color: var(--ink-2); font-size: 13px; margin-bottom: 16px; }
-  .search-form { display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 12px; }
+  .search-form { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 12px; }
   .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 5px; }
   .field input, .field select {
     width: 100%; padding: 10px 12px; border-radius: 9px;
-    border: 1px solid var(--hairline); background: var(--page);
-    outline: none;
+    border: 1px solid var(--hairline); background: var(--page); outline: none;
   }
-  .field input:focus, .field select:focus { border-color: var(--brand); }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--brand); }
   .btn-primary {
     align-self: end;
     padding: 10px 22px; border-radius: 9px; border: none;
     background: var(--brand); color: #fff; font-weight: 600;
-    display: flex; align-items: center; gap: 8px; height: 41px;
+    display: inline-flex; align-items: center; gap: 8px; height: 41px;
   }
   .btn-primary:hover { background: var(--brand-strong); }
   .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
 
-  /* scan progress */
   .scan-box { margin-top: 16px; display: none; }
   .scan-box.on { display: block; }
   .scan-status { font-size: 13px; color: var(--ink-2); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
-  .spinner {
-    width: 14px; height: 14px; border-radius: 99px;
-    border: 2px solid var(--hairline); border-top-color: var(--brand);
-    animation: spin .8s linear infinite;
-  }
+  .spinner { width: 14px; height: 14px; border-radius: 99px; border: 2px solid var(--hairline); border-top-color: var(--brand); animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
   .scan-bar { height: 6px; background: var(--hairline); border-radius: 99px; overflow: hidden; }
   .scan-bar > div { height: 100%; width: 0; background: var(--brand); transition: width .4s; }
 
   /* ── Stat tiles ──────────────────────────── */
-  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(172px, 1fr)); gap: 14px; margin-bottom: 20px; }
   .tile { padding: 16px 18px; }
-  .tile .t-label { font-size: 12px; font-weight: 600; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .tile .t-label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
   .tile .t-value { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin-top: 4px; }
   .tile .t-foot { font-size: 12px; color: var(--muted); margin-top: 2px; }
   .tile .t-foot .up { color: var(--good-text); font-weight: 600; }
 
+  /* ── Mini charts ─────────────────────────── */
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .chart-card { padding: 18px 20px; }
+  .chart-card h3 { font-size: 14px; margin-bottom: 2px; }
+  .chart-card .chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .hbar-row { display: grid; grid-template-columns: 150px 1fr 44px; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .hbar-row .hb-label { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hbar-track { height: 10px; background: var(--page); border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; }
+  .hbar-fill { height: 100%; border-radius: 3px 4px 4px 3px; background: var(--brand); min-width: 2px; }
+  .hbar-val { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; text-align: right; }
+  .chart-empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+
   /* ── Results ─────────────────────────────── */
-  .results-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; border-bottom: 1px solid var(--hairline);
-    flex-wrap: wrap; gap: 10px;
-  }
+  .results-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--hairline); flex-wrap: wrap; gap: 10px; }
   .results-head h3 { font-size: 15px; }
   .results-head .meta { color: var(--ink-2); font-size: 13px; }
-  .filters { display: flex; gap: 10px; align-items: center; }
-  .filters select {
-    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--hairline);
-    background: var(--surface-1); font-size: 13px;
-  }
+  .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filters select { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--hairline); background: var(--surface-1); font-size: 13px; }
   .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
   .chk input { accent-color: var(--brand); width: 15px; height: 15px; }
 
   .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  table { width: 100%; border-collapse: collapse; min-width: 960px; }
   th {
     text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     color: var(--muted); font-weight: 600; padding: 10px 14px;
@@ -224,22 +194,29 @@
   tbody tr:hover { background: var(--page); }
   tbody tr:last-child td { border-bottom: none; }
   .biz-name { font-weight: 600; }
-  .biz-cat { font-size: 12px; color: var(--muted); }
+  .biz-cat { font-size: 12px; color: var(--muted); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .num { font-variant-numeric: tabular-nums; }
   .stars { color: var(--warning); letter-spacing: 1px; font-size: 12px; }
   .rev-count { color: var(--muted); font-size: 12px; }
   .phone { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   .pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
     border: 1px solid var(--border); white-space: nowrap;
   }
-  .pill .dot { width: 7px; height: 7px; border-radius: 99px; }
-  .pill-noweb { background: color-mix(in srgb, var(--critical) 10%, transparent); }
-  .pill-noweb .dot { background: var(--critical); }
-  .pill-oldweb { background: color-mix(in srgb, var(--serious) 12%, transparent); }
-  .pill-oldweb .dot { background: var(--serious); }
+  .pill .dot { width: 6px; height: 6px; border-radius: 99px; flex-shrink: 0; }
+  .pill-critical .dot { background: var(--critical); }
+  .pill-serious .dot { background: var(--serious); }
+  .pill-warning .dot { background: var(--warning); }
+  .pill-info .dot { background: var(--brand); }
+  .pill-good .dot { background: var(--good); }
+  .pills { display: flex; flex-wrap: wrap; gap: 4px; max-width: 260px; }
+  .chip-uso {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    background: var(--brand-soft); color: var(--brand-strong);
+    border-radius: 7px; padding: 3px 8px; white-space: nowrap;
+  }
 
   .score { display: flex; align-items: center; gap: 8px; min-width: 130px; }
   .score-num { font-weight: 700; font-variant-numeric: tabular-nums; width: 26px; }
@@ -256,54 +233,79 @@
   }
   .icon-btn:hover { border-color: var(--brand); color: var(--brand); }
   .icon-btn.saved { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .icon-btn:focus-visible, .btn-primary:focus-visible, .btn-ghost:focus-visible, .nav-item:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-  .empty {
-    text-align: center; padding: 60px 20px; color: var(--muted);
-  }
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
   .empty .emoji { font-size: 34px; margin-bottom: 10px; }
   .empty h4 { color: var(--ink-2); font-size: 15px; margin-bottom: 4px; }
 
-  /* ── Leads view ──────────────────────────── */
-  .lead-state {
-    padding: 5px 9px; border-radius: 8px; border: 1px solid var(--hairline);
-    background: var(--surface-1); font-size: 12px;
-  }
-  .btn-ghost {
-    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--hairline);
-    background: var(--surface-1); color: var(--ink-2); font-size: 13px; font-weight: 500;
-  }
+  .lead-state { padding: 5px 9px; border-radius: 8px; border: 1px solid var(--hairline); background: var(--surface-1); font-size: 12px; }
+  .btn-ghost { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--hairline); background: var(--surface-1); color: var(--ink-2); font-size: 13px; font-weight: 500; }
   .btn-ghost:hover { border-color: var(--brand); color: var(--brand); }
 
   /* ── Ajustes ─────────────────────────────── */
-  .settings-card { padding: 22px; max-width: 640px; }
-  .settings-card h3 { font-size: 15px; margin-bottom: 14px; }
-  .settings-card .field { margin-bottom: 14px; }
-  .settings-card textarea {
-    width: 100%; min-height: 110px; padding: 10px 12px; border-radius: 9px;
-    border: 1px solid var(--hairline); background: var(--page);
-    font: inherit; color: var(--ink); resize: vertical; outline: none;
+  .settings-card { padding: 22px; max-width: 680px; }
+  .settings-card h3 { font-size: 15px; margin-bottom: 4px; }
+  .settings-card .hint { color: var(--ink-2); font-size: 13px; margin-bottom: 16px; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .settings-grid .full { grid-column: 1 / -1; }
+  .settings-card .field input { background: var(--page); }
+  .settings-actions { margin-top: 18px; }
+
+  /* ── Modal ───────────────────────────────── */
+  .modal-back {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 5vh 16px; z-index: 40; overflow-y: auto;
   }
-  .settings-card textarea:focus { border-color: var(--brand); }
-  .tpl-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .modal-back.on { display: flex; }
+  .modal {
+    background: var(--surface-1); border: 1px solid var(--hairline);
+    border-radius: 16px; box-shadow: var(--shadow);
+    width: 100%; max-width: 660px; padding: 24px;
+  }
+  .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .modal-head h3 { font-size: 17px; letter-spacing: -.01em; }
+  .modal-close { border: none; background: none; font-size: 20px; color: var(--muted); line-height: 1; padding: 4px; }
+  .modal-close:hover { color: var(--ink); }
+  .modal-sub { color: var(--ink-2); font-size: 13px; margin-bottom: 14px; }
+  .modal-desc { font-size: 13px; color: var(--ink-2); background: var(--page); border: 1px solid var(--hairline); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .modal-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .mini-stat { background: var(--page); border: 1px solid var(--hairline); border-radius: 10px; padding: 10px 12px; }
+  .mini-stat .ms-l { font-size: 11px; color: var(--muted); }
+  .mini-stat .ms-v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .modal h4 { font-size: 13px; margin-bottom: 6px; }
+  .modal textarea {
+    width: 100%; min-height: 190px; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--hairline); background: var(--page);
+    resize: vertical; outline: none; font-size: 13.5px; line-height: 1.55;
+  }
+  .modal textarea:focus { border-color: var(--brand); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .wa-btn { background: #1faa53; }
+  .wa-btn:hover { background: #178a43; }
 
   /* toast */
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
     background: var(--ink); color: var(--page);
     padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 500;
-    opacity: 0; pointer-events: none; transition: all .25s; z-index: 50;
-    box-shadow: var(--shadow);
+    opacity: 0; pointer-events: none; transition: all .25s; z-index: 60;
+    box-shadow: var(--shadow); max-width: 90vw; text-align: center;
   }
   .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   .view { display: none; }
   .view.on { display: block; }
+  .section-title { font-size: 15px; font-weight: 700; margin: 4px 0 12px; }
 
   @media (max-width: 960px) {
     .sidebar { display: none; }
     .main { padding: 18px; }
-    .tiles { grid-template-columns: repeat(2, 1fr); }
     .search-form { grid-template-columns: 1fr; }
+    .charts { grid-template-columns: 1fr; }
+    .modal-stats { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
@@ -324,16 +326,19 @@
         Mis leads
         <span class="badge-count" id="leadCount">0</span>
       </button>
+      <button class="nav-item" data-view="analitica">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx=".8"/><rect x="12" y="8" width="3" height="10" rx=".8"/><rect x="17" y="5" width="3" height="13" rx=".8"/></svg>
+        Analítica
+      </button>
       <button class="nav-item" data-view="ajustes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Ajustes
       </button>
     </nav>
     <div class="plan-card">
-      <h4>Plan Gratis</h4>
-      <p><span id="searchesLeft">3</span> de 3 búsquedas restantes</p>
-      <div class="plan-meter"><div id="planMeter" style="width:0%"></div></div>
-      <button class="btn-upgrade" onclick="toast('Esto es una demo: aquí iría la página de planes 🙂')">Mejorar plan</button>
+      <h4>Plan Pro</h4>
+      <p>Búsquedas ilimitadas · <span id="searchesUsedLbl">0</span> realizadas</p>
+      <button class="btn-upgrade" onclick="toast('Esto es una demo: aquí iría la gestión del plan 🙂')">Gestionar plan</button>
     </div>
   </aside>
 
@@ -342,11 +347,11 @@
     <div class="topbar">
       <div>
         <h1 id="viewTitle">Panel</h1>
-        <div class="sub" id="viewSub">Encuentra negocios sin página web y consigue clientes</div>
+        <div class="sub" id="viewSub">Encuentra negocios donde tu chatbot puede vender por ti</div>
       </div>
       <div class="topbar-right">
         <button class="theme-toggle" id="themeBtn" title="Cambiar tema">🌙</button>
-        <div class="avatar">JD</div>
+        <div class="avatar" id="avatar">JD</div>
       </div>
     </div>
 
@@ -355,20 +360,11 @@
 
       <div class="card search-card">
         <h2>Nueva búsqueda</h2>
-        <p class="hint">Huntly escanea Google Maps, filtra los negocios sin sitio web y les asigna una puntuación de oportunidad.</p>
+        <p class="hint">Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, citas solo por teléfono…) y prepara un mensaje de WhatsApp personalizado para ofrecerles tu chatbot.</p>
         <form class="search-form" id="searchForm">
           <div class="field">
             <label for="nicho">Nicho</label>
-            <select id="nicho">
-              <option value="restaurantes">Restaurantes</option>
-              <option value="peluquerias">Peluquerías y barberías</option>
-              <option value="dentistas">Clínicas dentales</option>
-              <option value="talleres">Talleres mecánicos</option>
-              <option value="gimnasios">Gimnasios</option>
-              <option value="cafeterias">Cafeterías</option>
-              <option value="fontaneros">Fontaneros</option>
-              <option value="abogados">Despachos de abogados</option>
-            </select>
+            <select id="nicho"></select>
           </div>
           <div class="field">
             <label for="ciudad">Ciudad</label>
@@ -392,19 +388,37 @@
           <div class="t-foot">en la última búsqueda</div>
         </div>
         <div class="card tile">
-          <div class="t-label">🚫 Sin sitio web</div>
-          <div class="t-value num" id="statNoWeb">0</div>
-          <div class="t-foot" id="statNoWebPct">—</div>
+          <div class="t-label">🎯 Oportunidades altas</div>
+          <div class="t-value num" id="statHot">0</div>
+          <div class="t-foot">puntuación chatbot ≥ 70</div>
         </div>
         <div class="card tile">
-          <div class="t-label">⭐ Oportunidades altas</div>
-          <div class="t-value num" id="statHot">0</div>
-          <div class="t-foot">puntuación ≥ 70</div>
+          <div class="t-label">📵 Consultas perdidas</div>
+          <div class="t-value num" id="statLost">0</div>
+          <div class="t-foot">estimadas al mes, en total</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">💶 Valor potencial</div>
+          <div class="t-value num" id="statValue">0 €</div>
+          <div class="t-foot">al mes si cierras las altas</div>
         </div>
         <div class="card tile">
           <div class="t-label">📁 Leads guardados</div>
           <div class="t-value num" id="statSaved">0</div>
           <div class="t-foot"><span class="up">en tu cartera</span></div>
+        </div>
+      </div>
+
+      <div class="charts" id="searchCharts" style="display:none">
+        <div class="card chart-card">
+          <h3>Señales detectadas</h3>
+          <div class="chart-sub">% de negocios de esta búsqueda con cada señal</div>
+          <div id="chartSignals"></div>
+        </div>
+        <div class="card chart-card">
+          <h3>Puntuación de oportunidad</h3>
+          <div class="chart-sub">Cuántos negocios hay en cada tramo</div>
+          <div id="chartScore"></div>
         </div>
       </div>
 
@@ -415,9 +429,10 @@
             <div class="meta" id="resultsMeta">Lanza una búsqueda para ver oportunidades</div>
           </div>
           <div class="filters">
-            <label class="chk"><input type="checkbox" id="onlyNoWeb" checked> Solo sin web</label>
+            <label class="chk"><input type="checkbox" id="onlyHot"> Solo altas (≥ 70)</label>
             <select id="sortBy">
               <option value="score">Ordenar: puntuación</option>
+              <option value="lost">Ordenar: consultas perdidas</option>
               <option value="reviews">Ordenar: reseñas</option>
               <option value="rating">Ordenar: valoración</option>
             </select>
@@ -429,8 +444,8 @@
               <tr>
                 <th>Negocio</th>
                 <th>Valoración</th>
-                <th>Teléfono</th>
-                <th>Sitio web</th>
+                <th>Señales</th>
+                <th>Caso de uso</th>
                 <th>Puntuación</th>
                 <th>Acciones</th>
               </tr>
@@ -448,6 +463,28 @@
 
     <!-- ── Vista: Mis leads ── -->
     <section class="view" id="view-leads">
+      <div class="tiles">
+        <div class="card tile">
+          <div class="t-label">📁 Leads en cartera</div>
+          <div class="t-value num" id="lStatTotal">0</div>
+          <div class="t-foot">sin contar descartados</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">💬 Contactados</div>
+          <div class="t-value num" id="lStatContacted">0</div>
+          <div class="t-foot" id="lStatContactedPct">—</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">🤝 Clientes cerrados</div>
+          <div class="t-value num" id="lStatClients">0</div>
+          <div class="t-foot">estado «Cliente»</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">💶 Ingreso mensual</div>
+          <div class="t-value num" id="lStatMrr">0 €</div>
+          <div class="t-foot">clientes × tu tarifa</div>
+        </div>
+      </div>
       <div class="card">
         <div class="results-head">
           <div>
@@ -455,6 +492,9 @@
             <div class="meta" id="leadsMeta">0 leads guardados</div>
           </div>
           <div class="filters">
+            <select id="leadFilter">
+              <option value="">Todos los estados</option>
+            </select>
             <button class="btn-ghost" id="exportCsv">Exportar CSV</button>
           </div>
         </div>
@@ -481,24 +521,140 @@
       </div>
     </section>
 
+    <!-- ── Vista: Analítica ── -->
+    <section class="view" id="view-analitica">
+      <div class="tiles">
+        <div class="card tile">
+          <div class="t-label">🔎 Búsquedas realizadas</div>
+          <div class="t-value num" id="aStatSearches">0</div>
+          <div class="t-foot">desde que usas Huntly</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">🧲 Leads captados</div>
+          <div class="t-value num" id="aStatLeads">0</div>
+          <div class="t-foot">guardados en total</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">📈 Tasa de contacto</div>
+          <div class="t-value num" id="aStatContactRate">—</div>
+          <div class="t-foot">leads contactados o más</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">🏆 Tasa de cierre</div>
+          <div class="t-value num" id="aStatCloseRate">—</div>
+          <div class="t-foot">de contactado a cliente</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">💶 Pipeline</div>
+          <div class="t-value num" id="aStatPipeline">0 €</div>
+          <div class="t-foot">leads activos × tu tarifa</div>
+        </div>
+      </div>
+
+      <div class="charts">
+        <div class="card chart-card">
+          <h3>Embudo de ventas</h3>
+          <div class="chart-sub">Tus leads por estado (descartados aparte)</div>
+          <div id="chartFunnel"></div>
+        </div>
+        <div class="card chart-card">
+          <h3>Leads por nicho</h3>
+          <div class="chart-sub">Dónde estás encontrando más oportunidades</div>
+          <div id="chartNichos"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="results-head">
+          <div>
+            <h3>Historial de búsquedas</h3>
+            <div class="meta" id="historyMeta">Las últimas 20 búsquedas</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="historyTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Nicho</th>
+                <th>Ciudad</th>
+                <th>Analizados</th>
+                <th>Oportunidades altas</th>
+                <th>Consultas perdidas/mes</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="historyEmpty">
+          <div class="emoji">🕘</div>
+          <h4>Todavía no hay búsquedas</h4>
+          <p>Cada búsqueda que hagas quedará registrada aquí.</p>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Vista: Ajustes ── -->
     <section class="view" id="view-ajustes">
       <div class="card settings-card">
-        <h3>Mensaje de apertura de WhatsApp</h3>
-        <div class="field">
-          <label for="tplMsg">Plantilla</label>
-          <textarea id="tplMsg"></textarea>
-          <div class="tpl-hint">Variables disponibles: <code>{negocio}</code>, <code>{ciudad}</code>, <code>{nicho}</code></div>
+        <h3>Tu oferta de chatbot</h3>
+        <p class="hint">Estos datos se usan para personalizar los mensajes de WhatsApp y calcular el valor de tu pipeline.</p>
+        <div class="settings-grid">
+          <div class="field">
+            <label for="myName">Tu nombre</label>
+            <input id="myName" type="text" placeholder="p. ej. Julián">
+          </div>
+          <div class="field">
+            <label for="myProduct">Nombre de tu chatbot / servicio</label>
+            <input id="myProduct" type="text" placeholder="p. ej. RespondeBot">
+          </div>
+          <div class="field">
+            <label for="myDemo">Enlace a tu demo (opcional)</label>
+            <input id="myDemo" type="url" placeholder="https://…">
+          </div>
+          <div class="field">
+            <label for="myPrice">Tu tarifa mensual (€)</label>
+            <input id="myPrice" type="number" min="0" step="1" placeholder="49">
+          </div>
+          <div class="field full">
+            <label for="myPd">Posdata fija (opcional, se añade al final de cada mensaje)</label>
+            <input id="myPd" type="text" placeholder="p. ej. PD: la primera semana es gratis, sin permanencia.">
+          </div>
         </div>
-        <div class="field">
-          <label for="myName">Tu nombre (firma)</label>
-          <input id="myName" type="text" placeholder="p. ej. Julián">
+        <div class="settings-actions">
+          <button class="btn-primary" id="saveSettings" type="button">Guardar ajustes</button>
         </div>
-        <button class="btn-primary" id="saveSettings" type="button">Guardar ajustes</button>
       </div>
     </section>
 
   </main>
+</div>
+
+<!-- ══ Modal de negocio / mensaje ══ -->
+<div class="modal-back" id="modalBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="modal-head">
+      <h3 id="mTitle">Negocio</h3>
+      <button class="modal-close" id="mClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-sub" id="mSub"></div>
+    <div class="modal-desc" id="mDesc"></div>
+    <div class="modal-meta" id="mPills"></div>
+    <div class="modal-stats">
+      <div class="mini-stat"><div class="ms-l">Consultas/mes (est.)</div><div class="ms-v" id="mConsultas">—</div></div>
+      <div class="mini-stat"><div class="ms-l">Sin responder (est.)</div><div class="ms-v" id="mPerdidas">—</div></div>
+      <div class="mini-stat"><div class="ms-l">Horario</div><div class="ms-v" id="mHorario" style="font-size:13px">—</div></div>
+    </div>
+    <h4>💬 Mensaje de WhatsApp personalizado <span style="color:var(--muted);font-weight:400">(puedes editarlo antes de enviar)</span></h4>
+    <textarea id="mMsg" spellcheck="false"></textarea>
+    <div class="modal-actions">
+      <button class="btn-primary wa-btn" id="mWhatsapp">Abrir WhatsApp</button>
+      <button class="btn-ghost" id="mCopy">Copiar mensaje</button>
+      <button class="btn-ghost" id="mVariant">↻ Otra variante</button>
+      <button class="btn-ghost" id="mSave">＋ Guardar lead</button>
+      <a class="btn-ghost" id="mCall" href="#" style="text-decoration:none">📞 Llamar</a>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -506,96 +662,394 @@
 <script>
 "use strict";
 
-/* ── Estado ─────────────────────────────────── */
+/* ══ Estado y almacenamiento ══════════════════ */
 const LS = {
-  leads: "huntly.leads",
-  searches: "huntly.searches",
-  settings: "huntly.settings",
+  leads: "huntly2.leads",
+  searches: "huntly2.searches",
+  settings: "huntly2.settings",
+  history: "huntly2.history",
+  last: "huntly2.lastSearch",
   theme: "huntly.theme",
 };
-const MAX_SEARCHES = 3;
-const DEFAULT_TPL = "Hola 👋 Soy {firma}. He visto {negocio} en Google Maps y me ha llamado la atención que todavía no tenéis página web. Ayudo a negocios de {ciudad} como el vuestro a conseguir más clientes con una web sencilla y profesional. ¿Os interesaría ver un ejemplo?";
-
-let results = [];
-let lastQuery = null;
-let leads = load(LS.leads, []);
-let searchesUsed = load(LS.searches, 0);
-let settings = load(LS.settings, { tpl: DEFAULT_TPL, name: "" });
-
 function load(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
   catch { return fallback; }
 }
 function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
 
-/* ── Datos simulados ────────────────────────── */
+let leads = load(LS.leads, []);
+let searchesUsed = load(LS.searches, 0);
+let history = load(LS.history, []);
+let settings = Object.assign(
+  { name: "", product: "", demo: "", price: 49, pd: "" },
+  load(LS.settings, {})
+);
+let results = [];
+let lastQuery = null;
+const saved = load(LS.last, null);
+if (saved) { results = saved.results || []; lastQuery = saved.query || null; }
+
+/* ══ Catálogo de nichos ═══════════════════════ */
+/* Cada nicho define: nombres, si funciona con cita previa, volumen de
+   consultas, caso de uso del chatbot, beneficios concretos y descripciones. */
+const SUF_COMUN = ["Central", "Norte", "Sur", "del Parque", "la Plaza", "San Miguel", "Europa", "Levante", "Avenida", "del Río"];
+
 const NICHOS = {
-  restaurantes: { label: "Restaurantes", pre: ["Restaurante", "Casa", "Mesón", "Taberna", "La Cocina de", "El Rincón de"], suf: ["Pepe", "Lucía", "del Puerto", "Mariano", "la Abuela", "Sol", "Ibérico", "Andaluz", "el Patio", "Doña Carmen", "los Arcos", "la Plaza"] },
-  peluquerias: { label: "Peluquerías", pre: ["Peluquería", "Barbería", "Salón", "Estilo"], suf: ["Marta", "Álvaro", "Urban", "Clásica", "Rizos", "Tijeras de Oro", "Look", "Rocío", "Mediterráneo", "Chic", "Central", "Nueva Imagen"] },
-  dentistas: { label: "Clínicas dentales", pre: ["Clínica Dental", "Dental", "Centro Odontológico"], suf: ["Sonrisa", "Blanco", "Dr. Herrera", "Salud Oral", "Family", "Vital", "Norte", "Dra. Prieto", "Integral", "Plus", "Sur", "Perla"] },
-  talleres: { label: "Talleres mecánicos", pre: ["Talleres", "Auto Taller", "Mecánica"], suf: ["Hermanos Gil", "Rápido", "Express", "Paco", "Motor Sur", "el Cruce", "Ruedas", "AutoFix", "Central", "la Nacional", "Diésel", "Turbo"] },
-  gimnasios: { label: "Gimnasios", pre: ["Gimnasio", "Centro Fitness", "Club Deportivo"], suf: ["Titán", "Forma", "Energy", "Olimpo", "Hierro", "Pulso", "Activo", "Fuerza", "Ritmo", "Cuerpo Sano", "Impacto", "Arena"] },
-  cafeterias: { label: "Cafeterías", pre: ["Cafetería", "Café", "Pastelería"], suf: ["Aroma", "la Esquina", "Dulce Hogar", "Molino", "Central", "las Flores", "Ámbar", "Cortado", "el Paseo", "Miel", "Tostado", "la Estación"] },
-  fontaneros: { label: "Fontaneros", pre: ["Fontanería", "Instalaciones", "Fontaneros"], suf: ["Ruiz", "24 Horas", "Aguaclara", "Hermanos López", "Express", "el Grifo", "Rápidos", "Levante", "Presión", "Fugas Cero", "Norte", "Caudal"] },
-  abogados: { label: "Despachos de abogados", pre: ["Abogados", "Bufete", "Despacho Jurídico"], suf: ["Serrano", "& Asociados", "Lex", "Vega y Torres", "Justicia", "Iuris", "Romero", "Consulta Legal", "Castillo", "Foro", "Balanza", "Ortega"] },
+  /* ── Salud y clínicas ── */
+  "clinica-dental": { g: "Salud y clínicas", label: "Clínicas dentales", cita: true, factor: 1.6,
+    pre: ["Clínica Dental", "Dental", "Centro Dental"], suf: ["Sonrisa", "Blanco", "Dr. Herrera", "Dra. Prieto", "Perla", "Vital", "Family"],
+    uso: "Citas y recordatorios",
+    bot: ["agenda y confirma citas él solo", "envía recordatorios que reducen las ausencias", "responde dudas de precios, seguros y urgencias"],
+    descs: ["Clínica dental familiar", "Clínica dental moderna con varias consultas", "Clínica dental de barrio muy consolidada"] },
+  "clinica-estetica": { g: "Salud y clínicas", label: "Clínicas de estética", cita: true, factor: 1.8,
+    pre: ["Clínica Estética", "Centro de Medicina Estética", "Estética"], suf: ["Belleza", "Luz", "Piel", "Renova", "Aura", "Lumen"],
+    uso: "Citas de valoración",
+    bot: ["agenda citas de valoración al momento", "responde precios de tratamientos sin hacer esperar", "hace seguimiento post-tratamiento automático"],
+    descs: ["Clínica de medicina estética", "Centro de estética avanzada", "Clínica estética boutique"] },
+  "clinica-fisio": { g: "Salud y clínicas", label: "Clínicas de fisioterapia", cita: true, factor: 1.5,
+    pre: ["Fisioterapia", "Clínica Fisio", "Centro de Fisioterapia"], suf: ["Movimiento", "Equilibrio", "Axis", "Vital", "Corporal", "Activa"],
+    uso: "Reserva de sesiones",
+    bot: ["reserva y reprograma sesiones sin llamadas", "responde qué tratamientos ofrecéis y precios", "recuerda las citas y llena los huecos libres"],
+    descs: ["Clínica de fisioterapia y readaptación", "Centro de fisioterapia deportiva", "Consulta de fisioterapia de barrio"] },
+  "clinica-veterinaria": { g: "Salud y clínicas", label: "Clínicas veterinarias", cita: true, factor: 1.7,
+    pre: ["Clínica Veterinaria", "Veterinaria", "Hospital Veterinario"], suf: ["Patitas", "Animalia", "Zarpa", "Mascota Feliz", "Fauna", "Amigo Fiel"],
+    uso: "Citas y triaje 24/7",
+    bot: ["da cita y orienta urgencias a cualquier hora", "recuerda vacunas y desparasitaciones", "responde dudas frecuentes de los dueños"],
+    descs: ["Clínica veterinaria de referencia en la zona", "Clínica veterinaria familiar", "Centro veterinario con urgencias"] },
+  "clinica-podologia": { g: "Salud y clínicas", label: "Clínicas de podología", cita: true, factor: 1.2,
+    pre: ["Podología", "Clínica del Pie", "Centro Podológico"], suf: ["Paso", "Planta", "Confort", "Salud", "Andar"],
+    uso: "Citas 24/7",
+    bot: ["agenda citas fuera de horario", "responde precios y tratamientos", "envía recordatorios automáticos"],
+    descs: ["Clínica podológica", "Consulta de podología y biomecánica", "Centro podológico de barrio"] },
+  "clinica-psicologia": { g: "Salud y clínicas", label: "Consultas de psicología", cita: true, factor: 1.3,
+    pre: ["Psicología", "Centro de Psicología", "Gabinete"], suf: ["Mente", "Bienestar", "Calma", "Ariadna", "Emocional", "Norte"],
+    uso: "Primera consulta",
+    bot: ["gestiona la primera consulta con discreción", "responde tarifas, modalidades y horarios", "reduce los no-shows con recordatorios"],
+    descs: ["Consulta de psicología sanitaria", "Centro de psicología y terapia", "Gabinete psicológico"] },
+  "clinica-oftalmo": { g: "Salud y clínicas", label: "Clínicas oftalmológicas", cita: true, factor: 1.4,
+    pre: ["Clínica Oftalmológica", "Oftalmología", "Centro de la Visión"], suf: ["Visión", "Mirada", "Iris", "Lente", "Clara"],
+    uso: "Citas y revisiones",
+    bot: ["agenda revisiones y consultas", "responde dudas de cirugías y precios", "recuerda revisiones anuales a los pacientes"],
+    descs: ["Clínica oftalmológica", "Centro oftalmológico con cirugía", "Consulta de oftalmología"] },
+  "clinica-nutricion": { g: "Salud y clínicas", label: "Consultas de nutrición", cita: true, factor: 1.1,
+    pre: ["Nutrición", "Consulta de Nutrición", "Centro de Nutrición"], suf: ["Equilibrio", "Sano", "Vida", "Bienestar", "Natural"],
+    uso: "Planes y citas",
+    bot: ["agenda primeras visitas y revisiones", "explica tus planes y tarifas", "hace seguimiento semanal automático"],
+    descs: ["Consulta de nutrición y dietética", "Centro de nutrición clínica y deportiva", "Consulta de dietista-nutricionista"] },
+
+  /* ── Belleza y bienestar ── */
+  "peluqueria": { g: "Belleza y bienestar", label: "Peluquerías", cita: true, factor: 2.2,
+    pre: ["Peluquería", "Salón", "Estilo"], suf: ["Marta", "Rocío", "Urban", "Rizos", "Look", "Mediterráneo", "Chic"],
+    uso: "Reservas sin llamadas",
+    bot: ["reserva huecos mientras el equipo atiende", "rellena cancelaciones de último minuto", "responde precios y servicios al instante"],
+    descs: ["Peluquería con clientela fiel", "Salón de peluquería moderno", "Peluquería de barrio muy valorada"] },
+  "barberia": { g: "Belleza y bienestar", label: "Barberías", cita: true, factor: 2.0,
+    pre: ["Barbería", "Barber", "La Barbería de"], suf: ["Álvaro", "Clásica", "Navaja", "El Patrón", "Vintage", "Bros"],
+    uso: "Reservas sin llamadas",
+    bot: ["gestiona reservas por WhatsApp automáticamente", "avisa de huecos libres a los clientes habituales", "responde horarios y precios sin interrumpir un corte"],
+    descs: ["Barbería clásica", "Barbería moderna con mucha demanda", "Barbería de referencia en la zona"] },
+  "centro-unas": { g: "Belleza y bienestar", label: "Centros de uñas", cita: true, factor: 1.9,
+    pre: ["Uñas", "Nails", "Estudio de Uñas"], suf: ["& Beauty", "Deluxe", "Arte", "Glam", "Studio", "Rosa"],
+    uso: "Reservas y catálogo",
+    bot: ["reserva citas y muestra el catálogo de diseños", "responde precios y duración de cada servicio", "recupera clientas con recordatorios de retoque"],
+    descs: ["Centro de uñas y manicura", "Estudio de uñas con mucha rotación", "Salón de manicura y pedicura"] },
+  "spa": { g: "Belleza y bienestar", label: "Spas y masajes", cita: true, factor: 1.5,
+    pre: ["Spa", "Centro de Masajes", "Wellness"], suf: ["Zen", "Oasis", "Sentidos", "Agua", "Serenidad"],
+    uso: "Reservas y bonos",
+    bot: ["reserva sesiones y vende bonos regalo", "responde qué incluye cada ritual", "gestiona cambios de hora sin llamadas"],
+    descs: ["Spa urbano", "Centro de masajes y bienestar", "Spa boutique con rituales"] },
+
+  /* ── Hostelería ── */
+  "restaurante": { g: "Hostelería", label: "Restaurantes", cita: true, factor: 3.0,
+    pre: ["Restaurante", "Casa", "Mesón", "Taberna"], suf: ["Pepe", "Lucía", "del Puerto", "la Abuela", "Ibérico", "los Arcos"],
+    uso: "Reservas de mesa",
+    bot: ["confirma reservas de mesa al momento, también en servicio", "responde el menú, alérgenos y horarios", "recupera mesas de cancelaciones con lista de espera"],
+    descs: ["Restaurante de cocina casera", "Restaurante muy demandado los fines de semana", "Restaurante familiar con terraza"] },
+  "cafeteria": { g: "Hostelería", label: "Cafeterías y brunch", cita: false, factor: 2.4,
+    pre: ["Cafetería", "Café", "Brunch &"], suf: ["Aroma", "la Esquina", "Molino", "Ámbar", "Cortado", "Miel"],
+    uso: "Pedidos y encargos",
+    bot: ["recoge encargos de tartas y desayunos para llevar", "responde horarios y carta al instante", "avisa de novedades a los clientes habituales"],
+    descs: ["Cafetería de especialidad", "Cafetería con brunch los fines de semana", "Café-pastelería artesanal"] },
+  "pizzeria": { g: "Hostelería", label: "Pizzerías y comida a domicilio", cita: false, factor: 2.8,
+    pre: ["Pizzería", "Pizza", "Trattoria"], suf: ["Napoli", "del Horno", "Bella", "Roma", "Forno", "Da Luigi"],
+    uso: "Pedidos por WhatsApp",
+    bot: ["toma pedidos por WhatsApp sin errores ni esperas", "responde la carta y las ofertas del día", "avisa cuando el pedido sale de camino"],
+    descs: ["Pizzería artesanal", "Pizzería con mucho reparto a domicilio", "Trattoria de barrio"] },
+  "catering": { g: "Hostelería", label: "Caterings y eventos", cita: true, factor: 1.2,
+    pre: ["Catering", "Eventos", "Cocina & Eventos"], suf: ["Gourmet", "Selecto", "la Fiesta", "Sabores", "Deluxe"],
+    uso: "Presupuestos 24/7",
+    bot: ["recoge los datos del evento y pasa presupuesto solo", "responde menús y precios por comensal", "hace seguimiento de cada presupuesto enviado"],
+    descs: ["Catering para bodas y empresas", "Servicio de catering y eventos", "Catering artesanal"] },
+
+  /* ── Fitness ── */
+  "gimnasio": { g: "Fitness y deporte", label: "Gimnasios", cita: false, factor: 2.0,
+    pre: ["Gimnasio", "Centro Fitness", "Club"], suf: ["Titán", "Forma", "Energy", "Olimpo", "Pulso", "Arena"],
+    uso: "Altas y clases",
+    bot: ["responde tarifas y horarios de clases a cualquier hora", "agenda visitas y sesiones de prueba", "recupera socios que dejaron de venir"],
+    descs: ["Gimnasio de barrio con clases dirigidas", "Centro fitness 24 horas", "Club deportivo con piscina"] },
+  "yoga-pilates": { g: "Fitness y deporte", label: "Estudios de yoga y pilates", cita: true, factor: 1.4,
+    pre: ["Estudio", "Yoga", "Pilates"], suf: ["Om", "Flow", "Balance", "Prana", "Core", "Alma"],
+    uso: "Reserva de clases",
+    bot: ["gestiona reservas y listas de espera de clases", "responde niveles, horarios y bonos", "avisa de plazas libres por cancelación"],
+    descs: ["Estudio de yoga con grupos reducidos", "Centro de pilates máquina", "Estudio de yoga y meditación"] },
+
+  /* ── Hogar y urgencias ── */
+  "fontanero": { g: "Hogar y urgencias", label: "Fontaneros", cita: false, factor: 1.8,
+    pre: ["Fontanería", "Fontaneros", "Instalaciones"], suf: ["Ruiz", "24 Horas", "Aguaclara", "Express", "el Grifo", "Caudal"],
+    uso: "Urgencias y presupuestos",
+    bot: ["atiende urgencias cuando estáis con las manos en la obra", "recoge fotos y datos de la avería para presupuestar", "filtra y prioriza los avisos reales"],
+    descs: ["Empresa de fontanería con urgencias", "Fontanero autónomo muy solicitado", "Fontanería e instalaciones"] },
+  "electricista": { g: "Hogar y urgencias", label: "Electricistas", cita: false, factor: 1.7,
+    pre: ["Electricidad", "Electricistas", "Instalaciones Eléctricas"], suf: ["Voltio", "Luz", "Chispa", "Fase", "Rayo", "Ohm"],
+    uso: "Avisos y presupuestos",
+    bot: ["recoge avisos con fotos mientras estáis en obra", "pasa presupuesto orientativo de trabajos comunes", "agenda visitas sin llamadas cruzadas"],
+    descs: ["Electricista con boletines e instalaciones", "Empresa de instalaciones eléctricas", "Electricista de urgencias"] },
+  "cerrajero": { g: "Hogar y urgencias", label: "Cerrajeros", cita: false, factor: 1.9,
+    pre: ["Cerrajería", "Cerrajeros"], suf: ["24h", "Seguridad", "la Llave", "Apertura", "Bombín", "Total"],
+    uso: "Urgencias 24/7",
+    bot: ["responde urgencias al segundo, a cualquier hora", "da precio orientativo de aperturas y cambios", "envía la ubicación del cliente directa al técnico"],
+    descs: ["Cerrajería de urgencias 24 h", "Cerrajero de zona con respuesta rápida", "Cerrajería y seguridad"] },
+  "reformas": { g: "Hogar y urgencias", label: "Empresas de reformas", cita: true, factor: 1.1,
+    pre: ["Reformas", "Construcciones", "Obras y Reformas"], suf: ["Integral", "Hogar", "Nova", "Levante", "Hermanos Gil", "Total"],
+    uso: "Presupuestos 24/7",
+    bot: ["recoge los datos de la reforma y pide fotos", "pasa una horquilla de precio automática", "hace seguimiento de presupuestos sin contestar"],
+    descs: ["Empresa de reformas integrales", "Reformas de cocinas y baños", "Constructora de reformas"] },
+  "limpieza": { g: "Hogar y urgencias", label: "Empresas de limpieza", cita: true, factor: 1.3,
+    pre: ["Limpiezas", "Limpieza", "Servicios de Limpieza"], suf: ["Brillo", "Impecable", "Estrella", "Cristal", "Hogar", "Pro"],
+    uso: "Presupuestos y agenda",
+    bot: ["cotiza limpiezas por m² y frecuencia automáticamente", "agenda el servicio y los repasos", "responde dudas de productos y seguros"],
+    descs: ["Empresa de limpieza para hogares y oficinas", "Servicio de limpieza a domicilio", "Limpiezas de comunidades"] },
+
+  /* ── Automoción ── */
+  "taller": { g: "Automoción", label: "Talleres mecánicos", cita: true, factor: 1.8,
+    pre: ["Talleres", "Auto Taller", "Mecánica"], suf: ["Hermanos Gil", "Rápido", "Paco", "Motor Sur", "AutoFix", "Turbo"],
+    uso: "Citas de taller",
+    bot: ["da cita de taller sin que nadie deje la llave inglesa", "informa del estado de la reparación automáticamente", "recuerda ITV y revisiones a los clientes"],
+    descs: ["Taller mecánico multimarca", "Taller de barrio con mucha confianza", "Taller de mecánica rápida"] },
+  "autoescuela": { g: "Automoción", label: "Autoescuelas", cita: false, factor: 1.5,
+    pre: ["Autoescuela", "Escuela de Conductores"], suf: ["Stop", "Vía Libre", "el Volante", "Semáforo", "Ruta", "Éxito"],
+    uso: "Matrículas y dudas",
+    bot: ["responde precios, plazos y ofertas de matrícula", "agenda la primera clase o la prueba", "resuelve dudas de teórica a los alumnos"],
+    descs: ["Autoescuela con alta tasa de aprobados", "Autoescuela de barrio", "Autoescuela con cursos intensivos"] },
+
+  /* ── Profesional y otros ── */
+  "abogados": { g: "Profesional y otros", label: "Despachos de abogados", cita: true, factor: 1.2,
+    pre: ["Abogados", "Bufete", "Despacho"], suf: ["Serrano", "& Asociados", "Lex", "Vega y Torres", "Iuris", "Castillo"],
+    uso: "Primera consulta",
+    bot: ["hace una pre-consulta y agenda la primera cita", "filtra los casos según vuestra especialidad", "responde tarifas y documentación necesaria"],
+    descs: ["Despacho de abogados generalista", "Bufete especializado en civil y laboral", "Despacho jurídico de proximidad"] },
+  "gestoria": { g: "Profesional y otros", label: "Gestorías y asesorías", cita: true, factor: 1.3,
+    pre: ["Gestoría", "Asesoría", "Asesores"], suf: ["Fiscal", "Pyme", "Integral", "Balance", "Norte", "& Cía"],
+    uso: "Captación de pymes",
+    bot: ["responde dudas de autónomos y pymes al instante", "agenda reuniones y recopila documentación", "avisa de plazos fiscales a los clientes"],
+    descs: ["Gestoría administrativa y fiscal", "Asesoría para autónomos y pymes", "Gestoría integral"] },
+  "inmobiliaria": { g: "Profesional y otros", label: "Inmobiliarias", cita: true, factor: 2.2,
+    pre: ["Inmobiliaria", "Fincas", "Gestión Inmobiliaria"], suf: ["Hogar", "Urbis", "Casas", "Mediterránea", "Llave", "Vista"],
+    uso: "Cualificar compradores",
+    bot: ["cualifica interesados antes de la visita", "agenda visitas y envía fichas de los pisos", "responde 24/7 los anuncios de los portales"],
+    descs: ["Inmobiliaria de zona", "Agencia inmobiliaria con cartera propia", "Inmobiliaria boutique"] },
+  "academia": { g: "Profesional y otros", label: "Academias y formación", cita: false, factor: 1.6,
+    pre: ["Academia", "Centro de Estudios", "Escuela"], suf: ["Alfa", "Éxito", "Idiomas Sol", "Futuro", "Delta", "Saber"],
+    uso: "Matrículas 24/7",
+    bot: ["responde precios, horarios y plazas al momento", "matricula alumnos fuera de horario", "recuerda pagos y renovaciones"],
+    descs: ["Academia de idiomas", "Centro de estudios y refuerzo", "Academia de oposiciones"] },
+  "fotografo": { g: "Profesional y otros", label: "Fotógrafos", cita: true, factor: 1.0,
+    pre: ["Estudio", "Fotografía", "Fotos"], suf: ["Luz", "Enfoque", "Instantes", "Retrato", "Píxel", "Aurora"],
+    uso: "Presupuestos de sesión",
+    bot: ["pasa presupuesto de bodas y sesiones automáticamente", "muestra el porfolio según lo que pidan", "agenda sesiones y recordatorios"],
+    descs: ["Estudio de fotografía de bodas y eventos", "Fotógrafo de retrato y producto", "Estudio fotográfico familiar"] },
+  "agencia-viajes": { g: "Profesional y otros", label: "Agencias de viajes", cita: false, factor: 1.7,
+    pre: ["Viajes", "Agencia de Viajes", "Travel"], suf: ["Mundo", "Horizonte", "Destino", "Brújula", "Estrella", "Sur"],
+    uso: "Cotizar viajes 24/7",
+    bot: ["recoge fechas y presupuesto y propone destinos", "responde dudas de reservas ya hechas", "avisa de chollos a clientes frecuentes"],
+    descs: ["Agencia de viajes de barrio", "Agencia especializada en viajes a medida", "Agencia de viajes y escapadas"] },
 };
+
 const CALLES = ["C/ Mayor", "Av. de la Constitución", "C/ Real", "Pza. de España", "C/ San Juan", "Av. del Parque", "C/ Cervantes", "Rda. Norte", "C/ La Fuente", "Paseo Marítimo"];
+const HORARIOS = [
+  { txt: "L–V 9:00–14:00 y 16:30–20:00", gap: true },
+  { txt: "L–V 9:00–17:00", gap: true },
+  { txt: "L–S 10:00–20:00", gap: false },
+  { txt: "L–V 8:30–15:30", gap: true },
+  { txt: "L–S 9:30–13:30 y 17:00–20:30", gap: true },
+];
+const HORARIOS_HOSTELERIA = [
+  { txt: "M–D 12:30–16:00 y 19:30–23:30", gap: true },
+  { txt: "L–D 8:00–21:00", gap: false },
+  { txt: "X–D 13:00–16:30 y 20:00–24:00", gap: true },
+];
 
 function rnd(n) { return Math.floor(Math.random() * n); }
 function pick(arr) { return arr[rnd(arr.length)]; }
 
-function genBusinesses(nicho, ciudad) {
-  const cfg = NICHOS[nicho];
-  const count = 14 + rnd(9); // 14–22
+/* ══ Generación de negocios (datos simulados) ═ */
+function genBusinesses(nichoKey, ciudad) {
+  const cfg = NICHOS[nichoKey];
+  const count = 16 + rnd(10); // 16–25
   const used = new Set();
   const out = [];
+  const seq = Date.now();
   for (let i = 0; i < count; i++) {
     let name, guard = 0;
-    do { name = `${pick(cfg.pre)} ${pick(cfg.suf)}`; guard++; } while (used.has(name) && guard < 30);
+    do { name = `${pick(cfg.pre)} ${pick(Math.random() < 0.7 ? cfg.suf : SUF_COMUN)}`; guard++; } while (used.has(name) && guard < 40);
     if (used.has(name)) continue;
     used.add(name);
 
-    const rating = Math.round((3 + Math.random() * 2) * 10) / 10; // 3.0–5.0
-    const reviews = 3 + rnd(320);
-    const hasWeb = Math.random() < 0.30;
-    const oldWeb = hasWeb && Math.random() < 0.45;
-    const phone = `+34 6${rnd(10)}${rnd(10)} ${100 + rnd(900)} ${100 + rnd(900)}`;
+    const rating = Math.round((3.2 + Math.random() * 1.8) * 10) / 10; // 3.2–5.0
+    const reviews = 5 + rnd(340);
+    const webRoll = Math.random();
+    const web = webRoll < 0.42 ? "no" : webRoll < 0.78 ? "sinchat" : "conchat";
+    const respondeResenas = Math.random() < 0.32;
+    const citaTelefono = cfg.cita && Math.random() < 0.85;
+    const horario = pick(cfg.g === "Hostelería" ? HORARIOS_HOSTELERIA : HORARIOS);
 
-    // Puntuación de oportunidad: sin web + buena reputación + actividad = más alta
+    const consultas = Math.max(8, Math.round(reviews * cfg.factor * (0.8 + Math.random() * 0.6) / 3));
+    let lossRate = 0.14;
+    if (web === "no") lossRate += 0.10; else if (web === "sinchat") lossRate += 0.06;
+    if (!respondeResenas) lossRate += 0.07;
+    if (horario.gap) lossRate += 0.08;
+    const perdidas = Math.max(3, Math.round(consultas * Math.min(0.45, lossRate)));
+
     let score = 0;
-    if (!hasWeb) score += 45; else if (oldWeb) score += 22;
-    score += Math.min(25, Math.round(reviews / 13));       // actividad
-    score += Math.round((rating - 3) * 12);                // reputación
-    score += rnd(8);                                       // señal de actividad reciente
+    if (web === "no") score += 28; else if (web === "sinchat") score += 24; else score += 8;
+    if (citaTelefono) score += 15;
+    if (!respondeResenas) score += 10;
+    if (horario.gap) score += 8;
+    score += Math.min(20, Math.round(reviews / 14));
+    score += Math.round((rating - 3.2) * 6);
+    score += rnd(6);
     score = Math.max(5, Math.min(99, score));
 
     out.push({
-      id: `${nicho}-${ciudad}-${i}-${Date.now()}`,
-      name, nicho, nichoLabel: cfg.label, ciudad,
+      id: `b-${seq}-${i}`,
+      name, nicho: nichoKey, nichoLabel: cfg.label, grupo: cfg.g, ciudad,
       address: `${pick(CALLES)}, ${1 + rnd(120)}`,
-      rating, reviews, phone,
-      web: hasWeb ? (oldWeb ? "obsoleta" : "sí") : "no",
-      score,
+      rating, reviews,
+      phone: `+34 6${rnd(10)}${rnd(10)} ${100 + rnd(900)} ${100 + rnd(900)}`,
+      web, respondeResenas, citaTelefono,
+      horario: horario.txt, horarioGap: horario.gap,
+      consultas, perdidas, score,
+      uso: cfg.uso,
+      descIdx: rnd(cfg.descs.length),
+      msgSeed: rnd(1000),
     });
   }
   return out;
 }
 
-/* ── Búsqueda / escaneo ─────────────────────── */
+/* ══ Descripción por negocio ══════════════════ */
+function bizDescription(b) {
+  const cfg = NICHOS[b.nicho];
+  const base = cfg ? cfg.descs[b.descIdx % cfg.descs.length] : b.nichoLabel;
+  const rep = b.reviews > 180 ? "con mucho movimiento" : b.reviews > 60 ? "con actividad constante" : "con clientela de proximidad";
+  let señal;
+  if (b.web === "no") señal = "No tiene página web ni ningún canal digital de atención";
+  else if (b.web === "sinchat") señal = "Tiene web, pero sin chat ni reservas online";
+  else señal = "Tiene web con chat, aunque con margen de mejora";
+  const extra = [];
+  if (b.citaTelefono) extra.push("todo se gestiona por teléfono");
+  if (!b.respondeResenas) extra.push("no responden reseñas");
+  if (b.horarioGap) extra.push("hay muchas horas al día sin nadie que atienda");
+  return `${base} ${rep} en ${b.ciudad} (${b.rating.toFixed(1)}★, ${b.reviews} reseñas). ${señal}${extra.length ? "; " + extra.join(", ") : ""}. Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} se quedan sin respuesta.`;
+}
+
+/* ══ Mensaje de WhatsApp personalizado ════════ */
+const SALUDOS = ["Hola 👋", "¡Hola! 😊", "Buenas 👋"];
+const CIERRES = [
+  "¿Os preparo una demo de 2 minutos hecha con vuestro caso? Sin compromiso.",
+  "Si os encaja, os monto una demo gratuita con vuestros datos para que la veáis funcionando. ¿Os la paso?",
+  "¿Queréis que os enseñe cómo quedaría en vuestro caso? La demo es gratis y tarda 2 minutos.",
+];
+
+function buildMessage(b, seed) {
+  const cfg = NICHOS[b.nicho] || { bot: ["responde a vuestros clientes 24/7"], label: b.nichoLabel };
+  const s = seed ?? b.msgSeed ?? 0;
+  const v = (arr, off = 0) => arr[(s + off) % arr.length];
+
+  const firma = settings.name || "";
+  const producto = settings.product || "un chatbot de WhatsApp";
+
+  // Gancho: un dato real de SU ficha
+  const gancho = `os he encontrado en Google Maps buscando ${cfg.label.toLowerCase()} en ${b.ciudad} y me quedé con vuestra ficha: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas. Enhorabuena, no es fácil.`;
+
+  // Dolor: según sus señales concretas
+  let dolor;
+  if (b.web === "no") dolor = "He visto que aún no tenéis web ni ningún canal automático de atención";
+  else if (b.web === "sinchat") dolor = "He visto que vuestra web no tiene chat ni reservas online";
+  else dolor = "He visto que ya tenéis presencia online";
+  if (b.citaTelefono) dolor += " y que todo se gestiona por teléfono";
+  dolor += b.horarioGap
+    ? ", así que fuera de horario los mensajes se quedan sin responder."
+    : ", y en las horas punta es imposible llegar a todo.";
+
+  // Propuesta: beneficios del bot para SU nicho
+  const b1 = v(cfg.bot, 0), b2 = v(cfg.bot, 1);
+  const propuesta = `Me dedico a montar ${producto} para ${cfg.label.toLowerCase()}: ${b1} y ${b2}, las 24 horas y sin que nadie del equipo esté pendiente.`;
+
+  // Dato de impacto estimado
+  const impacto = `En un negocio con vuestro movimiento eso suele significar unas ${b.perdidas} consultas al mes que hoy se pierden.`;
+
+  const partes = [
+    `${v(SALUDOS)} ¿Hablo con el equipo de ${b.name}?`,
+    `Soy ${firma || "…"}${firma && producto !== "un chatbot de WhatsApp" ? `, de ${producto}` : ""} — ${gancho}`,
+    `${dolor}`,
+    `${propuesta} ${impacto}`,
+    v(CIERRES, 1),
+  ];
+  if (settings.demo) partes.push(`Aquí podéis ver un ejemplo real: ${settings.demo}`);
+  if (settings.pd) partes.push(settings.pd);
+  return partes.join("\n\n");
+}
+
+/* ══ Utilidades UI ════════════════════════════ */
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function scoreColor(s) { return s >= 70 ? "var(--good)" : s >= 45 ? "var(--warning)" : "var(--serious)"; }
+function scoreTag(s) { return s >= 70 ? "Alta" : s >= 45 ? "Media" : "Baja"; }
+function stars(r) { const f = Math.round(r); return "★".repeat(f) + "☆".repeat(5 - f); }
+function fmtEur(n) { return n.toLocaleString("es-ES") + " €"; }
+
+function signalPills(b, max = 99) {
+  const p = [];
+  if (b.web === "no") p.push(`<span class="pill pill-critical"><span class="dot"></span>Sin web</span>`);
+  if (b.web === "sinchat") p.push(`<span class="pill pill-serious"><span class="dot"></span>Web sin chat</span>`);
+  if (b.citaTelefono) p.push(`<span class="pill pill-info"><span class="dot"></span>Cita por teléfono</span>`);
+  if (!b.respondeResenas) p.push(`<span class="pill pill-warning"><span class="dot"></span>No responde reseñas</span>`);
+  if (b.horarioGap) p.push(`<span class="pill pill-warning"><span class="dot"></span>Horas sin atención</span>`);
+  if (b.web === "conchat") p.push(`<span class="pill pill-good"><span class="dot"></span>Ya tiene chat</span>`);
+  return p.slice(0, max).join("");
+}
+
+/* ══ Selector de nichos agrupado ══════════════ */
+(function fillNichos() {
+  const sel = document.getElementById("nicho");
+  const groups = {};
+  for (const [key, cfg] of Object.entries(NICHOS)) {
+    (groups[cfg.g] ||= []).push([key, cfg.label]);
+  }
+  for (const [g, items] of Object.entries(groups)) {
+    const og = document.createElement("optgroup");
+    og.label = g;
+    for (const [key, label] of items) {
+      const o = document.createElement("option");
+      o.value = key; o.textContent = label;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+})();
+
+/* ══ Búsqueda / escaneo ═══════════════════════ */
 const SCAN_STEPS = [
-  [12, "Consultando Google Maps…"],
-  [38, "Analizando fichas de negocio…"],
-  [62, "Detectando sitios web enlazados…"],
-  [81, "Extrayendo teléfonos…"],
-  [96, "Calculando puntuación de oportunidad…"],
+  [10, "Consultando Google Maps…"],
+  [30, "Analizando fichas de negocio…"],
+  [50, "Detectando webs y canales de chat…"],
+  [68, "Extrayendo teléfonos y horarios…"],
+  [84, "Calculando consultas perdidas…"],
+  [96, "Redactando mensajes personalizados…"],
 ];
 
 document.getElementById("searchForm").addEventListener("submit", (e) => {
   e.preventDefault();
-  if (searchesUsed >= MAX_SEARCHES) {
-    toast("Has agotado las 3 búsquedas del plan Gratis. Mejora tu plan para seguir.");
-    return;
-  }
   const nicho = document.getElementById("nicho").value;
   const ciudad = document.getElementById("ciudad").value.trim();
   if (!ciudad) return;
@@ -624,46 +1078,33 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
         lastQuery = { nicho, ciudad, label: NICHOS[nicho].label };
         searchesUsed++;
         save(LS.searches, searchesUsed);
+        save(LS.last, { query: lastQuery, results });
+        history.unshift({
+          fecha: new Date().toISOString(),
+          nicho: NICHOS[nicho].label, ciudad,
+          total: results.length,
+          altas: results.filter(b => b.score >= 70).length,
+          perdidas: results.reduce((a, b) => a + b.perdidas, 0),
+        });
+        history = history.slice(0, 20);
+        save(LS.history, history);
         renderAll();
         toast(`Búsqueda completada: ${results.length} negocios analizados en ${ciudad}`);
       }, 350);
     }
-  }, 480);
+  }, 420);
 });
 
-/* ── Render ─────────────────────────────────── */
-function scoreColor(s) {
-  if (s >= 70) return "var(--good)";
-  if (s >= 45) return "var(--warning)";
-  return "var(--serious)";
-}
-function scoreTag(s) {
-  if (s >= 70) return "Alta";
-  if (s >= 45) return "Media";
-  return "Baja";
-}
-function stars(r) {
-  const full = Math.round(r);
-  return "★".repeat(full) + "☆".repeat(5 - full);
-}
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-function waLink(b) {
-  const firma = settings.name || "un diseñador web";
-  const text = (settings.tpl || DEFAULT_TPL)
-    .replaceAll("{negocio}", b.name)
-    .replaceAll("{ciudad}", b.ciudad)
-    .replaceAll("{nicho}", b.nichoLabel.toLowerCase())
-    .replaceAll("{firma}", firma);
-  return `https://wa.me/${b.phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
-}
-
+/* ══ Render: panel ════════════════════════════ */
 function visibleResults() {
   let list = [...results];
-  if (document.getElementById("onlyNoWeb").checked) list = list.filter(b => b.web !== "sí");
+  if (document.getElementById("onlyHot").checked) list = list.filter(b => b.score >= 70);
   const s = document.getElementById("sortBy").value;
-  list.sort((a, b) => s === "reviews" ? b.reviews - a.reviews : s === "rating" ? b.rating - a.rating : b.score - a.score);
+  list.sort((a, b) =>
+    s === "reviews" ? b.reviews - a.reviews :
+    s === "rating" ? b.rating - a.rating :
+    s === "lost" ? b.perdidas - a.perdidas :
+    b.score - a.score);
   return list;
 }
 
@@ -675,36 +1116,31 @@ function renderResults() {
   const meta = document.getElementById("resultsMeta");
 
   if (!lastQuery) { table.style.display = "none"; empty.style.display = "block"; return; }
-  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} oportunidades`;
+  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} negocios`;
 
   if (!list.length) {
     table.style.display = "none";
     empty.style.display = "block";
     empty.querySelector("h4").textContent = "Sin resultados con estos filtros";
-    empty.querySelector("p").textContent = "Prueba a desactivar «Solo sin web».";
+    empty.querySelector("p").textContent = "Prueba a desactivar «Solo altas».";
     return;
   }
   table.style.display = "table";
   empty.style.display = "none";
 
   body.innerHTML = list.map(b => {
-    const saved = leads.some(l => l.id === b.id);
-    const webPill = b.web === "no"
-      ? `<span class="pill pill-noweb"><span class="dot"></span>Sin web</span>`
-      : b.web === "obsoleta"
-        ? `<span class="pill pill-oldweb"><span class="dot"></span>Web obsoleta</span>`
-        : `<span class="pill">Con web</span>`;
+    const isSaved = leads.some(l => l.id === b.id);
     return `<tr>
       <td>
         <div class="biz-name">${esc(b.name)}</div>
-        <div class="biz-cat">${esc(b.address)} · ${esc(b.ciudad)}</div>
+        <div class="biz-cat" title="${esc(bizDescription(b))}">${esc(bizDescription(b))}</div>
       </td>
       <td>
         <div><span class="stars" aria-hidden="true">${stars(b.rating)}</span> <span class="num">${b.rating.toFixed(1)}</span></div>
         <div class="rev-count num">${b.reviews} reseñas</div>
       </td>
-      <td class="phone">${esc(b.phone)}</td>
-      <td>${webPill}</td>
+      <td><div class="pills">${signalPills(b, 3)}</div></td>
+      <td><span class="chip-uso">🤖 ${esc(b.uso)}</span></td>
       <td>
         <div class="score">
           <span class="score-num">${b.score}</span>
@@ -714,45 +1150,111 @@ function renderResults() {
       </td>
       <td>
         <div class="actions">
-          <a class="icon-btn" href="tel:${b.phone.replace(/\s/g, "")}" title="Llamar">📞</a>
-          <a class="icon-btn" href="${waLink(b)}" target="_blank" rel="noopener" title="WhatsApp con mensaje de apertura">💬</a>
-          <button class="icon-btn ${saved ? "saved" : ""}" title="${saved ? "Quitar de mi cartera" : "Guardar lead"}" onclick="toggleLead('${b.id}')">${saved ? "✓" : "＋"}</button>
+          <a class="icon-btn" href="tel:${b.phone.replace(/\s/g, "")}" title="Llamar al ${esc(b.phone)}">📞</a>
+          <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${b.id}')">💬</button>
+          <button class="icon-btn ${isSaved ? "saved" : ""}" title="${isSaved ? "Quitar de mi cartera" : "Guardar lead"}" onclick="toggleLead('${b.id}')">${isSaved ? "✓" : "＋"}</button>
         </div>
       </td>
     </tr>`;
   }).join("");
 }
 
-function renderStats() {
-  const noWeb = results.filter(b => b.web !== "sí").length;
-  document.getElementById("statScanned").textContent = results.length;
-  document.getElementById("statNoWeb").textContent = noWeb;
-  document.getElementById("statNoWebPct").textContent = results.length ? `${Math.round(noWeb / results.length * 100)} % del total` : "—";
-  document.getElementById("statHot").textContent = results.filter(b => b.score >= 70).length;
-  document.getElementById("statSaved").textContent = leads.length;
+function hbar(label, value, max, suffix = "", color = "var(--brand)") {
+  const w = max > 0 ? Math.max(2, Math.round(value / max * 100)) : 0;
+  return `<div class="hbar-row">
+    <div class="hb-label" title="${esc(label)}">${esc(label)}</div>
+    <div class="hbar-track"><div class="hbar-fill" style="width:${w}%;background:${color}"></div></div>
+    <div class="hbar-val">${value}${suffix}</div>
+  </div>`;
+}
 
-  const left = Math.max(0, MAX_SEARCHES - searchesUsed);
-  document.getElementById("searchesLeft").textContent = left;
-  document.getElementById("planMeter").style.width = `${(searchesUsed / MAX_SEARCHES) * 100}%`;
+function renderSearchCharts() {
+  const wrap = document.getElementById("searchCharts");
+  if (!results.length) { wrap.style.display = "none"; return; }
+  wrap.style.display = "grid";
+  const n = results.length;
+  const pct = x => Math.round(x / n * 100);
+
+  const señales = [
+    ["Sin web", pct(results.filter(b => b.web === "no").length)],
+    ["Web sin chat", pct(results.filter(b => b.web === "sinchat").length)],
+    ["Cita por teléfono", pct(results.filter(b => b.citaTelefono).length)],
+    ["No responde reseñas", pct(results.filter(b => !b.respondeResenas).length)],
+    ["Horas sin atención", pct(results.filter(b => b.horarioGap).length)],
+  ];
+  document.getElementById("chartSignals").innerHTML =
+    señales.map(([l, v]) => hbar(l, v, 100, " %")).join("");
+
+  const bandas = [
+    ["Alta (70–99)", results.filter(b => b.score >= 70).length, "var(--good)"],
+    ["Media (45–69)", results.filter(b => b.score >= 45 && b.score < 70).length, "var(--warning)"],
+    ["Baja (5–44)", results.filter(b => b.score < 45).length, "var(--serious)"],
+  ];
+  const maxBanda = Math.max(...bandas.map(b => b[1]), 1);
+  document.getElementById("chartScore").innerHTML =
+    bandas.map(([l, v, c]) => hbar(l, v, maxBanda, "", c)).join("");
+}
+
+function renderStats() {
+  const lost = results.reduce((a, b) => a + b.perdidas, 0);
+  const hot = results.filter(b => b.score >= 70).length;
+  document.getElementById("statScanned").textContent = results.length;
+  document.getElementById("statHot").textContent = hot;
+  document.getElementById("statLost").textContent = lost.toLocaleString("es-ES");
+  document.getElementById("statValue").textContent = fmtEur(hot * (Number(settings.price) || 0));
+  document.getElementById("statSaved").textContent = leads.length;
+  document.getElementById("searchesUsedLbl").textContent = searchesUsed;
   document.getElementById("leadCount").textContent = leads.length;
 }
 
-const LEAD_STATES = ["Nuevo", "Contactado", "En negociación", "Cliente", "Descartado"];
+/* ══ Render: leads ════════════════════════════ */
+const LEAD_STATES = ["Nuevo", "Contactado", "Interesado", "Demo agendada", "Cliente", "Descartado"];
+const CONTACT_STATES = ["Contactado", "Interesado", "Demo agendada", "Cliente"];
+
+(function fillLeadFilter() {
+  const sel = document.getElementById("leadFilter");
+  LEAD_STATES.forEach(s => {
+    const o = document.createElement("option");
+    o.value = s; o.textContent = s;
+    sel.appendChild(o);
+  });
+})();
 
 function renderLeads() {
+  const filter = document.getElementById("leadFilter").value;
+  const list = filter ? leads.filter(l => l.state === filter) : leads;
   const table = document.getElementById("leadsTable");
   const empty = document.getElementById("leadsEmpty");
   const body = document.getElementById("leadsBody");
-  document.getElementById("leadsMeta").textContent = `${leads.length} lead${leads.length === 1 ? "" : "s"} guardado${leads.length === 1 ? "" : "s"}`;
+  document.getElementById("leadsMeta").textContent =
+    `${leads.length} lead${leads.length === 1 ? "" : "s"} guardado${leads.length === 1 ? "" : "s"}${filter ? ` · mostrando «${filter}»` : ""}`;
 
-  if (!leads.length) { table.style.display = "none"; empty.style.display = "block"; return; }
+  const activos = leads.filter(l => l.state !== "Descartado");
+  const contactados = leads.filter(l => CONTACT_STATES.includes(l.state));
+  const clientes = leads.filter(l => l.state === "Cliente");
+  document.getElementById("lStatTotal").textContent = activos.length;
+  document.getElementById("lStatContacted").textContent = contactados.length;
+  document.getElementById("lStatContactedPct").textContent =
+    activos.length ? `${Math.round(contactados.length / activos.length * 100)} % de la cartera` : "—";
+  document.getElementById("lStatClients").textContent = clientes.length;
+  document.getElementById("lStatMrr").textContent = fmtEur(clientes.length * (Number(settings.price) || 0));
+
+  if (!list.length) {
+    table.style.display = "none";
+    empty.style.display = "block";
+    if (leads.length) {
+      empty.querySelector("h4").textContent = "Nada con este estado";
+      empty.querySelector("p").textContent = "Prueba con otro filtro.";
+    }
+    return;
+  }
   table.style.display = "table";
   empty.style.display = "none";
 
-  body.innerHTML = leads.map(l => `<tr>
+  body.innerHTML = list.map(l => `<tr>
     <td>
       <div class="biz-name">${esc(l.name)}</div>
-      <div class="biz-cat">${esc(l.nichoLabel)}</div>
+      <div class="biz-cat">${esc(l.nichoLabel)} · <span class="chip-uso" style="font-size:10px">🤖 ${esc(l.uso || "Chatbot")}</span></div>
     </td>
     <td>${esc(l.ciudad)}</td>
     <td class="phone">${esc(l.phone)}</td>
@@ -770,16 +1272,138 @@ function renderLeads() {
     <td>
       <div class="actions">
         <a class="icon-btn" href="tel:${l.phone.replace(/\s/g, "")}" title="Llamar">📞</a>
-        <a class="icon-btn" href="${waLink(l)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>
-        <button class="icon-btn" title="Eliminar" onclick="toggleLead('${l.id}')">🗑</button>
+        <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${l.id}')">💬</button>
+        <button class="icon-btn" title="Eliminar de la cartera" onclick="toggleLead('${l.id}')">🗑</button>
       </div>
     </td>
   </tr>`).join("");
 }
 
-function renderAll() { renderResults(); renderStats(); renderLeads(); }
+/* ══ Render: analítica ════════════════════════ */
+function renderAnalytics() {
+  const activos = leads.filter(l => l.state !== "Descartado");
+  const contactados = leads.filter(l => CONTACT_STATES.includes(l.state));
+  const clientes = leads.filter(l => l.state === "Cliente");
+  document.getElementById("aStatSearches").textContent = searchesUsed;
+  document.getElementById("aStatLeads").textContent = leads.length;
+  document.getElementById("aStatContactRate").textContent =
+    activos.length ? `${Math.round(contactados.length / activos.length * 100)} %` : "—";
+  document.getElementById("aStatCloseRate").textContent =
+    contactados.length ? `${Math.round(clientes.length / contactados.length * 100)} %` : "—";
+  const pipeline = activos.filter(l => l.state !== "Cliente").length * (Number(settings.price) || 0);
+  document.getElementById("aStatPipeline").textContent = fmtEur(pipeline);
 
-/* ── Acciones de leads ──────────────────────── */
+  // Embudo por estado (ordinal, un solo tono que se oscurece)
+  const funnelStates = ["Nuevo", "Contactado", "Interesado", "Demo agendada", "Cliente"];
+  const seq = ["var(--seq-1)", "var(--seq-2)", "var(--seq-3)", "var(--seq-4)", "var(--seq-5)"];
+  const counts = funnelStates.map(s => leads.filter(l => l.state === s).length);
+  const maxC = Math.max(...counts, 1);
+  const descartados = leads.filter(l => l.state === "Descartado").length;
+  document.getElementById("chartFunnel").innerHTML = leads.length
+    ? funnelStates.map((s, i) => hbar(s, counts[i], maxC, "", seq[i])).join("") +
+      `<div class="chart-sub" style="margin:8px 0 0">Descartados: ${descartados}</div>`
+    : `<div class="chart-empty">Guarda leads para ver tu embudo.</div>`;
+
+  // Leads por nicho (top 6)
+  const porNicho = {};
+  leads.forEach(l => { porNicho[l.nichoLabel] = (porNicho[l.nichoLabel] || 0) + 1; });
+  const top = Object.entries(porNicho).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const maxN = Math.max(...top.map(t => t[1]), 1);
+  document.getElementById("chartNichos").innerHTML = top.length
+    ? top.map(([l, v]) => hbar(l, v, maxN)).join("")
+    : `<div class="chart-empty">Todavía no hay leads guardados.</div>`;
+
+  // Historial
+  const hTable = document.getElementById("historyTable");
+  const hEmpty = document.getElementById("historyEmpty");
+  const hBody = document.getElementById("historyBody");
+  if (!history.length) { hTable.style.display = "none"; hEmpty.style.display = "block"; }
+  else {
+    hTable.style.display = "table";
+    hEmpty.style.display = "none";
+    hBody.innerHTML = history.map(h => `<tr>
+      <td class="num">${new Date(h.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+      <td>${esc(h.nicho)}</td>
+      <td>${esc(h.ciudad)}</td>
+      <td class="num">${h.total}</td>
+      <td class="num">${h.altas}</td>
+      <td class="num">${h.perdidas.toLocaleString("es-ES")}</td>
+    </tr>`).join("");
+  }
+}
+
+function renderAll() { renderResults(); renderSearchCharts(); renderStats(); renderLeads(); renderAnalytics(); }
+
+/* ══ Modal de mensaje ═════════════════════════ */
+let modalBiz = null;
+const modalBack = document.getElementById("modalBack");
+
+function findBiz(id) { return results.find(b => b.id === id) || leads.find(l => l.id === id); }
+
+window.openMsg = function (id) {
+  const b = findBiz(id);
+  if (!b) return;
+  modalBiz = b;
+  document.getElementById("mTitle").textContent = b.name;
+  document.getElementById("mSub").textContent =
+    `${b.nichoLabel} · ${b.address}, ${b.ciudad} · ${b.rating.toFixed(1)}★ (${b.reviews} reseñas) · ${b.phone}`;
+  document.getElementById("mDesc").textContent = bizDescription(b);
+  document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">🤖 ${esc(b.uso || "Chatbot")}</span>`;
+  document.getElementById("mConsultas").textContent = `~${b.consultas ?? "—"}`;
+  document.getElementById("mPerdidas").textContent = `~${b.perdidas ?? "—"}`;
+  document.getElementById("mHorario").textContent = b.horario || "—";
+  document.getElementById("mMsg").value = buildMessage(b);
+  document.getElementById("mCall").href = "tel:" + b.phone.replace(/\s/g, "");
+  updateModalSaveBtn();
+  modalBack.classList.add("on");
+  document.getElementById("mMsg").focus();
+};
+
+function updateModalSaveBtn() {
+  if (!modalBiz) return;
+  const isSaved = leads.some(l => l.id === modalBiz.id);
+  document.getElementById("mSave").textContent = isSaved ? "✓ Guardado" : "＋ Guardar lead";
+}
+
+function closeModal() { modalBack.classList.remove("on"); modalBiz = null; }
+document.getElementById("mClose").addEventListener("click", closeModal);
+modalBack.addEventListener("click", (e) => { if (e.target === modalBack) closeModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalBack.classList.contains("on")) closeModal(); });
+
+document.getElementById("mVariant").addEventListener("click", () => {
+  if (!modalBiz) return;
+  modalBiz.msgSeed = (modalBiz.msgSeed ?? 0) + 1;
+  document.getElementById("mMsg").value = buildMessage(modalBiz);
+  save(LS.last, { query: lastQuery, results });
+});
+
+document.getElementById("mCopy").addEventListener("click", async () => {
+  const text = document.getElementById("mMsg").value;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Mensaje copiado al portapapeles");
+  } catch {
+    const ta = document.getElementById("mMsg");
+    ta.select();
+    try { document.execCommand("copy"); toast("Mensaje copiado al portapapeles"); }
+    catch { toast("No se pudo copiar automáticamente: selecciónalo y copia manualmente"); }
+  }
+});
+
+document.getElementById("mWhatsapp").addEventListener("click", () => {
+  if (!modalBiz) return;
+  const text = document.getElementById("mMsg").value;
+  const url = `https://wa.me/${modalBiz.phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
+  window.open(url, "_blank", "noopener");
+});
+
+document.getElementById("mSave").addEventListener("click", () => {
+  if (!modalBiz) return;
+  window.toggleLead(modalBiz.id);
+  updateModalSaveBtn();
+});
+
+/* ══ Acciones de leads ════════════════════════ */
 window.toggleLead = function (id) {
   const idx = leads.findIndex(l => l.id === id);
   if (idx >= 0) {
@@ -793,6 +1417,7 @@ window.toggleLead = function (id) {
   }
   save(LS.leads, leads);
   renderAll();
+  updateModalSaveBtn();
 };
 
 window.setLeadState = function (id, state) {
@@ -800,31 +1425,38 @@ window.setLeadState = function (id, state) {
   if (!l) return;
   l.state = state;
   save(LS.leads, leads);
+  renderAll();
   toast(`Estado actualizado: ${state}`);
 };
 
+document.getElementById("leadFilter").addEventListener("change", renderLeads);
+
 document.getElementById("exportCsv").addEventListener("click", () => {
   if (!leads.length) { toast("No hay leads que exportar"); return; }
-  const rows = [["Negocio", "Nicho", "Ciudad", "Dirección", "Teléfono", "Valoración", "Reseñas", "Puntuación", "Estado"]];
-  leads.forEach(l => rows.push([l.name, l.nichoLabel, l.ciudad, l.address, l.phone, l.rating, l.reviews, l.score, l.state]));
+  const rows = [["Negocio", "Nicho", "Ciudad", "Dirección", "Teléfono", "Valoración", "Reseñas", "Puntuación", "Estado", "Caso de uso", "Descripción", "Mensaje WhatsApp"]];
+  leads.forEach(l => rows.push([
+    l.name, l.nichoLabel, l.ciudad, l.address, l.phone, l.rating, l.reviews,
+    l.score, l.state, l.uso || "", bizDescription(l), buildMessage(l),
+  ]));
   const csv = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
   a.download = "huntly-leads.csv";
   a.click();
   URL.revokeObjectURL(a.href);
-  toast("CSV exportado");
+  toast("CSV exportado (incluye descripción y mensaje)");
 });
 
-/* ── Filtros ────────────────────────────────── */
-document.getElementById("onlyNoWeb").addEventListener("change", renderResults);
+/* ══ Filtros de resultados ════════════════════ */
+document.getElementById("onlyHot").addEventListener("change", renderResults);
 document.getElementById("sortBy").addEventListener("change", renderResults);
 
-/* ── Navegación ─────────────────────────────── */
+/* ══ Navegación ═══════════════════════════════ */
 const VIEW_META = {
-  panel: ["Panel", "Encuentra negocios sin página web y consigue clientes"],
+  panel: ["Panel", "Encuentra negocios donde tu chatbot puede vender por ti"],
   leads: ["Mis leads", "Tu cartera de clientes potenciales"],
-  ajustes: ["Ajustes", "Personaliza tu mensaje de apertura"],
+  analitica: ["Analítica", "Tu actividad de prospección de un vistazo"],
+  ajustes: ["Ajustes", "Personaliza tu oferta y tus mensajes"],
 };
 document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -837,20 +1469,33 @@ document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
   });
 });
 
-/* ── Ajustes ────────────────────────────────── */
-document.getElementById("tplMsg").value = settings.tpl || DEFAULT_TPL;
-document.getElementById("myName").value = settings.name || "";
+/* ══ Ajustes ══════════════════════════════════ */
+document.getElementById("myName").value = settings.name;
+document.getElementById("myProduct").value = settings.product;
+document.getElementById("myDemo").value = settings.demo;
+document.getElementById("myPrice").value = settings.price;
+document.getElementById("myPd").value = settings.pd;
+
 document.getElementById("saveSettings").addEventListener("click", () => {
   settings = {
-    tpl: document.getElementById("tplMsg").value.trim() || DEFAULT_TPL,
     name: document.getElementById("myName").value.trim(),
+    product: document.getElementById("myProduct").value.trim(),
+    demo: document.getElementById("myDemo").value.trim(),
+    price: Math.max(0, Number(document.getElementById("myPrice").value) || 0),
+    pd: document.getElementById("myPd").value.trim(),
   };
   save(LS.settings, settings);
+  const ini = settings.name ? settings.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() : "JD";
+  document.getElementById("avatar").textContent = ini;
   renderAll();
-  toast("Ajustes guardados");
+  toast("Ajustes guardados: los mensajes ya usan tus datos");
 });
+if (settings.name) {
+  document.getElementById("avatar").textContent =
+    settings.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
+}
 
-/* ── Tema ───────────────────────────────────── */
+/* ══ Tema ═════════════════════════════════════ */
 const themeBtn = document.getElementById("themeBtn");
 function applyTheme(t) {
   if (t) document.documentElement.dataset.theme = t;
@@ -866,7 +1511,7 @@ themeBtn.addEventListener("click", () => {
   applyTheme(theme);
 });
 
-/* ── Toast ──────────────────────────────────── */
+/* ══ Toast ════════════════════════════════════ */
 let toastTimer;
 function toast(msg) {
   const el = document.getElementById("toast");
