@@ -650,6 +650,7 @@
     </div>
     <h4>Mensaje de WhatsApp <span style="color:var(--muted);font-weight:400">(editalo antes de mandarlo)</span></h4>
     <textarea id="mMsg" spellcheck="false"></textarea>
+    <div id="mHint" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
     <div class="modal-actions">
       <button class="btn-primary wa-btn" id="mWhatsapp">Abrir WhatsApp</button>
       <button class="btn-ghost" id="mCopy">Copiar mensaje</button>
@@ -1013,7 +1014,8 @@ const SALUDOS = ["Hola, ¿qué tal?", "¡Hola! ¿Cómo andan?", "Buenas, ¿cómo
 
 function buildMessage(b, seed) {
   const cfg = NICHOS[b.nicho] || { bot: ["contesta las consultas al toque"], label: b.nichoLabel };
-  const s = seed ?? b.msgSeed ?? 0;
+  const varNum = b.variant ?? 0;
+  const s = (seed ?? b.msgSeed ?? 0) + varNum;
   const v = (arr, off = 0) => arr[(s + off) % arr.length];
   const firma = settings.name.trim();
   const producto = settings.product.trim();
@@ -1086,6 +1088,16 @@ function buildMessage(b, seed) {
   const firmas = firma
     ? [`Abrazo, ${firma}`, `¡Saludos! ${firma}`, `Cualquier cosa me escribís por acá. ${firma}`]
     : [`Un abrazo`, `¡Saludos!`, `Cualquier cosa me escribís por acá`];
+
+  // Variante 0 (la que se ve primero): rompehielo. Solo un dato de su
+  // ficha y una pregunta — nada que vender todavía. Si contestan, el
+  // pitch va en el segundo mensaje. Es la que menos rebota con gente
+  // que está podrida de que le vendan.
+  if (varNum % 3 === 0) {
+    const partes = [`${v(SALUDOS)} ${v(aperturas)}`, pregunta];
+    if (firma) partes.push(firma);
+    return partes.join("\n\n");
+  }
 
   const partes = [
     `${v(SALUDOS)} ${v(aperturas)}`,
@@ -1452,11 +1464,20 @@ window.openMsg = function (id) {
   document.getElementById("mHorario").textContent = b.horario || "—";
   const ta = document.getElementById("mMsg");
   ta.value = buildMessage(b);
+  updateMsgHint();
   document.getElementById("mCall").href = "tel:" + b.phone.replace(/[\s-]/g, "");
   updateModalSaveBtn();
   modalBack.classList.add("on");
   ta.scrollTop = 0;
 };
+
+function updateMsgHint() {
+  if (!modalBiz) return;
+  const short = (modalBiz.variant ?? 0) % 3 === 0;
+  document.getElementById("mHint").textContent = short
+    ? "Variante rompehielo: solo un dato y una pregunta. Si contestan, ahí recién contás lo tuyo — es la que menos rebota."
+    : "Variante completa: con presentación y cierre. Mejor para cuando ya te conocen o te derivaron.";
+}
 
 function updateModalSaveBtn() {
   if (!modalBiz) return;
@@ -1471,8 +1492,9 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalBac
 
 document.getElementById("mVariant").addEventListener("click", () => {
   if (!modalBiz) return;
-  modalBiz.msgSeed = (modalBiz.msgSeed ?? 0) + 1;
+  modalBiz.variant = (modalBiz.variant ?? 0) + 1;
   document.getElementById("mMsg").value = buildMessage(modalBiz);
+  updateMsgHint();
   save(LS.last, { query: lastQuery, results });
 });
 
