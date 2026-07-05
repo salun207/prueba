@@ -41,5 +41,28 @@ todo (HTML, CSS y JS) va en un único archivo.
 - Tema claro/oscuro (sigue el sistema, con conmutador manual) y diseño
   adaptable a móvil.
 
-> Los negocios mostrados son ficticios. Para encontrar negocios reales
-> haría falta un backend conectado a la API de Google Places.
+## Negocios reales (Google Places)
+
+La app tiene dos fuentes de datos, se eligen en **Ajustes**:
+
+- **Demo**: negocios ficticios generados en el navegador (por defecto).
+- **Google Places**: negocios reales de Google Maps. Requiere una clave
+  de API propia:
+  1. Crear un proyecto en [console.cloud.google.com](https://console.cloud.google.com).
+  2. Habilitar **Places API (New)** en «APIs y servicios».
+  3. Crear una **clave de API** en «Credenciales» y pegarla en Ajustes.
+
+La clave queda guardada solo en `localStorage` del navegador y las
+llamadas van directo de tu navegador a Google (sin servidores de por
+medio). Google pide tarjeta y cobra por uso pasada la capa gratuita
+mensual de la API.
+
+En modo real la app no inventa datos: usa nombre, dirección, teléfono,
+valoración, reseñas, web y horario tal como los publica Google, y las
+señales que no puede verificar (p. ej. si responden reseñas) no se
+muestran ni se afirman en los mensajes. Las consultas/mes siguen siendo
+una estimación calculada a partir de las reseñas.
+
+> Nota: la vista previa hospedada en claude.ai bloquea conexiones
+> externas, así que el modo real solo funciona abriendo `index.html`
+> directamente en el navegador (o alojándolo en tu propio hosting).

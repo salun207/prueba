@@ -210,6 +210,7 @@
   .pill-warning .dot { background: var(--warning); }
   .pill-info .dot { background: var(--brand); }
   .pill-good .dot { background: var(--good); }
+  .pill-neutral .dot { background: var(--muted); }
   .pills { display: flex; flex-wrap: wrap; gap: 4px; max-width: 260px; }
   .chip-uso {
     display: inline-block; font-size: 11px; font-weight: 600;
@@ -628,6 +629,31 @@
           <button class="btn-primary" id="saveSettings" type="button">Guardar ajustes</button>
         </div>
       </div>
+
+      <div class="card settings-card" style="margin-top:14px">
+        <h3>Negocios reales (Google Places)</h3>
+        <p class="hint">Con una clave de Google, «Buscar negocios» trae negocios reales de Google Maps: nombre, teléfono, reseñas, web y horario. La clave queda guardada solo en tu navegador. En modo real no se inventa nada: lo que no se sabe, no se afirma en la ficha ni en el mensaje.</p>
+        <div class="settings-grid">
+          <div class="field">
+            <label for="mySource">Fuente de datos</label>
+            <select id="mySource">
+              <option value="demo">Demo (datos simulados)</option>
+              <option value="places">Google Places (negocios reales)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="myGkey">Clave de API de Google</label>
+            <input id="myGkey" type="password" placeholder="AIza…" autocomplete="off">
+          </div>
+        </div>
+        <ol class="hint" style="margin:14px 0 0 18px">
+          <li>Entrá a <strong>console.cloud.google.com</strong> y creá un proyecto.</li>
+          <li>En «APIs y servicios», habilitá <strong>Places API (New)</strong>.</li>
+          <li>En «Credenciales», creá una <strong>clave de API</strong> y pegala acá.</li>
+          <li>Elegí «Google Places» como fuente y guardá.</li>
+        </ol>
+        <p class="hint" style="margin-top:10px">Ojo: Google pide tarjeta y cobra por uso pasada la capa gratuita mensual. Y la vista previa de claude.ai bloquea conexiones externas, así que para usar datos reales abrí el archivo <strong>index.html</strong> descargado en tu navegador.</p>
+      </div>
     </section>
 
   </main>
@@ -696,7 +722,7 @@ let leads = load(LS.leads, []);
 let searchesUsed = load(LS.searches, 0);
 let history = load(LS.history, []);
 let settings = Object.assign(
-  { name: "", product: "", demo: "", price: 49, pd: "" },
+  { name: "", product: "", demo: "", price: 49, pd: "", source: "demo", gkey: "" },
   load(LS.settings, {})
 );
 let results = [];
@@ -989,20 +1015,109 @@ function genBusinesses(nichoKey, ciudad) {
   return out;
 }
 
+/* ══ Negocios reales: Google Places API (New) ═ */
+/* Se llama directo desde el navegador con la clave del usuario.
+   Regla del modo real: lo que la API no informa, no se afirma
+   (ni señal de reseñas sin responder, ni "web sin chat"). */
+async function fetchPlaces(nichoKey, ciudad) {
+  const cfg = NICHOS[nichoKey];
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": settings.gkey,
+      "X-Goog-FieldMask": [
+        "places.id", "places.displayName", "places.formattedAddress",
+        "places.nationalPhoneNumber", "places.internationalPhoneNumber",
+        "places.rating", "places.userRatingCount", "places.websiteUri",
+        "places.regularOpeningHours.weekdayDescriptions",
+        "places.businessStatus", "places.googleMapsUri",
+      ].join(","),
+    },
+    body: JSON.stringify({
+      textQuery: `${cfg.label} en ${ciudad}`,
+      languageCode: "es",
+      pageSize: 20,
+    }),
+  });
+  if (!res.ok) {
+    let msg = `Google respondió ${res.status}`;
+    try { const j = await res.json(); if (j.error && j.error.message) msg = j.error.message; } catch {}
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  const seq = Date.now();
+  return (data.places || [])
+    .filter(p => !p.businessStatus || p.businessStatus === "OPERATIONAL")
+    .map((p, i) => {
+      const rating = p.rating || 0;
+      const reviews = p.userRatingCount || 0;
+      const web = p.websiteUri ? "si" : "no";
+      const horario = (p.regularOpeningHours?.weekdayDescriptions?.[0]) || "";
+      const abre24 = /24\s*horas/i.test(horario);
+      const horarioGap = horario ? !abre24 : false;
+      const citaTelefono = cfg.cita && web === "no"; // inferencia segura: sin web, los turnos van por teléfono
+      const phone = p.internationalPhoneNumber || p.nationalPhoneNumber || "";
+
+      const consultas = Math.max(5, Math.round(reviews * cfg.factor / 3));
+      let lossRate = 0.14 + (web === "no" ? 0.10 : 0.03) + (horarioGap ? 0.08 : 0);
+      const perdidas = Math.max(2, Math.round(consultas * Math.min(0.45, lossRate)));
+
+      let score = web === "no" ? 30 : 12;
+      if (citaTelefono) score += 15;
+      if (horarioGap) score += 8;
+      score += Math.min(20, Math.round(reviews / 14));
+      if (rating) score += Math.round(Math.max(0, rating - 3.2) * 6);
+      if (phone) score += 8;
+      score = Math.max(5, Math.min(99, score));
+
+      return {
+        id: p.id || `g-${seq}-${i}`,
+        name: p.displayName?.text || "Negocio sin nombre",
+        nicho: nichoKey, nichoLabel: cfg.label, grupo: cfg.g, ciudad,
+        address: (p.formattedAddress || "").split(",").slice(0, 2).join(","),
+        rating, reviews, phone,
+        web, respondeResenas: true, citaTelefono,
+        horario, horarioGap,
+        consultas, perdidas, score,
+        uso: cfg.uso,
+        descIdx: 0,
+        msgSeed: rnd(1000),
+        maps: p.googleMapsUri || "",
+        real: true,
+      };
+    });
+}
+
+/* Teléfonos argentinos a formato wa.me: 549 + área + número */
+function waDigits(phone) {
+  let d = String(phone || "").replace(/[^\d]/g, "");
+  if (!d) return "";
+  if (d.startsWith("0")) d = "54" + d.slice(1);
+  if (!d.startsWith("54") && d.length <= 11) d = "54" + d;
+  if (d.startsWith("54") && !d.startsWith("549")) d = "549" + d.slice(2);
+  return d;
+}
+
 /* ══ Descripción por negocio ══════════════════ */
 function bizDescription(b) {
   const cfg = NICHOS[b.nicho];
-  const base = cfg ? cfg.descs[b.descIdx % cfg.descs.length] : b.nichoLabel;
+  const base = b.real
+    ? (cfg ? cfg.label.replace(/s$/, "") : b.nichoLabel)
+    : (cfg ? cfg.descs[b.descIdx % cfg.descs.length] : b.nichoLabel);
   const rep = b.reviews > 180 ? "con mucho movimiento" : b.reviews > 60 ? "con actividad constante" : "con clientela de cercanía";
+  const ficha = b.rating ? `${b.rating.toFixed(1)}★, ${b.reviews} reseñas` : "todavía sin reseñas";
   let señal;
   if (b.web === "no") señal = "No tiene página web ni ningún canal digital de atención";
   else if (b.web === "sinchat") señal = "Tiene web, pero sin chat ni reservas online";
+  else if (b.web === "si") señal = "Tiene página web";
   else señal = "Tiene web con chat, aunque con margen de mejora";
   const extra = [];
   if (b.citaTelefono) extra.push("todo se maneja por teléfono");
   if (!b.respondeResenas) extra.push("no responden reseñas");
-  if (b.horarioGap) extra.push("hay muchas horas al día sin nadie que atienda");
-  return `${base} ${rep} en ${b.ciudad} (${b.rating.toFixed(1)}★, ${b.reviews} reseñas). ${señal}${extra.length ? "; " + extra.join(", ") : ""}. Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} quedan sin respuesta.`;
+  if (b.horarioGap) extra.push("hay horas del día sin nadie que atienda");
+  if (b.real && !b.phone) extra.push("sin teléfono publicado");
+  return `${base} ${rep} en ${b.ciudad} (${ficha}). ${señal}${extra.length ? "; " + extra.join(", ") : ""}. Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} quedan sin respuesta.`;
 }
 
 /* ══ Mensaje de WhatsApp (argentino, sin olor a venta) ══
@@ -1021,12 +1136,18 @@ function buildMessage(b, seed) {
   const producto = settings.product.trim();
   const [rubro, rubroSg] = RUBRO_CORTO[b.nicho] || [cfg.label.toLowerCase(), "un negocio como el de ustedes"];
 
-  // Apertura: un dato real de su ficha, sin chamuyo
-  const aperturas = [
-    `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me quedé mirando la ficha de ustedes: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas, un montón.`,
-    `Estaba mirando ${rubro} en ${b.ciudad} y ${b.name} me apareció de los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota que laburan bien.`,
-    `Me crucé con la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y les quería hacer una consulta cortita.`,
-  ];
+  // Apertura: un dato real de su ficha, sin chamuyo.
+  // Si no hay reseñas (pasa en modo real), no se menciona ninguna.
+  const aperturas = (b.rating && b.reviews)
+    ? [
+        `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me quedé mirando la ficha de ustedes: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas, un montón.`,
+        `Estaba mirando ${rubro} en ${b.ciudad} y ${b.name} me apareció de los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota que laburan bien.`,
+        `Me crucé con la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y les quería hacer una consulta cortita.`,
+      ]
+    : [
+        `Encontré ${b.name} en Google Maps buscando ${rubro} en ${b.ciudad} y les quería hacer una consulta cortita.`,
+        `Estaba mirando ${rubro} en ${b.ciudad} y me crucé con ${b.name}.`,
+      ];
 
   // Cada rubro agenda algo distinto: turnos, reservas, consultas…
   const AGENDA = {
@@ -1125,6 +1246,8 @@ function signalPills(b, max = 99) {
   if (b.citaTelefono) p.push(`<span class="pill pill-info"><span class="dot"></span>Turnos por teléfono</span>`);
   if (!b.respondeResenas) p.push(`<span class="pill pill-warning"><span class="dot"></span>No responde reseñas</span>`);
   if (b.horarioGap) p.push(`<span class="pill pill-warning"><span class="dot"></span>Horas sin atención</span>`);
+  if (b.real && !b.phone) p.push(`<span class="pill pill-warning"><span class="dot"></span>Sin teléfono</span>`);
+  if (b.web === "si") p.push(`<span class="pill pill-neutral"><span class="dot"></span>Tiene web</span>`);
   if (b.web === "conchat") p.push(`<span class="pill pill-good"><span class="dot"></span>Ya tiene chat</span>`);
   return p.slice(0, max).join("");
 }
@@ -1164,6 +1287,12 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
   const ciudad = document.getElementById("ciudad").value.trim();
   if (!ciudad) return;
 
+  const usarPlaces = settings.source === "places";
+  if (usarPlaces && !settings.gkey) {
+    toast("Cargá tu clave de Google Places en Ajustes, o volvé a la fuente Demo");
+    return;
+  }
+
   const btn = document.getElementById("searchBtn");
   const box = document.getElementById("scanBox");
   const bar = document.getElementById("scanBar");
@@ -1171,6 +1300,33 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
   btn.disabled = true;
   box.classList.add("on");
   bar.style.width = "4%";
+
+  // En modo real la consulta a Google arranca ya; la animación acompaña.
+  const dataPromise = usarPlaces ? fetchPlaces(nicho, ciudad) : Promise.resolve(null);
+  dataPromise.catch(() => {}); // el error se maneja al final
+
+  const finish = (lista) => {
+    box.classList.remove("on");
+    btn.disabled = false;
+    results = lista;
+    lastQuery = { nicho, ciudad, label: NICHOS[nicho].label, real: usarPlaces };
+    searchesUsed++;
+    save(LS.searches, searchesUsed);
+    save(LS.last, { query: lastQuery, results });
+    history.unshift({
+      fecha: new Date().toISOString(),
+      nicho: NICHOS[nicho].label, ciudad,
+      total: results.length,
+      altas: results.filter(b => b.score >= 70).length,
+      perdidas: results.reduce((a, b) => a + b.perdidas, 0),
+    });
+    history = history.slice(0, 20);
+    save(LS.history, history);
+    renderAll();
+    toast(usarPlaces
+      ? `Listo: ${results.length} negocios reales encontrados en ${ciudad}`
+      : `Listo: ${results.length} negocios analizados en ${ciudad}`);
+  };
 
   let step = 0;
   const tick = setInterval(() => {
@@ -1182,27 +1338,16 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
       clearInterval(tick);
       bar.style.width = "100%";
       setTimeout(() => {
-        box.classList.remove("on");
-        btn.disabled = false;
-        results = genBusinesses(nicho, ciudad);
-        lastQuery = { nicho, ciudad, label: NICHOS[nicho].label };
-        searchesUsed++;
-        save(LS.searches, searchesUsed);
-        save(LS.last, { query: lastQuery, results });
-        history.unshift({
-          fecha: new Date().toISOString(),
-          nicho: NICHOS[nicho].label, ciudad,
-          total: results.length,
-          altas: results.filter(b => b.score >= 70).length,
-          perdidas: results.reduce((a, b) => a + b.perdidas, 0),
-        });
-        history = history.slice(0, 20);
-        save(LS.history, history);
-        renderAll();
-        toast(`Listo: ${results.length} negocios analizados en ${ciudad}`);
+        dataPromise
+          .then(real => finish(real ?? genBusinesses(nicho, ciudad)))
+          .catch(err => {
+            box.classList.remove("on");
+            btn.disabled = false;
+            toast(`No se pudo buscar en Google: ${err.message}`);
+          });
       }, 350);
     }
-  }, 420);
+  }, usarPlaces ? 300 : 420);
 });
 
 /* ══ Render: panel ════════════════════════════ */
@@ -1226,7 +1371,7 @@ function renderResults() {
   const meta = document.getElementById("resultsMeta");
 
   if (!lastQuery) { table.style.display = "none"; empty.style.display = "block"; return; }
-  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} negocios`;
+  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} negocios${lastQuery.real ? " · datos de Google" : " · datos de demo"}`;
 
   if (!list.length) {
     table.style.display = "none";
@@ -1246,8 +1391,10 @@ function renderResults() {
         <div class="biz-cat" title="${esc(bizDescription(b))}">${esc(bizDescription(b))}</div>
       </td>
       <td>
-        <div><span class="stars" aria-hidden="true">${stars(b.rating)}</span> <span class="num">${b.rating.toFixed(1)}</span></div>
-        <div class="rev-count num">${b.reviews} reseñas</div>
+        ${b.rating
+          ? `<div><span class="stars" aria-hidden="true">${stars(b.rating)}</span> <span class="num">${b.rating.toFixed(1)}</span></div>
+             <div class="rev-count num">${b.reviews} reseñas</div>`
+          : `<div class="rev-count">Sin reseñas</div>`}
       </td>
       <td><div class="pills">${signalPills(b, 3)}</div></td>
       <td><span class="chip-uso">${esc(b.uso)}</span></td>
@@ -1285,13 +1432,21 @@ function renderSearchCharts() {
   const n = results.length;
   const pct = x => Math.round(x / n * 100);
 
-  const señales = [
-    ["Sin web", pct(results.filter(b => b.web === "no").length)],
-    ["Web sin chat", pct(results.filter(b => b.web === "sinchat").length)],
-    ["Turnos por teléfono", pct(results.filter(b => b.citaTelefono).length)],
-    ["No responde reseñas", pct(results.filter(b => !b.respondeResenas).length)],
-    ["Horas sin atención", pct(results.filter(b => b.horarioGap).length)],
-  ];
+  const señales = lastQuery?.real
+    ? [
+        ["Sin web", pct(results.filter(b => b.web === "no").length)],
+        ["Tiene web", pct(results.filter(b => b.web === "si").length)],
+        ["Turnos por teléfono", pct(results.filter(b => b.citaTelefono).length)],
+        ["Horas sin atención", pct(results.filter(b => b.horarioGap).length)],
+        ["Sin teléfono publicado", pct(results.filter(b => !b.phone).length)],
+      ]
+    : [
+        ["Sin web", pct(results.filter(b => b.web === "no").length)],
+        ["Web sin chat", pct(results.filter(b => b.web === "sinchat").length)],
+        ["Turnos por teléfono", pct(results.filter(b => b.citaTelefono).length)],
+        ["No responde reseñas", pct(results.filter(b => !b.respondeResenas).length)],
+        ["Horas sin atención", pct(results.filter(b => b.horarioGap).length)],
+      ];
   document.getElementById("chartSignals").innerHTML =
     señales.map(([l, v]) => hbar(l, v, 100, " %")).join("");
 
@@ -1455,8 +1610,10 @@ window.openMsg = function (id) {
   if (!b) return;
   modalBiz = b;
   document.getElementById("mTitle").textContent = b.name;
-  document.getElementById("mSub").textContent =
-    `${b.nichoLabel} · ${b.address}, ${b.ciudad} · ${b.rating.toFixed(1)}★ (${b.reviews} reseñas) · ${b.phone}`;
+  const ficha = b.rating ? `${b.rating.toFixed(1)}★ (${b.reviews} reseñas)` : "sin reseñas";
+  const subParts = [b.nichoLabel, `${b.address}, ${b.ciudad}`, ficha, b.phone || "sin teléfono"];
+  document.getElementById("mSub").innerHTML = esc(subParts.join(" · ")) +
+    (b.maps ? ` · <a href="${esc(b.maps)}" target="_blank" rel="noopener" style="color:var(--brand)">Ver en Google Maps</a>` : "");
   document.getElementById("mDesc").textContent = bizDescription(b);
   document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(b.uso || "")}</span>`;
   document.getElementById("mConsultas").textContent = `~${b.consultas ?? "—"}`;
@@ -1513,9 +1670,10 @@ document.getElementById("mCopy").addEventListener("click", async () => {
 
 document.getElementById("mWhatsapp").addEventListener("click", () => {
   if (!modalBiz) return;
+  const digits = waDigits(modalBiz.phone);
+  if (!digits) { toast("Este negocio no tiene teléfono publicado: copiá el mensaje y mandalo por otro canal"); return; }
   const text = document.getElementById("mMsg").value;
-  const url = `https://wa.me/${modalBiz.phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
-  window.open(url, "_blank", "noopener");
+  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
 });
 
 document.getElementById("mSave").addEventListener("click", () => {
@@ -1596,6 +1754,8 @@ document.getElementById("myProduct").value = settings.product;
 document.getElementById("myDemo").value = settings.demo;
 document.getElementById("myPrice").value = settings.price;
 document.getElementById("myPd").value = settings.pd;
+document.getElementById("mySource").value = settings.source || "demo";
+document.getElementById("myGkey").value = settings.gkey || "";
 
 function applyAvatar() {
   document.getElementById("avatar").textContent = settings.name
@@ -1611,11 +1771,15 @@ document.getElementById("saveSettings").addEventListener("click", () => {
     demo: document.getElementById("myDemo").value.trim(),
     price: Math.max(0, Number(document.getElementById("myPrice").value) || 0),
     pd: document.getElementById("myPd").value.trim(),
+    source: document.getElementById("mySource").value,
+    gkey: document.getElementById("myGkey").value.trim(),
   };
   save(LS.settings, settings);
   applyAvatar();
   renderAll();
-  toast("Ajustes guardados: los mensajes ya salen con tus datos");
+  toast(settings.source === "places" && !settings.gkey
+    ? "Guardado, pero falta la clave de Google para usar negocios reales"
+    : "Ajustes guardados");
 });
 
 /* ══ Tema ═════════════════════════════════════ */
