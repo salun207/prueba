@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Huntly — Panel</title>
+<style>
+  :root {
+    --brand: #2a78d6;
+    --brand-strong: #1c5cab;
+    --brand-soft: #cde2fb;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --hairline: #e1e0d9;
+    --border: rgba(11, 11, 11, 0.10);
+    --good: #0ca30c;
+    --good-text: #006300;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(11,11,11,.05), 0 4px 16px rgba(11,11,11,.05);
+  }
+  :root[data-theme="dark"], :root[data-theme="dark"] body { color-scheme: dark; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --brand: #3987e5;
+      --brand-strong: #6da7ec;
+      --brand-soft: #10305a;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --hairline: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+      --good-text: #0ca30c;
+      --shadow: 0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --brand: #3987e5;
+    --brand-strong: #6da7ec;
+    --brand-soft: #10305a;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --hairline: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --good-text: #0ca30c;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  button { font: inherit; cursor: pointer; }
+  input, select { font: inherit; color: var(--ink); }
+
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ─────────────────────────────── */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--surface-1);
+    border-right: 1px solid var(--hairline);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 14px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 8px 20px;
+    font-size: 20px; font-weight: 800; letter-spacing: -.02em;
+  }
+  .logo-mark {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: var(--brand);
+    display: grid; place-items: center;
+    color: #fff; font-size: 16px;
+  }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); padding: 14px 10px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px;
+    border: none; background: none; text-align: left;
+    color: var(--ink-2); font-weight: 500; width: 100%;
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-item:hover { background: var(--page); color: var(--ink); }
+  .nav-item.active { background: var(--brand-soft); color: var(--brand-strong); font-weight: 600; }
+  .nav-item .badge-count {
+    margin-left: auto; background: var(--brand); color: #fff;
+    border-radius: 99px; font-size: 11px; font-weight: 700;
+    padding: 1px 7px;
+  }
+  .plan-card {
+    margin-top: auto;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 14px;
+    background: var(--page);
+  }
+  .plan-card h4 { font-size: 13px; margin-bottom: 2px; }
+  .plan-card p { font-size: 12px; color: var(--ink-2); margin-bottom: 10px; }
+  .plan-meter { height: 6px; border-radius: 99px; background: var(--hairline); overflow: hidden; margin-bottom: 10px; }
+  .plan-meter > div { height: 100%; background: var(--brand); border-radius: 99px; transition: width .3s; }
+  .btn-upgrade {
+    width: 100%; padding: 8px; border-radius: 8px; border: none;
+    background: var(--brand); color: #fff; font-weight: 600; font-size: 13px;
+  }
+  .btn-upgrade:hover { background: var(--brand-strong); }
+
+  /* ── Main ────────────────────────────────── */
+  .main { flex: 1; min-width: 0; padding: 24px 32px 48px; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .topbar h1 { font-size: 22px; letter-spacing: -.02em; }
+  .topbar .sub { color: var(--ink-2); font-size: 13px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .theme-toggle {
+    width: 36px; height: 36px; border-radius: 99px;
+    border: 1px solid var(--hairline); background: var(--surface-1);
+    display: grid; place-items: center; font-size: 15px;
+  }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 99px;
+    background: var(--brand); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  }
+
+  /* ── Search card ─────────────────────────── */
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .search-card { padding: 22px; margin-bottom: 20px; }
+  .search-card h2 { font-size: 16px; margin-bottom: 4px; }
+  .search-card .hint { color: var(--ink-2); font-size: 13px; margin-bottom: 16px; }
+  .search-form { display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 5px; }
+  .field input, .field select {
+    width: 100%; padding: 10px 12px; border-radius: 9px;
+    border: 1px solid var(--hairline); background: var(--page);
+    outline: none;
+  }
+  .field input:focus, .field select:focus { border-color: var(--brand); }
+  .btn-primary {
+    align-self: end;
+    padding: 10px 22px; border-radius: 9px; border: none;
+    background: var(--brand); color: #fff; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; height: 41px;
+  }
+  .btn-primary:hover { background: var(--brand-strong); }
+  .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* scan progress */
+  .scan-box { margin-top: 16px; display: none; }
+  .scan-box.on { display: block; }
+  .scan-status { font-size: 13px; color: var(--ink-2); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+  .spinner {
+    width: 14px; height: 14px; border-radius: 99px;
+    border: 2px solid var(--hairline); border-top-color: var(--brand);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .scan-bar { height: 6px; background: var(--hairline); border-radius: 99px; overflow: hidden; }
+  .scan-bar > div { height: 100%; width: 0; background: var(--brand); transition: width .4s; }
+
+  /* ── Stat tiles ──────────────────────────── */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .tile { padding: 16px 18px; }
+  .tile .t-label { font-size: 12px; font-weight: 600; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .tile .t-value { font-size: 26px; font-weight: 750; letter-spacing: -.02em; margin-top: 4px; }
+  .tile .t-foot { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tile .t-foot .up { color: var(--good-text); font-weight: 600; }
+
+  /* ── Results ─────────────────────────────── */
+  .results-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--hairline);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .results-head h3 { font-size: 15px; }
+  .results-head .meta { color: var(--ink-2); font-size: 13px; }
+  .filters { display: flex; gap: 10px; align-items: center; }
+  .filters select {
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--hairline);
+    background: var(--surface-1); font-size: 13px;
+  }
+  .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+  .chk input { accent-color: var(--brand); width: 15px; height: 15px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); font-weight: 600; padding: 10px 14px;
+    border-bottom: 1px solid var(--hairline); white-space: nowrap;
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+  tbody tr:hover { background: var(--page); }
+  tbody tr:last-child td { border-bottom: none; }
+  .biz-name { font-weight: 600; }
+  .biz-cat { font-size: 12px; color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+  .stars { color: var(--warning); letter-spacing: 1px; font-size: 12px; }
+  .rev-count { color: var(--muted); font-size: 12px; }
+  .phone { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px;
+    border: 1px solid var(--border); white-space: nowrap;
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 99px; }
+  .pill-noweb { background: color-mix(in srgb, var(--critical) 10%, transparent); }
+  .pill-noweb .dot { background: var(--critical); }
+  .pill-oldweb { background: color-mix(in srgb, var(--serious) 12%, transparent); }
+  .pill-oldweb .dot { background: var(--serious); }
+
+  .score { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+  .score-num { font-weight: 700; font-variant-numeric: tabular-nums; width: 26px; }
+  .score-bar { flex: 1; height: 6px; border-radius: 99px; background: var(--hairline); overflow: hidden; }
+  .score-bar > div { height: 100%; border-radius: 99px; }
+  .score-tag { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .actions { display: flex; gap: 6px; }
+  .icon-btn {
+    width: 30px; height: 30px; border-radius: 8px;
+    border: 1px solid var(--hairline); background: var(--surface-1);
+    display: inline-grid; place-items: center; color: var(--ink-2);
+    text-decoration: none; font-size: 14px;
+  }
+  .icon-btn:hover { border-color: var(--brand); color: var(--brand); }
+  .icon-btn.saved { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+  }
+  .empty .emoji { font-size: 34px; margin-bottom: 10px; }
+  .empty h4 { color: var(--ink-2); font-size: 15px; margin-bottom: 4px; }
+
+  /* ── Leads view ──────────────────────────── */
+  .lead-state {
+    padding: 5px 9px; border-radius: 8px; border: 1px solid var(--hairline);
+    background: var(--surface-1); font-size: 12px;
+  }
+  .btn-ghost {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--hairline);
+    background: var(--surface-1); color: var(--ink-2); font-size: 13px; font-weight: 500;
+  }
+  .btn-ghost:hover { border-color: var(--brand); color: var(--brand); }
+
+  /* ── Ajustes ─────────────────────────────── */
+  .settings-card { padding: 22px; max-width: 640px; }
+  .settings-card h3 { font-size: 15px; margin-bottom: 14px; }
+  .settings-card .field { margin-bottom: 14px; }
+  .settings-card textarea {
+    width: 100%; min-height: 110px; padding: 10px 12px; border-radius: 9px;
+    border: 1px solid var(--hairline); background: var(--page);
+    font: inherit; color: var(--ink); resize: vertical; outline: none;
+  }
+  .settings-card textarea:focus { border-color: var(--brand); }
+  .tpl-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--page);
+    padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 500;
+    opacity: 0; pointer-events: none; transition: all .25s; z-index: 50;
+    box-shadow: var(--shadow);
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .view { display: none; }
+  .view.on { display: block; }
+
+  @media (max-width: 960px) {
+    .sidebar { display: none; }
+    .main { padding: 18px; }
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .search-form { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ══ Sidebar ══ -->
+  <aside class="sidebar">
+    <div class="logo"><span class="logo-mark">◎</span> Huntly</div>
+    <nav class="nav">
+      <div class="nav-label">General</div>
+      <button class="nav-item active" data-view="panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Panel
+      </button>
+      <button class="nav-item" data-view="leads">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Mis leads
+        <span class="badge-count" id="leadCount">0</span>
+      </button>
+      <button class="nav-item" data-view="ajustes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Ajustes
+      </button>
+    </nav>
+    <div class="plan-card">
+      <h4>Plan Gratis</h4>
+      <p><span id="searchesLeft">3</span> de 3 búsquedas restantes</p>
+      <div class="plan-meter"><div id="planMeter" style="width:0%"></div></div>
+      <button class="btn-upgrade" onclick="toast('Esto es una demo: aquí iría la página de planes 🙂')">Mejorar plan</button>
+    </div>
+  </aside>
+
+  <!-- ══ Main ══ -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="viewTitle">Panel</h1>
+        <div class="sub" id="viewSub">Encuentra negocios sin página web y consigue clientes</div>
+      </div>
+      <div class="topbar-right">
+        <button class="theme-toggle" id="themeBtn" title="Cambiar tema">🌙</button>
+        <div class="avatar">JD</div>
+      </div>
+    </div>
+
+    <!-- ── Vista: Panel ── -->
+    <section class="view on" id="view-panel">
+
+      <div class="card search-card">
+        <h2>Nueva búsqueda</h2>
+        <p class="hint">Huntly escanea Google Maps, filtra los negocios sin sitio web y les asigna una puntuación de oportunidad.</p>
+        <form class="search-form" id="searchForm">
+          <div class="field">
+            <label for="nicho">Nicho</label>
+            <select id="nicho">
+              <option value="restaurantes">Restaurantes</option>
+              <option value="peluquerias">Peluquerías y barberías</option>
+              <option value="dentistas">Clínicas dentales</option>
+              <option value="talleres">Talleres mecánicos</option>
+              <option value="gimnasios">Gimnasios</option>
+              <option value="cafeterias">Cafeterías</option>
+              <option value="fontaneros">Fontaneros</option>
+              <option value="abogados">Despachos de abogados</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ciudad">Ciudad</label>
+            <input id="ciudad" type="text" placeholder="p. ej. Madrid" value="Madrid" required>
+          </div>
+          <button class="btn-primary" type="submit" id="searchBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+            Buscar negocios
+          </button>
+        </form>
+        <div class="scan-box" id="scanBox">
+          <div class="scan-status"><span class="spinner"></span><span id="scanMsg">Escaneando Google Maps…</span></div>
+          <div class="scan-bar"><div id="scanBar"></div></div>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="card tile">
+          <div class="t-label">🔎 Negocios analizados</div>
+          <div class="t-value num" id="statScanned">0</div>
+          <div class="t-foot">en la última búsqueda</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">🚫 Sin sitio web</div>
+          <div class="t-value num" id="statNoWeb">0</div>
+          <div class="t-foot" id="statNoWebPct">—</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">⭐ Oportunidades altas</div>
+          <div class="t-value num" id="statHot">0</div>
+          <div class="t-foot">puntuación ≥ 70</div>
+        </div>
+        <div class="card tile">
+          <div class="t-label">📁 Leads guardados</div>
+          <div class="t-value num" id="statSaved">0</div>
+          <div class="t-foot"><span class="up">en tu cartera</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="results-head">
+          <div>
+            <h3>Resultados</h3>
+            <div class="meta" id="resultsMeta">Lanza una búsqueda para ver oportunidades</div>
+          </div>
+          <div class="filters">
+            <label class="chk"><input type="checkbox" id="onlyNoWeb" checked> Solo sin web</label>
+            <select id="sortBy">
+              <option value="score">Ordenar: puntuación</option>
+              <option value="reviews">Ordenar: reseñas</option>
+              <option value="rating">Ordenar: valoración</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="resultsTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Negocio</th>
+                <th>Valoración</th>
+                <th>Teléfono</th>
+                <th>Sitio web</th>
+                <th>Puntuación</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="resultsEmpty">
+          <div class="emoji">🗺️</div>
+          <h4>Aún no hay resultados</h4>
+          <p>Elige un nicho y una ciudad y pulsa «Buscar negocios».</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Vista: Mis leads ── -->
+    <section class="view" id="view-leads">
+      <div class="card">
+        <div class="results-head">
+          <div>
+            <h3>Cartera de leads</h3>
+            <div class="meta" id="leadsMeta">0 leads guardados</div>
+          </div>
+          <div class="filters">
+            <button class="btn-ghost" id="exportCsv">Exportar CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="leadsTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Negocio</th>
+                <th>Ciudad</th>
+                <th>Teléfono</th>
+                <th>Puntuación</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="leadsBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="leadsEmpty">
+          <div class="emoji">📁</div>
+          <h4>Tu cartera está vacía</h4>
+          <p>Guarda leads desde los resultados de búsqueda para hacer seguimiento aquí.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Vista: Ajustes ── -->
+    <section class="view" id="view-ajustes">
+      <div class="card settings-card">
+        <h3>Mensaje de apertura de WhatsApp</h3>
+        <div class="field">
+          <label for="tplMsg">Plantilla</label>
+          <textarea id="tplMsg"></textarea>
+          <div class="tpl-hint">Variables disponibles: <code>{negocio}</code>, <code>{ciudad}</code>, <code>{nicho}</code></div>
+        </div>
+        <div class="field">
+          <label for="myName">Tu nombre (firma)</label>
+          <input id="myName" type="text" placeholder="p. ej. Julián">
+        </div>
+        <button class="btn-primary" id="saveSettings" type="button">Guardar ajustes</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ── Estado ─────────────────────────────────── */
+const LS = {
+  leads: "huntly.leads",
+  searches: "huntly.searches",
+  settings: "huntly.settings",
+  theme: "huntly.theme",
+};
+const MAX_SEARCHES = 3;
+const DEFAULT_TPL = "Hola 👋 Soy {firma}. He visto {negocio} en Google Maps y me ha llamado la atención que todavía no tenéis página web. Ayudo a negocios de {ciudad} como el vuestro a conseguir más clientes con una web sencilla y profesional. ¿Os interesaría ver un ejemplo?";
+
+let results = [];
+let lastQuery = null;
+let leads = load(LS.leads, []);
+let searchesUsed = load(LS.searches, 0);
+let settings = load(LS.settings, { tpl: DEFAULT_TPL, name: "" });
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
+
+/* ── Datos simulados ────────────────────────── */
+const NICHOS = {
+  restaurantes: { label: "Restaurantes", pre: ["Restaurante", "Casa", "Mesón", "Taberna", "La Cocina de", "El Rincón de"], suf: ["Pepe", "Lucía", "del Puerto", "Mariano", "la Abuela", "Sol", "Ibérico", "Andaluz", "el Patio", "Doña Carmen", "los Arcos", "la Plaza"] },
+  peluquerias: { label: "Peluquerías", pre: ["Peluquería", "Barbería", "Salón", "Estilo"], suf: ["Marta", "Álvaro", "Urban", "Clásica", "Rizos", "Tijeras de Oro", "Look", "Rocío", "Mediterráneo", "Chic", "Central", "Nueva Imagen"] },
+  dentistas: { label: "Clínicas dentales", pre: ["Clínica Dental", "Dental", "Centro Odontológico"], suf: ["Sonrisa", "Blanco", "Dr. Herrera", "Salud Oral", "Family", "Vital", "Norte", "Dra. Prieto", "Integral", "Plus", "Sur", "Perla"] },
+  talleres: { label: "Talleres mecánicos", pre: ["Talleres", "Auto Taller", "Mecánica"], suf: ["Hermanos Gil", "Rápido", "Express", "Paco", "Motor Sur", "el Cruce", "Ruedas", "AutoFix", "Central", "la Nacional", "Diésel", "Turbo"] },
+  gimnasios: { label: "Gimnasios", pre: ["Gimnasio", "Centro Fitness", "Club Deportivo"], suf: ["Titán", "Forma", "Energy", "Olimpo", "Hierro", "Pulso", "Activo", "Fuerza", "Ritmo", "Cuerpo Sano", "Impacto", "Arena"] },
+  cafeterias: { label: "Cafeterías", pre: ["Cafetería", "Café", "Pastelería"], suf: ["Aroma", "la Esquina", "Dulce Hogar", "Molino", "Central", "las Flores", "Ámbar", "Cortado", "el Paseo", "Miel", "Tostado", "la Estación"] },
+  fontaneros: { label: "Fontaneros", pre: ["Fontanería", "Instalaciones", "Fontaneros"], suf: ["Ruiz", "24 Horas", "Aguaclara", "Hermanos López", "Express", "el Grifo", "Rápidos", "Levante", "Presión", "Fugas Cero", "Norte", "Caudal"] },
+  abogados: { label: "Despachos de abogados", pre: ["Abogados", "Bufete", "Despacho Jurídico"], suf: ["Serrano", "& Asociados", "Lex", "Vega y Torres", "Justicia", "Iuris", "Romero", "Consulta Legal", "Castillo", "Foro", "Balanza", "Ortega"] },
+};
+const CALLES = ["C/ Mayor", "Av. de la Constitución", "C/ Real", "Pza. de España", "C/ San Juan", "Av. del Parque", "C/ Cervantes", "Rda. Norte", "C/ La Fuente", "Paseo Marítimo"];
+
+function rnd(n) { return Math.floor(Math.random() * n); }
+function pick(arr) { return arr[rnd(arr.length)]; }
+
+function genBusinesses(nicho, ciudad) {
+  const cfg = NICHOS[nicho];
+  const count = 14 + rnd(9); // 14–22
+  const used = new Set();
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    let name, guard = 0;
+    do { name = `${pick(cfg.pre)} ${pick(cfg.suf)}`; guard++; } while (used.has(name) && guard < 30);
+    if (used.has(name)) continue;
+    used.add(name);
+
+    const rating = Math.round((3 + Math.random() * 2) * 10) / 10; // 3.0–5.0
+    const reviews = 3 + rnd(320);
+    const hasWeb = Math.random() < 0.30;
+    const oldWeb = hasWeb && Math.random() < 0.45;
+    const phone = `+34 6${rnd(10)}${rnd(10)} ${100 + rnd(900)} ${100 + rnd(900)}`;
+
+    // Puntuación de oportunidad: sin web + buena reputación + actividad = más alta
+    let score = 0;
+    if (!hasWeb) score += 45; else if (oldWeb) score += 22;
+    score += Math.min(25, Math.round(reviews / 13));       // actividad
+    score += Math.round((rating - 3) * 12);                // reputación
+    score += rnd(8);                                       // señal de actividad reciente
+    score = Math.max(5, Math.min(99, score));
+
+    out.push({
+      id: `${nicho}-${ciudad}-${i}-${Date.now()}`,
+      name, nicho, nichoLabel: cfg.label, ciudad,
+      address: `${pick(CALLES)}, ${1 + rnd(120)}`,
+      rating, reviews, phone,
+      web: hasWeb ? (oldWeb ? "obsoleta" : "sí") : "no",
+      score,
+    });
+  }
+  return out;
+}
+
+/* ── Búsqueda / escaneo ─────────────────────── */
+const SCAN_STEPS = [
+  [12, "Consultando Google Maps…"],
+  [38, "Analizando fichas de negocio…"],
+  [62, "Detectando sitios web enlazados…"],
+  [81, "Extrayendo teléfonos…"],
+  [96, "Calculando puntuación de oportunidad…"],
+];
+
+document.getElementById("searchForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (searchesUsed >= MAX_SEARCHES) {
+    toast("Has agotado las 3 búsquedas del plan Gratis. Mejora tu plan para seguir.");
+    return;
+  }
+  const nicho = document.getElementById("nicho").value;
+  const ciudad = document.getElementById("ciudad").value.trim();
+  if (!ciudad) return;
+
+  const btn = document.getElementById("searchBtn");
+  const box = document.getElementById("scanBox");
+  const bar = document.getElementById("scanBar");
+  const msg = document.getElementById("scanMsg");
+  btn.disabled = true;
+  box.classList.add("on");
+  bar.style.width = "4%";
+
+  let step = 0;
+  const tick = setInterval(() => {
+    if (step < SCAN_STEPS.length) {
+      bar.style.width = SCAN_STEPS[step][0] + "%";
+      msg.textContent = SCAN_STEPS[step][1];
+      step++;
+    } else {
+      clearInterval(tick);
+      bar.style.width = "100%";
+      setTimeout(() => {
+        box.classList.remove("on");
+        btn.disabled = false;
+        results = genBusinesses(nicho, ciudad);
+        lastQuery = { nicho, ciudad, label: NICHOS[nicho].label };
+        searchesUsed++;
+        save(LS.searches, searchesUsed);
+        renderAll();
+        toast(`Búsqueda completada: ${results.length} negocios analizados en ${ciudad}`);
+      }, 350);
+    }
+  }, 480);
+});
+
+/* ── Render ─────────────────────────────────── */
+function scoreColor(s) {
+  if (s >= 70) return "var(--good)";
+  if (s >= 45) return "var(--warning)";
+  return "var(--serious)";
+}
+function scoreTag(s) {
+  if (s >= 70) return "Alta";
+  if (s >= 45) return "Media";
+  return "Baja";
+}
+function stars(r) {
+  const full = Math.round(r);
+  return "★".repeat(full) + "☆".repeat(5 - full);
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function waLink(b) {
+  const firma = settings.name || "un diseñador web";
+  const text = (settings.tpl || DEFAULT_TPL)
+    .replaceAll("{negocio}", b.name)
+    .replaceAll("{ciudad}", b.ciudad)
+    .replaceAll("{nicho}", b.nichoLabel.toLowerCase())
+    .replaceAll("{firma}", firma);
+  return `https://wa.me/${b.phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
+}
+
+function visibleResults() {
+  let list = [...results];
+  if (document.getElementById("onlyNoWeb").checked) list = list.filter(b => b.web !== "sí");
+  const s = document.getElementById("sortBy").value;
+  list.sort((a, b) => s === "reviews" ? b.reviews - a.reviews : s === "rating" ? b.rating - a.rating : b.score - a.score);
+  return list;
+}
+
+function renderResults() {
+  const list = visibleResults();
+  const table = document.getElementById("resultsTable");
+  const empty = document.getElementById("resultsEmpty");
+  const body = document.getElementById("resultsBody");
+  const meta = document.getElementById("resultsMeta");
+
+  if (!lastQuery) { table.style.display = "none"; empty.style.display = "block"; return; }
+  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} oportunidades`;
+
+  if (!list.length) {
+    table.style.display = "none";
+    empty.style.display = "block";
+    empty.querySelector("h4").textContent = "Sin resultados con estos filtros";
+    empty.querySelector("p").textContent = "Prueba a desactivar «Solo sin web».";
+    return;
+  }
+  table.style.display = "table";
+  empty.style.display = "none";
+
+  body.innerHTML = list.map(b => {
+    const saved = leads.some(l => l.id === b.id);
+    const webPill = b.web === "no"
+      ? `<span class="pill pill-noweb"><span class="dot"></span>Sin web</span>`
+      : b.web === "obsoleta"
+        ? `<span class="pill pill-oldweb"><span class="dot"></span>Web obsoleta</span>`
+        : `<span class="pill">Con web</span>`;
+    return `<tr>
+      <td>
+        <div class="biz-name">${esc(b.name)}</div>
+        <div class="biz-cat">${esc(b.address)} · ${esc(b.ciudad)}</div>
+      </td>
+      <td>
+        <div><span class="stars" aria-hidden="true">${stars(b.rating)}</span> <span class="num">${b.rating.toFixed(1)}</span></div>
+        <div class="rev-count num">${b.reviews} reseñas</div>
+      </td>
+      <td class="phone">${esc(b.phone)}</td>
+      <td>${webPill}</td>
+      <td>
+        <div class="score">
+          <span class="score-num">${b.score}</span>
+          <span class="score-bar"><div style="width:${b.score}%;background:${scoreColor(b.score)}"></div></span>
+          <span class="score-tag">${scoreTag(b.score)}</span>
+        </div>
+      </td>
+      <td>
+        <div class="actions">
+          <a class="icon-btn" href="tel:${b.phone.replace(/\s/g, "")}" title="Llamar">📞</a>
+          <a class="icon-btn" href="${waLink(b)}" target="_blank" rel="noopener" title="WhatsApp con mensaje de apertura">💬</a>
+          <button class="icon-btn ${saved ? "saved" : ""}" title="${saved ? "Quitar de mi cartera" : "Guardar lead"}" onclick="toggleLead('${b.id}')">${saved ? "✓" : "＋"}</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function renderStats() {
+  const noWeb = results.filter(b => b.web !== "sí").length;
+  document.getElementById("statScanned").textContent = results.length;
+  document.getElementById("statNoWeb").textContent = noWeb;
+  document.getElementById("statNoWebPct").textContent = results.length ? `${Math.round(noWeb / results.length * 100)} % del total` : "—";
+  document.getElementById("statHot").textContent = results.filter(b => b.score >= 70).length;
+  document.getElementById("statSaved").textContent = leads.length;
+
+  const left = Math.max(0, MAX_SEARCHES - searchesUsed);
+  document.getElementById("searchesLeft").textContent = left;
+  document.getElementById("planMeter").style.width = `${(searchesUsed / MAX_SEARCHES) * 100}%`;
+  document.getElementById("leadCount").textContent = leads.length;
+}
+
+const LEAD_STATES = ["Nuevo", "Contactado", "En negociación", "Cliente", "Descartado"];
+
+function renderLeads() {
+  const table = document.getElementById("leadsTable");
+  const empty = document.getElementById("leadsEmpty");
+  const body = document.getElementById("leadsBody");
+  document.getElementById("leadsMeta").textContent = `${leads.length} lead${leads.length === 1 ? "" : "s"} guardado${leads.length === 1 ? "" : "s"}`;
+
+  if (!leads.length) { table.style.display = "none"; empty.style.display = "block"; return; }
+  table.style.display = "table";
+  empty.style.display = "none";
+
+  body.innerHTML = leads.map(l => `<tr>
+    <td>
+      <div class="biz-name">${esc(l.name)}</div>
+      <div class="biz-cat">${esc(l.nichoLabel)}</div>
+    </td>
+    <td>${esc(l.ciudad)}</td>
+    <td class="phone">${esc(l.phone)}</td>
+    <td>
+      <div class="score">
+        <span class="score-num">${l.score}</span>
+        <span class="score-bar"><div style="width:${l.score}%;background:${scoreColor(l.score)}"></div></span>
+      </div>
+    </td>
+    <td>
+      <select class="lead-state" onchange="setLeadState('${l.id}', this.value)">
+        ${LEAD_STATES.map(s => `<option ${s === l.state ? "selected" : ""}>${s}</option>`).join("")}
+      </select>
+    </td>
+    <td>
+      <div class="actions">
+        <a class="icon-btn" href="tel:${l.phone.replace(/\s/g, "")}" title="Llamar">📞</a>
+        <a class="icon-btn" href="${waLink(l)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>
+        <button class="icon-btn" title="Eliminar" onclick="toggleLead('${l.id}')">🗑</button>
+      </div>
+    </td>
+  </tr>`).join("");
+}
+
+function renderAll() { renderResults(); renderStats(); renderLeads(); }
+
+/* ── Acciones de leads ──────────────────────── */
+window.toggleLead = function (id) {
+  const idx = leads.findIndex(l => l.id === id);
+  if (idx >= 0) {
+    leads.splice(idx, 1);
+    toast("Lead eliminado de tu cartera");
+  } else {
+    const b = results.find(r => r.id === id);
+    if (!b) return;
+    leads.push({ ...b, state: "Nuevo", savedAt: Date.now() });
+    toast(`«${b.name}» guardado en tu cartera`);
+  }
+  save(LS.leads, leads);
+  renderAll();
+};
+
+window.setLeadState = function (id, state) {
+  const l = leads.find(x => x.id === id);
+  if (!l) return;
+  l.state = state;
+  save(LS.leads, leads);
+  toast(`Estado actualizado: ${state}`);
+};
+
+document.getElementById("exportCsv").addEventListener("click", () => {
+  if (!leads.length) { toast("No hay leads que exportar"); return; }
+  const rows = [["Negocio", "Nicho", "Ciudad", "Dirección", "Teléfono", "Valoración", "Reseñas", "Puntuación", "Estado"]];
+  leads.forEach(l => rows.push([l.name, l.nichoLabel, l.ciudad, l.address, l.phone, l.rating, l.reviews, l.score, l.state]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "huntly-leads.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("CSV exportado");
+});
+
+/* ── Filtros ────────────────────────────────── */
+document.getElementById("onlyNoWeb").addEventListener("change", renderResults);
+document.getElementById("sortBy").addEventListener("change", renderResults);
+
+/* ── Navegación ─────────────────────────────── */
+const VIEW_META = {
+  panel: ["Panel", "Encuentra negocios sin página web y consigue clientes"],
+  leads: ["Mis leads", "Tu cartera de clientes potenciales"],
+  ajustes: ["Ajustes", "Personaliza tu mensaje de apertura"],
+};
+document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
+    document.getElementById("view-" + btn.dataset.view).classList.add("on");
+    document.getElementById("viewTitle").textContent = VIEW_META[btn.dataset.view][0];
+    document.getElementById("viewSub").textContent = VIEW_META[btn.dataset.view][1];
+  });
+});
+
+/* ── Ajustes ────────────────────────────────── */
+document.getElementById("tplMsg").value = settings.tpl || DEFAULT_TPL;
+document.getElementById("myName").value = settings.name || "";
+document.getElementById("saveSettings").addEventListener("click", () => {
+  settings = {
+    tpl: document.getElementById("tplMsg").value.trim() || DEFAULT_TPL,
+    name: document.getElementById("myName").value.trim(),
+  };
+  save(LS.settings, settings);
+  renderAll();
+  toast("Ajustes guardados");
+});
+
+/* ── Tema ───────────────────────────────────── */
+const themeBtn = document.getElementById("themeBtn");
+function applyTheme(t) {
+  if (t) document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+  themeBtn.textContent = (t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "☀️" : "🌙";
+}
+let theme = load(LS.theme, null);
+applyTheme(theme);
+themeBtn.addEventListener("click", () => {
+  const isDark = (theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark";
+  theme = isDark ? "light" : "dark";
+  save(LS.theme, theme);
+  applyTheme(theme);
+});
+
+/* ── Toast ──────────────────────────────────── */
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("on"), 2600);
+}
+
+renderAll();
+</script>
+</body>
+</html>
