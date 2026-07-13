@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nexa IA — Chatbots a medida para tu negocio</title>
+<style>
+  :root {
+    --paper: #F3F6F4;
+    --surface: #FFFFFF;
+    --ink: #0F1F1A;
+    --ink-soft: #33443D;
+    --muted: #5C6E66;
+    --line: #DCE4DF;
+    --accent: #00B368;
+    --accent-deep: #008F53;
+    --accent-tint: #E2F5EC;
+    --bot: #00B368;
+    --bot-tint: #E2F5EC;
+    --shadow: 0 18px 50px -18px rgba(15, 31, 26, .25);
+    --radius: 16px;
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0C1613;
+      --surface: #12211C;
+      --ink: #EAF2EE;
+      --ink-soft: #C4D2CB;
+      --muted: #8CA097;
+      --line: #22352E;
+      --accent: #17C97F;
+      --accent-deep: #0FAE6B;
+      --accent-tint: #123A2B;
+      --bot-tint: #123A2B;
+      --shadow: 0 18px 50px -18px rgba(0, 0, 0, .6);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #F3F6F4;
+    --surface: #FFFFFF;
+    --ink: #0F1F1A;
+    --ink-soft: #33443D;
+    --muted: #5C6E66;
+    --line: #DCE4DF;
+    --accent: #00B368;
+    --accent-deep: #008F53;
+    --accent-tint: #E2F5EC;
+    --bot-tint: #E2F5EC;
+    --shadow: 0 18px 50px -18px rgba(15, 31, 26, .25);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0C1613;
+    --surface: #12211C;
+    --ink: #EAF2EE;
+    --ink-soft: #C4D2CB;
+    --muted: #8CA097;
+    --line: #22352E;
+    --accent: #17C97F;
+    --accent-deep: #0FAE6B;
+    --accent-tint: #123A2B;
+    --bot-tint: #123A2B;
+    --shadow: 0 18px 50px -18px rgba(0, 0, 0, .6);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; }
+  a { color: inherit; }
+  h1, h2, h3 { text-wrap: balance; line-height: 1.12; margin: 0; }
+  p { margin: 0; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: .72rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    display: inline-flex;
+    align-items: center;
+    gap: .5em;
+  }
+  :root[data-theme="dark"] .eyebrow { color: var(--accent); }
+  @media (prefers-color-scheme: dark) { .eyebrow { color: var(--accent); } }
+  :root[data-theme="light"] .eyebrow { color: var(--accent-deep); }
+  .eyebrow .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+    50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 8%, transparent); }
+  }
+
+  /* ---------- Nav ---------- */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; max-width: 1120px; margin: 0 auto;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 800; letter-spacing: -.02em; font-size: 1.15rem;
+    text-decoration: none;
+  }
+  .logo-mark {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: var(--accent);
+    display: grid; place-items: center;
+    color: #fff; font-family: var(--font-mono); font-size: .8rem; font-weight: 700;
+  }
+  .logo small {
+    font-family: var(--font-mono); font-weight: 400; font-size: .62rem;
+    color: var(--muted); letter-spacing: .14em; text-transform: uppercase;
+    margin-top: 4px;
+  }
+  nav.links { display: flex; gap: 26px; align-items: center; }
+  nav.links a {
+    text-decoration: none; font-size: .92rem; color: var(--ink-soft);
+  }
+  nav.links a:hover { color: var(--ink); }
+  @media (max-width: 780px) { nav.links a:not(.btn) { display: none; } }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: .5em;
+    padding: 11px 22px; border-radius: 999px;
+    font-weight: 650; font-size: .95rem; text-decoration: none;
+    border: 1px solid transparent; cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    font-family: var(--font-sans);
+  }
+  .btn:focus-visible, a:focus-visible, button:focus-visible,
+  input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-deep); transform: translateY(-1px); box-shadow: 0 10px 24px -10px var(--accent); }
+  .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+  .btn-ghost:hover { border-color: var(--accent); }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 84px 0 72px; overflow: hidden; }
+  .hero-grid {
+    display: grid; grid-template-columns: 1.1fr .9fr; gap: 56px; align-items: center;
+  }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+  .hero h1 {
+    font-size: clamp(2.5rem, 5.6vw, 4rem);
+    font-weight: 800; letter-spacing: -.035em;
+    margin: 20px 0 22px;
+  }
+  .hero h1 em {
+    font-style: normal; color: var(--accent-deep);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    text-decoration-thickness: 6px; text-underline-offset: 6px;
+  }
+  @media (prefers-color-scheme: dark) { .hero h1 em { color: var(--accent); } }
+  :root[data-theme="dark"] .hero h1 em { color: var(--accent); }
+  :root[data-theme="light"] .hero h1 em { color: var(--accent-deep); }
+  .hero .lead {
+    font-size: 1.13rem; color: var(--muted); max-width: 46ch; margin-bottom: 34px;
+  }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hero-stats {
+    display: flex; gap: 36px; margin-top: 44px; flex-wrap: wrap;
+  }
+  .stat b {
+    display: block; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat span { font-size: .8rem; color: var(--muted); font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+
+  /* ---------- Chat widget (shared) ---------- */
+  .chat {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 22px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; overflow: hidden;
+    max-width: 400px; width: 100%;
+  }
+  .chat-head {
+    background: var(--bot); color: #fff;
+    padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+  }
+  .chat-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,.22);
+    display: grid; place-items: center; font-weight: 800; font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .chat-head .who b { display: block; font-size: .98rem; line-height: 1.2; }
+  .chat-head .who span {
+    font-size: .72rem; opacity: .9; display: inline-flex; align-items: center; gap: .4em;
+  }
+  .chat-head .who span::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%; background: #B7FFD9;
+  }
+  .chat-body {
+    padding: 18px; display: flex; flex-direction: column; gap: 10px;
+    min-height: 250px; background:
+      radial-gradient(circle at 85% 8%, color-mix(in srgb, var(--bot) 7%, transparent), transparent 55%),
+      var(--surface);
+  }
+  .msg {
+    max-width: 82%; padding: 10px 14px; border-radius: 16px;
+    font-size: .92rem; line-height: 1.45;
+  }
+  .msg.bot {
+    background: var(--bot-tint); color: var(--ink);
+    border-bottom-left-radius: 5px; align-self: flex-start;
+  }
+  .msg.user {
+    background: var(--ink); color: var(--paper);
+    border-bottom-right-radius: 5px; align-self: flex-end;
+  }
+  .typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
+  .typing i {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
+    animation: blink 1.2s infinite ease-in-out;
+  }
+  .typing i:nth-child(2) { animation-delay: .2s; }
+  .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  .chat-input {
+    border-top: 1px solid var(--line); padding: 12px 16px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .chat-input span { flex: 1; font-size: .88rem; color: var(--muted); }
+  .chat-send {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--bot);
+    display: grid; place-items: center; color: #fff; flex-shrink: 0;
+  }
+  .chat-tag {
+    font-family: var(--font-mono); font-size: .68rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+    text-align: center; padding: 8px 0 2px;
+  }
+
+  /* ---------- Sections ---------- */
+  section { padding: 88px 0; }
+  .sec-head { max-width: 60ch; margin-bottom: 48px; }
+  .sec-head h2 {
+    font-size: clamp(1.7rem, 3.4vw, 2.5rem); font-weight: 800; letter-spacing: -.03em;
+    margin: 14px 0 14px;
+  }
+  .sec-head p { color: var(--muted); font-size: 1.05rem; }
+
+  /* ---------- Configurator ---------- */
+  #personalizar { background: var(--surface); border-block: 1px solid var(--line); }
+  .config-grid {
+    display: grid; grid-template-columns: 1fr 420px; gap: 48px; align-items: start;
+  }
+  @media (max-width: 940px) { .config-grid { grid-template-columns: 1fr; } }
+  .panel {
+    display: flex; flex-direction: column; gap: 26px;
+  }
+  .field label, .field > .label {
+    display: block; font-family: var(--font-mono); font-size: .72rem;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .field input[type="text"], .field textarea, .field select, .field input[type="email"], .field input[type="url"] {
+    width: 100%; padding: 13px 16px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--paper);
+    color: var(--ink); font-family: var(--font-sans); font-size: .98rem;
+  }
+  .field textarea { resize: vertical; min-height: 76px; }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+  .chip {
+    padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--paper); color: var(--ink-soft); font-size: .92rem;
+    cursor: pointer; font-family: var(--font-sans); font-weight: 550;
+    transition: all .15s ease;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--ink); color: var(--paper); border-color: var(--ink);
+  }
+  .swatches { display: flex; gap: 12px; flex-wrap: wrap; }
+  .swatch {
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent; padding: 0;
+    transition: transform .15s ease;
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch[aria-pressed="true"] {
+    border-color: var(--ink);
+    box-shadow: inset 0 0 0 2px var(--surface);
+  }
+  .preview-col { position: sticky; top: 90px; display: flex; flex-direction: column; align-items: center; }
+  @media (max-width: 940px) { .preview-col { position: static; } }
+
+  /* ---------- Process ---------- */
+  .steps {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px;
+    counter-reset: paso;
+  }
+  @media (max-width: 940px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 24px; counter-increment: paso;
+  }
+  .step::before {
+    content: "Paso " counter(paso);
+    font-family: var(--font-mono); font-size: .7rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent-deep);
+    display: block; margin-bottom: 14px;
+  }
+  @media (prefers-color-scheme: dark) { .step::before { color: var(--accent); } }
+  :root[data-theme="dark"] .step::before { color: var(--accent); }
+  :root[data-theme="light"] .step::before { color: var(--accent-deep); }
+  .step h3 { font-size: 1.08rem; font-weight: 750; margin-bottom: 8px; }
+  .step p { font-size: .92rem; color: var(--muted); }
+
+  /* ---------- Features ---------- */
+  #funciones { background: var(--surface); border-block: 1px solid var(--line); }
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  @media (max-width: 940px) { .features { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
+  .feature {
+    padding: 26px 24px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--paper);
+  }
+  .feature .ico {
+    width: 42px; height: 42px; border-radius: 12px; background: var(--accent-tint);
+    display: grid; place-items: center; margin-bottom: 16px;
+  }
+  .feature .ico svg { width: 21px; height: 21px; stroke: var(--accent-deep); }
+  @media (prefers-color-scheme: dark) { .feature .ico svg { stroke: var(--accent); } }
+  :root[data-theme="dark"] .feature .ico svg { stroke: var(--accent); }
+  :root[data-theme="light"] .feature .ico svg { stroke: var(--accent-deep); }
+  .feature h3 { font-size: 1.02rem; font-weight: 700; margin-bottom: 8px; }
+  .feature p { font-size: .9rem; color: var(--muted); }
+
+  /* ---------- Pricing ---------- */
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch; }
+  @media (max-width: 940px) { .plans { grid-template-columns: 1fr; max-width: 460px; margin-inline: auto; } }
+  .plan {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+    padding: 32px 28px; display: flex; flex-direction: column; gap: 18px;
+  }
+  .plan.featured { border-color: var(--accent); box-shadow: var(--shadow); position: relative; }
+  .plan.featured::after {
+    content: "Más elegido";
+    position: absolute; top: -12px; right: 22px;
+    background: var(--accent); color: #fff; font-size: .7rem; font-weight: 700;
+    font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 999px;
+  }
+  .plan .tier { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .plan .price { font-size: 2.3rem; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .plan .price small { font-size: .85rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .plan ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .plan li { font-size: .92rem; color: var(--ink-soft); padding-left: 24px; position: relative; }
+  .plan li::before {
+    content: "✓"; position: absolute; left: 0; color: var(--accent);
+    font-weight: 800;
+  }
+
+  /* ---------- Request form ---------- */
+  #solicitar { background: var(--ink); color: var(--paper); }
+  #solicitar .eyebrow { color: var(--accent); }
+  #solicitar .sec-head p { color: color-mix(in srgb, var(--paper) 65%, transparent); }
+  .form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px 22px;
+    background: color-mix(in srgb, var(--paper) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--paper) 16%, transparent);
+    border-radius: 22px; padding: 36px;
+  }
+  @media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; padding: 26px 20px; } }
+  .form-grid .field.full { grid-column: 1 / -1; }
+  #solicitar .field label { color: color-mix(in srgb, var(--paper) 55%, transparent); }
+  #solicitar .field input, #solicitar .field textarea, #solicitar .field select {
+    background: color-mix(in srgb, var(--paper) 9%, transparent);
+    border-color: color-mix(in srgb, var(--paper) 18%, transparent);
+    color: var(--paper);
+  }
+  #solicitar .field input::placeholder, #solicitar .field textarea::placeholder {
+    color: color-mix(in srgb, var(--paper) 40%, transparent);
+  }
+  .config-summary {
+    grid-column: 1 / -1;
+    font-family: var(--font-mono); font-size: .8rem; line-height: 1.9;
+    background: color-mix(in srgb, var(--paper) 8%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--paper) 25%, transparent);
+    border-radius: 14px; padding: 18px 22px;
+    color: color-mix(in srgb, var(--paper) 80%, transparent);
+    overflow-x: auto;
+  }
+  .config-summary b { color: var(--accent); font-weight: 600; }
+  .form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .form-note { font-size: .82rem; color: color-mix(in srgb, var(--paper) 55%, transparent); }
+  .success {
+    grid-column: 1 / -1; display: none;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border: 1px solid var(--accent); border-radius: 14px; padding: 18px 22px;
+    font-size: .95rem;
+  }
+  .success.show { display: block; }
+
+  /* ---------- Footer ---------- */
+  footer {
+    padding: 40px 0; border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 18px;
+    justify-content: space-between; align-items: center;
+    max-width: 1120px; margin: 0 auto; padding-inline: 24px;
+    color: var(--muted); font-size: .88rem;
+  }
+  footer nav { display: flex; gap: 22px; }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#">
+      <span class="logo-mark">N</span>
+      <span>nexa <small>IA</small></span>
+    </a>
+    <nav class="links" aria-label="Secciones">
+      <a href="#personalizar">Personalizar</a>
+      <a href="#proceso">Cómo funciona</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#planes">Planes</a>
+      <a class="btn btn-primary" href="#solicitar">Solicitar chatbot</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ HERO ============ -->
+  <div class="hero wrap">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow"><span class="dot"></span>Asistentes con IA · hechos a tu medida</span>
+        <h1>Tu negocio, <em>respondiendo</em> las 24 horas.</h1>
+        <p class="lead">
+          Nexa IA diseña, entrena y lanza chatbots que atienden a tus clientes en tu web,
+          WhatsApp o Instagram — con tu tono, tus colores y tu conocimiento del negocio.
+        </p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="#personalizar">Personalizá el tuyo →</a>
+          <a class="btn btn-ghost" href="#proceso">Ver cómo funciona</a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><b>−72%</b><span>consultas repetitivas</span></div>
+          <div class="stat"><b>&lt; 3 s</b><span>tiempo de respuesta</span></div>
+          <div class="stat"><b>7 días</b><span>de la idea al lanzamiento</span></div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center;">
+        <div class="chat" id="hero-chat" aria-label="Demostración de conversación">
+          <div class="chat-head">
+            <div class="chat-avatar">L</div>
+            <div class="who"><b>Luna</b><span>En línea · responde al instante</span></div>
+          </div>
+          <div class="chat-body" id="hero-body"></div>
+          <div class="chat-input">
+            <span>Escribí tu consulta…</span>
+            <span class="chat-send" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+            </span>
+          </div>
+        </div>
+        <p class="chat-tag">Demo real · Luna, bot de una pastelería</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CONFIGURADOR ============ -->
+  <section id="personalizar">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow"><span class="dot"></span>Configurador</span>
+        <h2>Armá tu chatbot como lo imaginás.</h2>
+        <p>Elegí nombre, personalidad, color y canal. La vista previa se actualiza en vivo —
+           lo que ves acá es lo que reciben tus clientes.</p>
+      </div>
+      <div class="config-grid">
+        <div class="panel">
+          <div class="field">
+            <label for="cfg-name">Nombre del asistente</label>
+            <input type="text" id="cfg-name" value="Luna" maxlength="18" autocomplete="off">
+          </div>
+          <div class="field">
+            <span class="label" id="lbl-tone">Tono de voz</span>
+            <div class="chips" role="group" aria-labelledby="lbl-tone">
+              <button class="chip" data-tone="cercano" aria-pressed="true">Cercano</button>
+              <button class="chip" data-tone="profesional" aria-pressed="false">Profesional</button>
+              <button class="chip" data-tone="divertido" aria-pressed="false">Divertido</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label" id="lbl-color">Color de marca</span>
+            <div class="swatches" role="group" aria-labelledby="lbl-color">
+              <button class="swatch" style="background:#00B368" data-color="#00B368" data-tint-l="#E2F5EC" data-tint-d="#123A2B" data-color-name="Verde Nexa" aria-pressed="true" aria-label="Verde Nexa"></button>
+              <button class="swatch" style="background:#2E5BFF" data-color="#2E5BFF" data-tint-l="#E7EDFF" data-tint-d="#16224D" data-color-name="Azul cobalto" aria-pressed="false" aria-label="Azul cobalto"></button>
+              <button class="swatch" style="background:#7C5CFF" data-color="#7C5CFF" data-tint-l="#EFEAFF" data-tint-d="#271C4D" data-color-name="Violeta" aria-pressed="false" aria-label="Violeta"></button>
+              <button class="swatch" style="background:#FF7A29" data-color="#FF7A29" data-tint-l="#FFEFE2" data-tint-d="#4A2410" data-color-name="Naranja" aria-pressed="false" aria-label="Naranja"></button>
+              <button class="swatch" style="background:#E84393" data-color="#E84393" data-tint-l="#FDE9F3" data-tint-d="#47142C" data-color-name="Rosa" aria-pressed="false" aria-label="Rosa"></button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label" id="lbl-channel">Canal principal</span>
+            <div class="chips" role="group" aria-labelledby="lbl-channel">
+              <button class="chip" data-channel="Web" aria-pressed="true">Widget web</button>
+              <button class="chip" data-channel="WhatsApp" aria-pressed="false">WhatsApp</button>
+              <button class="chip" data-channel="Instagram" aria-pressed="false">Instagram</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="cfg-welcome">Mensaje de bienvenida</label>
+            <textarea id="cfg-welcome" maxlength="160" placeholder="Dejalo vacío para usar el saludo del tono elegido"></textarea>
+          </div>
+          <div>
+            <a class="btn btn-primary" href="#solicitar">Solicitar con esta configuración →</a>
+          </div>
+        </div>
+
+        <div class="preview-col">
+          <div class="chat" id="preview-chat" aria-live="polite">
+            <div class="chat-head">
+              <div class="chat-avatar" id="pv-avatar">L</div>
+              <div class="who"><b id="pv-name">Luna</b><span id="pv-status">En línea · Widget web</span></div>
+            </div>
+            <div class="chat-body">
+              <div class="msg bot" id="pv-welcome">¡Hola! 😊 Soy Luna. ¿En qué te doy una mano hoy?</div>
+              <div class="msg user">¿Cuál es el horario de atención?</div>
+              <div class="msg bot" id="pv-reply">¡Claro! Atendemos de lunes a sábado, de 9 a 20 h. ¿Querés que te reserve un turno?</div>
+            </div>
+            <div class="chat-input">
+              <span>Escribí tu consulta…</span>
+              <span class="chat-send" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+              </span>
+            </div>
+          </div>
+          <p class="chat-tag">Vista previa en vivo</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PROCESO ============ -->
+  <section id="proceso">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow"><span class="dot"></span>Proceso</span>
+        <h2>De la idea al bot en línea, en 4 pasos.</h2>
+        <p>Sin código de tu lado. Vos definís cómo habla; nosotros lo entrenamos y lo dejamos funcionando.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <h3>Personalizá</h3>
+          <p>Usá el configurador para definir nombre, tono, color y canal de tu asistente.</p>
+        </div>
+        <div class="step">
+          <h3>Solicitá</h3>
+          <p>Enviá el formulario con tu configuración. Te contactamos en menos de 24 h hábiles.</p>
+        </div>
+        <div class="step">
+          <h3>Entrenamos</h3>
+          <p>Cargamos tu catálogo, preguntas frecuentes y políticas para que responda como tu equipo.</p>
+        </div>
+        <div class="step">
+          <h3>Lanzamiento</h3>
+          <p>Instalamos el bot en tu canal, medimos las conversaciones y lo mejoramos cada semana.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FUNCIONES ============ -->
+  <section id="funciones">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow"><span class="dot"></span>Funciones</span>
+        <h2>Todo lo que un buen asistente debería hacer.</h2>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <h3>Respuestas con tu conocimiento</h3>
+          <p>Entrenado con tu catálogo, precios y políticas. Responde como alguien de tu equipo, no como un robot genérico.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+          <h3>Atención 24/7</h3>
+          <p>Contesta de madrugada, feriados y fines de semana. Ninguna consulta se queda sin respuesta.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <h3>Deriva a un humano</h3>
+          <p>Cuando la consulta lo amerita, transfiere la conversación a tu equipo con todo el contexto.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+          <h3>Reservas y pedidos</h3>
+          <p>Agenda turnos, toma pedidos y confirma pagos conectándose con las herramientas que ya usás.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span>
+          <h3>Métricas claras</h3>
+          <p>Panel con conversaciones, temas más consultados y ventas asistidas. Sabés qué preguntan tus clientes.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+          <h3>Datos protegidos</h3>
+          <p>Tus conversaciones y tu base de conocimiento se cifran y nunca se comparten con terceros.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PLANES ============ -->
+  <section id="planes">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow"><span class="dot"></span>Planes</span>
+        <h2>Precios simples, sin sorpresas.</h2>
+        <p>Todos los planes incluyen configuración inicial, entrenamiento con tu contenido y soporte.</p>
+      </div>
+      <div class="plans">
+        <div class="plan">
+          <span class="tier">Starter</span>
+          <div class="price">$49<small> USD/mes</small></div>
+          <ul>
+            <li>1 canal (web o WhatsApp)</li>
+            <li>Hasta 500 conversaciones/mes</li>
+            <li>Entrenamiento con FAQs</li>
+            <li>Soporte por email</li>
+          </ul>
+          <a class="btn btn-ghost" href="#solicitar">Empezar</a>
+        </div>
+        <div class="plan featured">
+          <span class="tier">Pro</span>
+          <div class="price">$129<small> USD/mes</small></div>
+          <ul>
+            <li>Hasta 3 canales conectados</li>
+            <li>Conversaciones ilimitadas</li>
+            <li>Reservas, pedidos e integraciones</li>
+            <li>Panel de métricas</li>
+            <li>Soporte prioritario</li>
+          </ul>
+          <a class="btn btn-primary" href="#solicitar">Solicitar Pro</a>
+        </div>
+        <div class="plan">
+          <span class="tier">Empresa</span>
+          <div class="price">A medida</div>
+          <ul>
+            <li>Canales e idiomas ilimitados</li>
+            <li>Integraciones con tu CRM/ERP</li>
+            <li>Entrenamiento avanzado continuo</li>
+            <li>Acuerdo de nivel de servicio</li>
+          </ul>
+          <a class="btn btn-ghost" href="#solicitar">Hablemos</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SOLICITUD ============ -->
+  <section id="solicitar">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow"><span class="dot"></span>Solicitud</span>
+        <h2>Pedí tu chatbot.</h2>
+        <p>Contanos sobre tu negocio. Tu configuración del paso anterior viaja con el formulario.</p>
+      </div>
+      <form class="form-grid" id="request-form" novalidate>
+        <div class="field">
+          <label for="f-name">Tu nombre</label>
+          <input type="text" id="f-name" placeholder="Ana Gómez" required autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="f-email">Email</label>
+          <input type="email" id="f-email" placeholder="ana@tunegocio.com" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="f-biz">Nombre del negocio</label>
+          <input type="text" id="f-biz" placeholder="Pastelería Dulce Ana" required>
+        </div>
+        <div class="field">
+          <label for="f-web">Web o Instagram (opcional)</label>
+          <input type="url" id="f-web" placeholder="https://…">
+        </div>
+        <div class="field full">
+          <label for="f-msg">¿Qué querés que resuelva tu bot?</label>
+          <textarea id="f-msg" placeholder="Ej.: responder precios y sabores, tomar pedidos con seña y avisar cuándo retirar."></textarea>
+        </div>
+        <div class="config-summary" id="config-summary" aria-label="Resumen de tu configuración">
+          <b>// tu configuración</b><br>
+          asistente: <b id="sum-name">Luna</b> · tono: <b id="sum-tone">Cercano</b> ·
+          canal: <b id="sum-channel">Widget web</b> · color: <b id="sum-color">Verde Nexa</b>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Enviar solicitud</button>
+          <span class="form-note">Te respondemos en menos de 24 h hábiles. Sin compromiso.</span>
+        </div>
+        <div class="success" id="form-success" role="status">
+          ✓ <strong>Solicitud enviada.</strong> Revisá tu correo: te mandamos un resumen y los próximos pasos.
+        </div>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <a class="logo" href="#" style="font-size:1rem;">
+    <span class="logo-mark" style="width:26px;height:26px;border-radius:8px;font-size:.7rem;">N</span>
+    <span>nexa <small>IA</small></span>
+  </a>
+  <nav aria-label="Pie de página">
+    <a href="#personalizar">Personalizar</a>
+    <a href="#planes">Planes</a>
+    <a href="#solicitar">Contacto</a>
+  </nav>
+  <span>© 2026 Nexa IA · Chatbots hechos a medida</span>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = {
+    name: "Luna",
+    tone: "cercano",
+    toneLabel: "Cercano",
+    color: "#00B368",
+    tintL: "#E2F5EC",
+    tintD: "#123A2B",
+    colorName: "Verde Nexa",
+    channel: "Web",
+    channelLabel: "Widget web",
+    welcome: ""
+  };
+
+  var TONES = {
+    cercano: {
+      hola: function (n) { return "¡Hola! 😊 Soy " + n + ". ¿En qué te doy una mano hoy?"; },
+      resp: "¡Claro! Atendemos de lunes a sábado, de 9 a 20 h. ¿Querés que te reserve un turno?"
+    },
+    profesional: {
+      hola: function (n) { return "Bienvenido/a. Soy " + n + ", asistente virtual. ¿En qué puedo ayudarle?"; },
+      resp: "Con gusto. Nuestro horario de atención es de lunes a sábado, de 9:00 a 20:00 h. ¿Desea agendar una cita?"
+    },
+    divertido: {
+      hola: function (n) { return "¡Hey! 🎉 Soy " + n + ", tu bot de cabecera. Preguntame lo que quieras."; },
+      resp: "¡Fácil! Estamos de lunes a sábado, de 9 a 20 h. ¿Te anoto para que no te quedes afuera? 😄"
+    }
+  };
+
+  var CHANNELS = { "Web": "Widget web", "WhatsApp": "WhatsApp Business", "Instagram": "Instagram DM" };
+
+  function prefersDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t === "dark") return true;
+    if (t === "light") return false;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  function render() {
+    var root = document.documentElement.style;
+    root.setProperty("--bot", state.color);
+    root.setProperty("--bot-tint", prefersDark() ? state.tintD : state.tintL);
+
+    var name = state.name.trim() || "Tu bot";
+    document.getElementById("pv-name").textContent = name;
+    document.getElementById("pv-avatar").textContent = name.charAt(0).toUpperCase();
+    document.getElementById("pv-status").textContent = "En línea · " + state.channelLabel;
+
+    var tone = TONES[state.tone];
+    document.getElementById("pv-welcome").textContent = state.welcome.trim() || tone.hola(name);
+    document.getElementById("pv-reply").textContent = tone.resp;
+
+    document.getElementById("sum-name").textContent = name;
+    document.getElementById("sum-tone").textContent = state.toneLabel;
+    document.getElementById("sum-channel").textContent = state.channelLabel;
+    document.getElementById("sum-color").textContent = state.colorName;
+  }
+
+  function bindGroup(selector, onPick) {
+    var btns = Array.prototype.slice.call(document.querySelectorAll(selector));
+    btns.forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        btns.forEach(function (b) { b.setAttribute("aria-pressed", "false"); });
+        btn.setAttribute("aria-pressed", "true");
+        onPick(btn);
+        render();
+      });
+    });
+  }
+
+  bindGroup(".chip[data-tone]", function (btn) {
+    state.tone = btn.dataset.tone;
+    state.toneLabel = btn.textContent;
+  });
+  bindGroup(".chip[data-channel]", function (btn) {
+    state.channel = btn.dataset.channel;
+    state.channelLabel = CHANNELS[btn.dataset.channel];
+  });
+  bindGroup(".swatch", function (btn) {
+    state.color = btn.dataset.color;
+    state.tintL = btn.dataset.tintL;
+    state.tintD = btn.dataset.tintD;
+    state.colorName = btn.dataset.colorName;
+  });
+
+  document.getElementById("cfg-name").addEventListener("input", function () {
+    state.name = this.value;
+    render();
+  });
+  document.getElementById("cfg-welcome").addEventListener("input", function () {
+    state.welcome = this.value;
+    render();
+  });
+
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  /* ---- Hero demo: staged conversation ---- */
+  var script = [
+    { who: "bot",  text: "¡Hola! 😊 Soy Luna, de Pastelería Alba. ¿En qué te doy una mano?" },
+    { who: "user", text: "¿Tienen torta de chocolate para mañana?" },
+    { who: "bot",  text: "¡Sí! Nos queda disponible la de chocolate belga (8 porciones, $18). ¿Te la reservo para retirar mañana?" },
+    { who: "user", text: "Dale, a las 17 hs 🙌" },
+    { who: "bot",  text: "Listo ✔ Reservada a tu nombre para mañana 17:00. Te llega la confirmación por WhatsApp." }
+  ];
+  var body = document.getElementById("hero-body");
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function addMsg(m) {
+    var el = document.createElement("div");
+    el.className = "msg " + m.who;
+    el.textContent = m.text;
+    body.appendChild(el);
+  }
+
+  if (reduced) {
+    script.forEach(addMsg);
+  } else {
+    var i = 0;
+    var typing = document.createElement("div");
+    typing.className = "msg bot";
+    typing.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
+    function next() {
+      if (i >= script.length) return;
+      var m = script[i];
+      if (m.who === "bot") {
+        body.appendChild(typing);
+        setTimeout(function () {
+          typing.remove();
+          addMsg(m);
+          i++;
+          setTimeout(next, 900);
+        }, 950);
+      } else {
+        addMsg(m);
+        i++;
+        setTimeout(next, 850);
+      }
+    }
+    setTimeout(next, 600);
+  }
+
+  /* ---- Request form (demo submit) ---- */
+  document.getElementById("request-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var ok = true;
+    ["f-name", "f-email", "f-biz"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el.value.trim()) { el.style.borderColor = "#FF7A29"; ok = false; }
+      else { el.style.borderColor = ""; }
+    });
+    var success = document.getElementById("form-success");
+    if (ok) {
+      success.classList.add("show");
+      success.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } else {
+      success.classList.remove("show");
+    }
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
