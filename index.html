@@ -6,62 +6,62 @@
 <title>Nexa IA — Chatbots a medida para tu negocio</title>
 <style>
   :root {
-    --paper: #F3F6F4;
+    --paper: #F6F4FA;
     --surface: #FFFFFF;
-    --ink: #0F1F1A;
-    --ink-soft: #33443D;
-    --muted: #5C6E66;
-    --line: #DCE4DF;
-    --accent: #00B368;
-    --accent-deep: #008F53;
-    --accent-tint: #E2F5EC;
-    --bot: #00B368;
-    --bot-tint: #E2F5EC;
-    --shadow: 0 18px 50px -18px rgba(15, 31, 26, .25);
+    --ink: #171022;
+    --ink-soft: #3B3247;
+    --muted: #6B6178;
+    --line: #E2DCEC;
+    --accent: #7C3AED;
+    --accent-deep: #6D28D9;
+    --accent-tint: #EFEAFF;
+    --bot: #8B5CF6;
+    --bot-tint: #EFEAFF;
+    --shadow: 0 18px 50px -18px rgba(23, 16, 34, .28);
     --radius: 16px;
     --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #0C1613;
-      --surface: #12211C;
-      --ink: #EAF2EE;
-      --ink-soft: #C4D2CB;
-      --muted: #8CA097;
-      --line: #22352E;
-      --accent: #17C97F;
-      --accent-deep: #0FAE6B;
-      --accent-tint: #123A2B;
-      --bot-tint: #123A2B;
-      --shadow: 0 18px 50px -18px rgba(0, 0, 0, .6);
+      --paper: #0E0817;
+      --surface: #171022;
+      --ink: #EFEAF7;
+      --ink-soft: #D3CBE2;
+      --muted: #9C92AF;
+      --line: #2B2140;
+      --accent: #A78BFA;
+      --accent-deep: #8B5CF6;
+      --accent-tint: #2A1B4D;
+      --bot-tint: #2A1B4D;
+      --shadow: 0 18px 50px -18px rgba(0, 0, 0, .65);
     }
   }
   :root[data-theme="light"] {
-    --paper: #F3F6F4;
+    --paper: #F6F4FA;
     --surface: #FFFFFF;
-    --ink: #0F1F1A;
-    --ink-soft: #33443D;
-    --muted: #5C6E66;
-    --line: #DCE4DF;
-    --accent: #00B368;
-    --accent-deep: #008F53;
-    --accent-tint: #E2F5EC;
-    --bot-tint: #E2F5EC;
-    --shadow: 0 18px 50px -18px rgba(15, 31, 26, .25);
+    --ink: #171022;
+    --ink-soft: #3B3247;
+    --muted: #6B6178;
+    --line: #E2DCEC;
+    --accent: #7C3AED;
+    --accent-deep: #6D28D9;
+    --accent-tint: #EFEAFF;
+    --bot-tint: #EFEAFF;
+    --shadow: 0 18px 50px -18px rgba(23, 16, 34, .28);
   }
   :root[data-theme="dark"] {
-    --paper: #0C1613;
-    --surface: #12211C;
-    --ink: #EAF2EE;
-    --ink-soft: #C4D2CB;
-    --muted: #8CA097;
-    --line: #22352E;
-    --accent: #17C97F;
-    --accent-deep: #0FAE6B;
-    --accent-tint: #123A2B;
-    --bot-tint: #123A2B;
-    --shadow: 0 18px 50px -18px rgba(0, 0, 0, .6);
+    --paper: #0E0817;
+    --surface: #171022;
+    --ink: #EFEAF7;
+    --ink-soft: #D3CBE2;
+    --muted: #9C92AF;
+    --line: #2B2140;
+    --accent: #A78BFA;
+    --accent-deep: #8B5CF6;
+    --accent-tint: #2A1B4D;
+    --bot-tint: #2A1B4D;
+    --shadow: 0 18px 50px -18px rgba(0, 0, 0, .65);
   }
 
   * { box-sizing: border-box; }
@@ -214,7 +214,7 @@
     font-size: .72rem; opacity: .9; display: inline-flex; align-items: center; gap: .4em;
   }
   .chat-head .who span::before {
-    content: ""; width: 7px; height: 7px; border-radius: 50%; background: #B7FFD9;
+    content: ""; width: 7px; height: 7px; border-radius: 50%; background: #E9D5FF;
   }
   .chat-body {
     padding: 18px; display: flex; flex-direction: column; gap: 10px;
@@ -517,11 +517,11 @@
           <div class="field">
             <span class="label" id="lbl-color">Color de marca</span>
             <div class="swatches" role="group" aria-labelledby="lbl-color">
-              <button class="swatch" style="background:#00B368" data-color="#00B368" data-tint-l="#E2F5EC" data-tint-d="#123A2B" data-color-name="Verde Nexa" aria-pressed="true" aria-label="Verde Nexa"></button>
-              <button class="swatch" style="background:#2E5BFF" data-color="#2E5BFF" data-tint-l="#E7EDFF" data-tint-d="#16224D" data-color-name="Azul cobalto" aria-pressed="false" aria-label="Azul cobalto"></button>
-              <button class="swatch" style="background:#7C5CFF" data-color="#7C5CFF" data-tint-l="#EFEAFF" data-tint-d="#271C4D" data-color-name="Violeta" aria-pressed="false" aria-label="Violeta"></button>
-              <button class="swatch" style="background:#FF7A29" data-color="#FF7A29" data-tint-l="#FFEFE2" data-tint-d="#4A2410" data-color-name="Naranja" aria-pressed="false" aria-label="Naranja"></button>
+              <button class="swatch" style="background:#8B5CF6" data-color="#8B5CF6" data-tint-l="#EFEAFF" data-tint-d="#2A1B4D" data-color-name="Violeta Nexa" aria-pressed="true" aria-label="Violeta Nexa"></button>
               <button class="swatch" style="background:#E84393" data-color="#E84393" data-tint-l="#FDE9F3" data-tint-d="#47142C" data-color-name="Rosa" aria-pressed="false" aria-label="Rosa"></button>
+              <button class="swatch" style="background:#2E5BFF" data-color="#2E5BFF" data-tint-l="#E7EDFF" data-tint-d="#16224D" data-color-name="Azul cobalto" aria-pressed="false" aria-label="Azul cobalto"></button>
+              <button class="swatch" style="background:#00B368" data-color="#00B368" data-tint-l="#E2F5EC" data-tint-d="#123A2B" data-color-name="Verde" aria-pressed="false" aria-label="Verde"></button>
+              <button class="swatch" style="background:#FF7A29" data-color="#FF7A29" data-tint-l="#FFEFE2" data-tint-d="#4A2410" data-color-name="Naranja" aria-pressed="false" aria-label="Naranja"></button>
             </div>
           </div>
           <div class="field">
@@ -715,7 +715,7 @@
         <div class="config-summary" id="config-summary" aria-label="Resumen de tu configuración">
           <b>// tu configuración</b><br>
           asistente: <b id="sum-name">Luna</b> · tono: <b id="sum-tone">Cercano</b> ·
-          canal: <b id="sum-channel">Widget web</b> · color: <b id="sum-color">Verde Nexa</b>
+          canal: <b id="sum-channel">Widget web</b> · color: <b id="sum-color">Violeta Nexa</b>
         </div>
         <div class="form-actions">
           <button class="btn btn-primary" type="submit">Enviar solicitud</button>
@@ -751,10 +751,10 @@
     name: "Luna",
     tone: "cercano",
     toneLabel: "Cercano",
-    color: "#00B368",
-    tintL: "#E2F5EC",
-    tintD: "#123A2B",
-    colorName: "Verde Nexa",
+    color: "#8B5CF6",
+    tintL: "#EFEAFF",
+    tintD: "#2A1B4D",
+    colorName: "Violeta Nexa",
     channel: "Web",
     channelLabel: "Widget web",
     welcome: ""
