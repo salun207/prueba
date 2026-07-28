@@ -304,6 +304,7 @@
   .q-pend { color: var(--muted); }
   .q-sent { color: var(--good-text); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
   .q-skip { color: var(--muted); text-decoration: line-through; }
+  .q-err { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 40%, transparent); }
   .q-now { color: var(--brand-strong); background: var(--brand-soft); border-color: transparent; }
   tr.row-done td { opacity: .55; }
 
@@ -644,6 +645,14 @@
             <div class="camp-bar"><div id="campBar" style="width:0%"></div></div>
           </div>
 
+          <div id="campAutoWrap" style="padding:18px 22px;border-bottom:1px solid var(--hairline);display:none">
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+              <button class="camp-send" id="campAutoBtn" type="button">Enviar todos automáticamente</button>
+              <span id="campAutoState" style="font-size:13px;color:var(--ink-2)"></span>
+            </div>
+            <p class="camp-hintline" id="campAutoHint">Salen por la API oficial de Meta, sin abrir WhatsApp. Cada negocio recibe la plantilla completada con sus datos.</p>
+          </div>
+
           <div class="camp-current" id="campCurrent">
             <div class="camp-current-head">
               <div>
@@ -660,7 +669,7 @@
               </button>
               <button class="btn-ghost" id="campSkip" type="button">Saltear este</button>
               <button class="btn-ghost" id="campVariant" type="button">Otra variante</button>
-              <button class="btn-ghost" id="campStop" type="button">Terminar tanda</button>
+              <button class="btn-ghost" id="campStopBtn" type="button">Terminar tanda</button>
             </div>
             <p class="camp-hintline">Se abre WhatsApp en otra pestaña con el mensaje cargado: tocás enviar ahí y volvés acá. Este lead ya queda marcado como contactado.</p>
           </div>
@@ -836,7 +845,65 @@
           <li>En «Credenciales», creá una <strong>clave de API</strong> y pegala acá.</li>
           <li>Elegí «Google Places» como fuente y guardá.</li>
         </ol>
-        <p class="hint" style="margin-top:10px">Ojo: Google pide tarjeta y cobra por uso pasada la capa gratuita mensual. Y la vista previa de claude.ai bloquea conexiones externas, así que para usar datos reales abrí el archivo <strong>index.html</strong> descargado en tu navegador.</p>
+        <p class="hint" style="margin-top:10px">Tené en cuenta: Google pide tarjeta y cobra por uso pasada la capa gratuita mensual. Y la vista previa de claude.ai bloquea conexiones externas, así que para usar datos reales abrí el archivo <strong>index.html</strong> descargado en tu navegador.</p>
+      </div>
+
+      <div class="card settings-card" style="margin-top:14px">
+        <h3>Envío automático (WhatsApp Cloud API)</h3>
+        <p class="hint">Con la API oficial de Meta, la campaña se manda sola: un botón y salen todos los mensajes, sin abrir WhatsApp ni confirmar uno por uno. Es el único método que no arriesga el bloqueo del número, porque es el canal oficial.</p>
+        <div class="settings-grid">
+          <div class="field">
+            <label for="waPhoneId">Phone Number ID</label>
+            <input id="waPhoneId" type="text" placeholder="1234567890123456" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="waToken">Token de acceso</label>
+            <input id="waToken" type="password" placeholder="EAAG…" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="waTemplate">Nombre de la plantilla</label>
+            <input id="waTemplate" type="text" placeholder="prospeccion_inicial" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="waLang">Idioma de la plantilla</label>
+            <select id="waLang">
+              <option value="es_AR">es_AR (español de Argentina)</option>
+              <option value="es">es (español)</option>
+              <option value="es_ES">es_ES (español de España)</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="waRelay">URL del relay (opcional, solo si el navegador bloquea la conexión)</label>
+            <input id="waRelay" type="url" placeholder="https://tu-worker.workers.dev" autocomplete="off">
+          </div>
+        </div>
+        <div class="settings-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-primary" id="saveWa" type="button">Guardar</button>
+          <button class="btn-ghost" id="testWa" type="button">Probar conexión</button>
+        </div>
+        <div id="waStatus" style="margin-top:12px;font-size:13px"></div>
+
+        <div style="margin-top:22px;border-top:1px solid var(--hairline);padding-top:18px">
+          <h3>Cómo activarlo (una sola vez)</h3>
+          <ol class="hint" style="margin:10px 0 0 18px;line-height:1.7">
+            <li>Entrá a <strong>developers.facebook.com</strong>, creá una app de tipo «Empresa» y agregale el producto <strong>WhatsApp</strong>.</li>
+            <li>En «WhatsApp → Configuración de la API» vas a ver el <strong>Phone Number ID</strong> y un token de prueba. Copiá ambos acá arriba.</li>
+            <li>En «WhatsApp → Plantillas de mensajes», creá una plantilla de categoría <strong>Marketing</strong> con el texto que está más abajo y esperá la aprobación de Meta (suele tardar unos minutos).</li>
+            <li>Poné el nombre de esa plantilla en el campo de arriba y tocá «Probar conexión».</li>
+          </ol>
+          <p class="hint" style="margin-top:12px">Meta exige que el <strong>primer</strong> mensaje a alguien que nunca te escribió use una plantilla aprobada. Por eso el envío automático usa la plantilla y no el texto libre. Cuando el negocio responde, se abre una ventana de 24 horas en la que ya podés escribir lo que quieras.</p>
+        </div>
+
+        <div style="margin-top:18px">
+          <h3>La plantilla, lista para copiar</h3>
+          <p class="hint">Pegala tal cual en el creador de plantillas de Meta. Las variables se completan solas con los datos de cada negocio.</p>
+          <textarea id="waTplText" readonly style="width:100%;min-height:150px;padding:12px 14px;border-radius:10px;border:1px solid var(--hairline);background:var(--page);font-size:13px;line-height:1.55;resize:vertical;margin-top:8px"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn-ghost" id="copyTpl" type="button">Copiar plantilla</button>
+            <button class="btn-ghost" id="copyWorker" type="button">Copiar el código del relay</button>
+          </div>
+          <p class="hint" style="margin-top:10px">El relay solo hace falta si al probar la conexión aparece un error de bloqueo del navegador (CORS). Es un archivo que se pega en un Cloudflare Worker gratuito y queda andando en dos minutos; también mantiene el token fuera de la página.</p>
+        </div>
       </div>
     </section>
 
@@ -895,6 +962,7 @@ const LS = {
   history: "huntly2.history",
   last: "huntly2.lastSearch",
   theme: "huntly.theme",
+  wa: "huntly2.wa",
 };
 function load(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
@@ -908,6 +976,10 @@ let history = load(LS.history, []);
 let settings = Object.assign(
   { name: "", product: "", demo: "", price: 49, pd: "", source: "demo", gkey: "" },
   load(LS.settings, {})
+);
+let wa = Object.assign(
+  { phoneId: "", token: "", template: "", lang: "es_AR", relay: "" },
+  load(LS.wa, {})
 );
 let results = [];
 let lastQuery = null;
@@ -925,174 +997,174 @@ const NICHOS = {
   "clinica-dental": { g: "Salud y clínicas", label: "Odontólogos y clínicas dentales", cita: true, factor: 1.6,
     pre: ["Clínica Dental", "Odontología", "Centro Odontológico"], suf: ["Sonrisa", "Blanco", "Dr. Herrera", "Dra. Prieto", "Perla", "Vital", "Family"],
     uso: "Turnos y recordatorios",
-    bot: ["agenda y confirma turnos solo", "manda recordatorios y bajan un montón las ausencias", "contesta precios, obras sociales y urgencias"],
+    bot: ["agenda y confirma turnos de forma autónoma", "envía recordatorios y reduce las ausencias", "responde consultas de precios, obras sociales y urgencias"],
     descs: ["Clínica dental familiar", "Clínica dental moderna con varios consultorios", "Consultorio odontológico de barrio muy consolidado"] },
   "clinica-estetica": { g: "Salud y clínicas", label: "Clínicas de estética", cita: true, factor: 1.8,
     pre: ["Clínica Estética", "Centro de Medicina Estética", "Estética"], suf: ["Belleza", "Luz", "Piel", "Renova", "Aura", "Lumen"],
     uso: "Turnos de valoración",
-    bot: ["agenda turnos de valoración al toque", "contesta precios de tratamientos sin hacer esperar a nadie", "hace el seguimiento post-tratamiento solo"],
+    bot: ["agenda turnos de valoración de inmediato", "responde precios de tratamientos sin demoras", "realiza el seguimiento post-tratamiento automáticamente"],
     descs: ["Clínica de medicina estética", "Centro de estética avanzada", "Clínica estética boutique"] },
   "kinesiologia": { g: "Salud y clínicas", label: "Kinesiología y fisioterapia", cita: true, factor: 1.5,
     pre: ["Kinesiología", "Centro de Kinesiología", "Fisioterapia"], suf: ["Movimiento", "Equilibrio", "Axis", "Vital", "Corporal", "Activa"],
     uso: "Reserva de sesiones",
-    bot: ["reserva y reprograma sesiones sin llamadas", "contesta qué tratamientos hacen y cuánto salen", "recuerda los turnos y llena los huecos que quedan libres"],
+    bot: ["reserva y reprograma sesiones sin llamadas", "informa qué tratamientos ofrecen y sus valores", "recuerda los turnos y cubre los espacios que quedan libres"],
     descs: ["Centro de kinesiología y rehabilitación", "Consultorio de kinesiología deportiva", "Consultorio de kinesiología de barrio"] },
   "veterinaria": { g: "Salud y clínicas", label: "Veterinarias", cita: true, factor: 1.7,
     pre: ["Veterinaria", "Clínica Veterinaria", "Hospital Veterinario"], suf: ["Patitas", "Animalia", "Zarpa", "Mascota Feliz", "Fauna", "Amigo Fiel"],
     uso: "Turnos y urgencias 24/7",
-    bot: ["da turnos y orienta urgencias a cualquier hora", "recuerda vacunas y desparasitaciones", "contesta las dudas de los dueños al toque"],
+    bot: ["otorga turnos y orienta urgencias a cualquier hora", "recuerda vacunas y desparasitaciones", "responde las consultas de los dueños de inmediato"],
     descs: ["Veterinaria de referencia en la zona", "Veterinaria familiar", "Clínica veterinaria con urgencias"] },
   "podologia": { g: "Salud y clínicas", label: "Podología", cita: true, factor: 1.2,
     pre: ["Podología", "Consultorio Podológico", "Centro del Pie"], suf: ["Paso", "Planta", "Confort", "Salud", "Andar"],
     uso: "Turnos 24/7",
-    bot: ["agenda turnos fuera de horario", "contesta precios y tratamientos", "manda recordatorios solo"],
+    bot: ["agenda turnos fuera de horario", "informa precios y tratamientos", "envía recordatorios automáticamente"],
     descs: ["Consultorio podológico", "Consultorio de podología y pie diabético", "Centro podológico de barrio"] },
   "psicologia": { g: "Salud y clínicas", label: "Psicólogos y terapia", cita: true, factor: 1.3,
     pre: ["Psicología", "Centro de Psicología", "Consultorio"], suf: ["Mente", "Bienestar", "Calma", "Ariadna", "Emocional", "Espacio"],
     uso: "Primera consulta",
-    bot: ["coordina la primera consulta con discreción", "contesta honorarios, modalidades y horarios", "baja los no-shows con recordatorios"],
+    bot: ["coordina la primera consulta con discreción", "informa honorarios, modalidades y horarios", "baja los no-shows con recordatorios"],
     descs: ["Consultorio de psicología", "Centro de psicología y terapia", "Consultorio psicológico"] },
   "oftalmologia": { g: "Salud y clínicas", label: "Oftalmología", cita: true, factor: 1.4,
     pre: ["Clínica Oftalmológica", "Oftalmología", "Centro de la Visión"], suf: ["Visión", "Mirada", "Iris", "Lente", "Clara"],
     uso: "Turnos y controles",
-    bot: ["agenda controles y consultas", "contesta dudas de cirugías y precios", "recuerda los controles anuales a los pacientes"],
+    bot: ["agenda controles y consultas", "responde consultas sobre cirugías y precios", "recuerda los controles anuales a los pacientes"],
     descs: ["Clínica oftalmológica", "Centro oftalmológico con cirugía", "Consultorio de oftalmología"] },
   "nutricion": { g: "Salud y clínicas", label: "Nutricionistas", cita: true, factor: 1.1,
     pre: ["Nutrición", "Consultorio de Nutrición", "Centro de Nutrición"], suf: ["Equilibrio", "Sano", "Vida", "Bienestar", "Natural"],
     uso: "Planes y turnos",
-    bot: ["agenda primeras visitas y controles", "explica los planes y honorarios", "hace el seguimiento semanal solo"],
+    bot: ["agenda primeras visitas y controles", "explica los planes y honorarios disponibles", "realiza el seguimiento semanal automáticamente"],
     descs: ["Consultorio de nutrición", "Centro de nutrición clínica y deportiva", "Consultorio de nutricionista"] },
 
   /* ── Belleza y bienestar ── */
   "peluqueria": { g: "Belleza y bienestar", label: "Peluquerías", cita: true, factor: 2.2,
     pre: ["Peluquería", "Salón", "Estudio"], suf: ["Marta", "Rocío", "Urban", "Rizos", "Look", "De Autor", "Chic"],
     uso: "Turnos sin llamadas",
-    bot: ["reserva turnos mientras el equipo atiende", "llena las cancelaciones de último momento", "contesta precios y servicios al instante"],
+    bot: ["reserva turnos mientras el equipo atiende", "cubre las cancelaciones de último momento", "informa precios y servicios al instante"],
     descs: ["Peluquería con clientela fiel", "Salón de peluquería moderno", "Peluquería de barrio muy valorada"] },
   "barberia": { g: "Belleza y bienestar", label: "Barberías", cita: true, factor: 2.0,
     pre: ["Barbería", "Barber", "La Barbería de"], suf: ["Álvaro", "Clásica", "Navaja", "El Patrón", "Vintage", "Bros"],
     uso: "Turnos sin llamadas",
-    bot: ["maneja los turnos por WhatsApp solo", "avisa de huecos libres a los clientes de siempre", "contesta horarios y precios sin cortar un corte"],
+    bot: ["gestiona los turnos por WhatsApp de forma autónoma", "avisa de espacios libres a los clientes habituales", "informa horarios y precios sin interrumpir la atención"],
     descs: ["Barbería clásica", "Barbería moderna con mucha demanda", "Barbería de referencia en la zona"] },
   "centro-unas": { g: "Belleza y bienestar", label: "Centros de uñas", cita: true, factor: 1.9,
     pre: ["Uñas", "Nails", "Estudio de Uñas"], suf: ["& Beauty", "Deluxe", "Arte", "Glam", "Studio", "Rosa"],
     uso: "Turnos y catálogo",
-    bot: ["reserva turnos y muestra el catálogo de diseños", "contesta precios y cuánto tarda cada servicio", "trae de vuelta clientas con recordatorios de retoque"],
+    bot: ["reserva turnos y muestra el catálogo de diseños", "informa precios y duración de cada servicio", "recupera clientas con recordatorios de retoque"],
     descs: ["Centro de uñas y manicuría", "Estudio de uñas con mucha rotación", "Salón de manicuría y pedicuría"] },
   "spa": { g: "Belleza y bienestar", label: "Spas y masajes", cita: true, factor: 1.5,
     pre: ["Spa", "Centro de Masajes", "Wellness"], suf: ["Zen", "Oasis", "Sentidos", "Agua", "Serenidad"],
     uso: "Reservas y gift cards",
-    bot: ["reserva sesiones y vende gift cards", "contesta qué incluye cada masaje o ritual", "maneja los cambios de horario sin llamadas"],
+    bot: ["reserva sesiones y vende gift cards", "detalla qué incluye cada masaje o ritual", "gestiona los cambios de horario sin llamadas"],
     descs: ["Spa urbano", "Centro de masajes y bienestar", "Spa boutique"] },
 
   /* ── Gastronomía ── */
   "restaurante": { g: "Gastronomía", label: "Restaurantes y parrillas", cita: true, factor: 3.0,
     pre: ["Restaurante", "Parrilla", "Bodegón", "Cantina"], suf: ["Don Pepe", "La Estancia", "El Fogón", "Doña Lucía", "del Puerto", "Los Arcos"],
     uso: "Reservas de mesa",
-    bot: ["confirma reservas al momento, también en pleno servicio", "contesta el menú, los precios y los horarios", "recupera mesas de cancelaciones con lista de espera"],
+    bot: ["confirma reservas al momento, también en pleno servicio", "informa el menú, los precios y los horarios", "recupera mesas de cancelaciones con lista de espera"],
     descs: ["Parrilla de barrio", "Restaurante muy pedido los fines de semana", "Bodegón familiar con mesas afuera"] },
   "cafeteria": { g: "Gastronomía", label: "Cafeterías y brunch", cita: false, factor: 2.4,
     pre: ["Cafetería", "Café", "Brunch &"], suf: ["Aroma", "La Esquina", "Molino", "Ámbar", "Cortado", "Miel"],
     uso: "Pedidos y encargos",
-    bot: ["toma encargos de tortas y desayunos solo", "contesta horarios y carta al instante", "avisa novedades a los clientes de siempre"],
+    bot: ["toma encargos de tortas y desayunos automáticamente", "informa horarios y carta al instante", "comunica novedades a los clientes habituales"],
     descs: ["Cafetería de especialidad", "Cafetería con brunch los fines de semana", "Café y pastelería artesanal"] },
   "pizzeria": { g: "Gastronomía", label: "Pizzerías y delivery", cita: false, factor: 2.8,
     pre: ["Pizzería", "Pizza", "La Pizzería de"], suf: ["Napoli", "del Horno", "La Clásica", "Roma", "Don Luigi", "La Piedra"],
     uso: "Pedidos por WhatsApp",
-    bot: ["toma pedidos por WhatsApp sin errores ni esperas", "contesta la carta y las promos del día", "avisa cuando el pedido sale"],
+    bot: ["toma pedidos por WhatsApp sin errores ni esperas", "informa la carta y las promociones del día", "avisa cuando el pedido sale"],
     descs: ["Pizzería artesanal", "Pizzería con mucho delivery", "Pizzería de barrio"] },
   "catering": { g: "Gastronomía", label: "Caterings y eventos", cita: true, factor: 1.2,
     pre: ["Catering", "Eventos", "Cocina & Eventos"], suf: ["Gourmet", "Selecto", "La Fiesta", "Sabores", "Deluxe"],
     uso: "Presupuestos 24/7",
-    bot: ["levanta los datos del evento y pasa presupuesto solo", "contesta menús y precios por persona", "hace el seguimiento de cada presupuesto enviado"],
+    bot: ["releva los datos del evento y envía el presupuesto automáticamente", "informa menús y precios por persona", "hace el seguimiento de cada presupuesto enviado"],
     descs: ["Catering para casamientos y empresas", "Servicio de catering y eventos", "Catering artesanal"] },
 
   /* ── Fitness y deporte ── */
   "gimnasio": { g: "Fitness y deporte", label: "Gimnasios", cita: false, factor: 2.0,
     pre: ["Gimnasio", "Centro Fitness", "Club"], suf: ["Titán", "Forma", "Energy", "Olimpo", "Pulso", "Arena"],
     uso: "Altas y clases",
-    bot: ["contesta aranceles y horarios de clases a cualquier hora", "agenda visitas y clases de prueba", "recupera socios que dejaron de ir"],
+    bot: ["informa aranceles y horarios de clases a cualquier hora", "agenda visitas y clases de prueba", "recupera socios que dejaron de asistir"],
     descs: ["Gimnasio de barrio con clases grupales", "Centro fitness 24 horas", "Club deportivo con pileta"] },
   "yoga-pilates": { g: "Fitness y deporte", label: "Estudios de yoga y pilates", cita: true, factor: 1.4,
     pre: ["Estudio", "Yoga", "Pilates"], suf: ["Om", "Flow", "Balance", "Prana", "Core", "Alma"],
     uso: "Reserva de clases",
-    bot: ["maneja reservas y listas de espera de las clases", "contesta niveles, horarios y packs", "avisa cuando se libera un lugar"],
+    bot: ["gestiona reservas y listas de espera de las clases", "informa niveles, horarios y planes", "avisa cuando se libera una vacante"],
     descs: ["Estudio de yoga con grupos reducidos", "Centro de pilates con camas", "Estudio de yoga y meditación"] },
 
   /* ── Hogar y urgencias ── */
   "plomeria": { g: "Hogar y urgencias", label: "Plomerías", cita: false, factor: 1.8,
     pre: ["Plomería", "Plomeros", "Destapaciones"], suf: ["Ruiz", "24 Horas", "Express", "El Caño", "Zona Norte", "Del Centro"],
     uso: "Urgencias y presupuestos",
-    bot: ["atiende las urgencias cuando están con las manos en la obra", "pide fotos del problema y arma el presupuesto", "filtra los avisos que valen la pena"],
+    bot: ["atiende las urgencias mientras el equipo está trabajando", "solicita fotos del problema y prepara el presupuesto", "filtra y prioriza los avisos relevantes"],
     descs: ["Plomería con urgencias 24 h", "Plomero matriculado muy pedido", "Plomería y destapaciones"] },
   "electricista": { g: "Hogar y urgencias", label: "Electricistas", cita: false, factor: 1.7,
     pre: ["Electricidad", "Electricistas", "Instalaciones Eléctricas"], suf: ["Voltio", "Luz", "Chispa", "Fase", "Rayo", "Ohm"],
     uso: "Avisos y presupuestos",
-    bot: ["levanta avisos con fotos mientras están en obra", "pasa precio estimado de los trabajos comunes", "agenda visitas sin llamadas cruzadas"],
+    bot: ["releva avisos con fotos mientras el equipo está en obra", "envía el precio estimado de los trabajos habituales", "agenda visitas sin llamadas cruzadas"],
     descs: ["Electricista matriculado", "Empresa de instalaciones eléctricas", "Electricista de urgencias"] },
   "cerrajeria": { g: "Hogar y urgencias", label: "Cerrajerías", cita: false, factor: 1.9,
     pre: ["Cerrajería", "Cerrajeros"], suf: ["24h", "Seguridad", "La Llave", "Apertura", "Total", "Del Centro"],
     uso: "Urgencias 24/7",
-    bot: ["contesta urgencias al segundo, a cualquier hora", "da precio estimado de aperturas y cambios de cerradura", "manda la ubicación del cliente directo al técnico"],
+    bot: ["responde urgencias en el momento, a cualquier hora", "informa el precio estimado de aperturas y cambios de cerradura", "envía la ubicación del cliente directamente al técnico"],
     descs: ["Cerrajería de urgencias 24 h", "Cerrajero de zona con respuesta rápida", "Cerrajería y seguridad"] },
   "reformas": { g: "Hogar y urgencias", label: "Empresas de reformas", cita: true, factor: 1.1,
     pre: ["Reformas", "Construcciones", "Obras y Reformas"], suf: ["Integral", "Hogar", "Nova", "Del Sur", "Hermanos Gil", "Total"],
     uso: "Presupuestos 24/7",
-    bot: ["levanta los datos de la obra y pide fotos", "pasa un rango de precio al toque", "hace seguimiento de los presupuestos que quedaron en el aire"],
+    bot: ["releva los datos de la obra y solicita fotos", "envía un rango de precio de inmediato", "hace seguimiento de los presupuestos sin respuesta"],
     descs: ["Empresa de reformas integrales", "Reformas de cocinas y baños", "Constructora de reformas"] },
   "limpieza": { g: "Hogar y urgencias", label: "Empresas de limpieza", cita: true, factor: 1.3,
     pre: ["Limpiezas", "Limpieza", "Servicios de Limpieza"], suf: ["Brillo", "Impecable", "Estrella", "Cristal", "Hogar", "Pro"],
     uso: "Presupuestos y agenda",
-    bot: ["cotiza limpiezas por metros y frecuencia solo", "agenda el servicio y los repasos", "contesta dudas de productos y seguros"],
+    bot: ["cotiza limpiezas por metros y frecuencia automáticamente", "agenda el servicio y los repasos", "responde consultas sobre productos y seguros"],
     descs: ["Empresa de limpieza para casas y oficinas", "Servicio de limpieza a domicilio", "Limpieza de consorcios"] },
 
   /* ── Automotor ── */
   "taller": { g: "Automotor", label: "Talleres mecánicos", cita: true, factor: 1.8,
     pre: ["Talleres", "Taller Mecánico", "Mecánica"], suf: ["Hermanos Gil", "Rápido", "Paco", "Motor Sur", "AutoFix", "Turbo"],
     uso: "Turnos de taller",
-    bot: ["da turnos sin que nadie suelte la llave inglesa", "avisa solo cómo viene la reparación", "recuerda la VTV y los services a los clientes"],
+    bot: ["otorga turnos sin interrumpir el trabajo del taller", "informa automáticamente el estado de la reparación", "recuerda la VTV y los services a los clientes"],
     descs: ["Taller mecánico multimarca", "Taller de barrio con mucha confianza", "Taller de mecánica rápida"] },
   "escuela-manejo": { g: "Automotor", label: "Escuelas de manejo", cita: false, factor: 1.5,
     pre: ["Escuela de Manejo", "Academia de Conducción"], suf: ["Primera", "Al Volante", "Semáforo", "En Marcha", "Ruta 1", "Confianza"],
     uso: "Inscripciones y dudas",
-    bot: ["contesta precios, planes y promos de inscripción", "agenda la primera clase", "les saca las dudas del teórico a los alumnos"],
+    bot: ["informa precios, planes y promociones de inscripción", "agenda la primera clase", "responde las consultas del teórico a los alumnos"],
     descs: ["Escuela de manejo con alta tasa de aprobados", "Escuela de manejo de barrio", "Academia con clases intensivas"] },
 
   /* ── Profesionales y otros ── */
   "estudio-juridico": { g: "Profesionales y otros", label: "Estudios jurídicos", cita: true, factor: 1.2,
     pre: ["Estudio Jurídico", "Abogados", "Estudio"], suf: ["Serrano", "& Asociados", "Lex", "Vega y Torres", "Iuris", "Castillo"],
     uso: "Primera consulta",
-    bot: ["hace una consulta previa y agenda la primera reunión", "filtra los casos según la especialidad del estudio", "contesta honorarios y qué papeles hay que llevar"],
+    bot: ["hace una consulta previa y agenda la primera reunión", "filtra los casos según la especialidad del estudio", "informa honorarios y la documentación necesaria"],
     descs: ["Estudio jurídico generalista", "Estudio especializado en laboral y civil", "Estudio de abogados de cercanía"] },
   "estudio-contable": { g: "Profesionales y otros", label: "Estudios contables", cita: true, factor: 1.3,
     pre: ["Estudio Contable", "Contadores", "Asesoría Contable"], suf: ["Balance", "Pyme", "& Asoc.", "Integral", "Norte", "Fiscal"],
     uso: "Captación de pymes",
-    bot: ["contesta dudas de monotributo y pymes al instante", "agenda reuniones y junta la documentación", "avisa los vencimientos a los clientes"],
+    bot: ["responde consultas de monotributo y pymes al instante", "agenda reuniones y recopila la documentación", "avisa los vencimientos a los clientes"],
     descs: ["Estudio contable para pymes", "Estudio contable y de gestión", "Contadores para monotributistas y pymes"] },
   "inmobiliaria": { g: "Profesionales y otros", label: "Inmobiliarias", cita: true, factor: 2.2,
     pre: ["Inmobiliaria", "Propiedades", "Gestión Inmobiliaria"], suf: ["Hogar", "Urbis", "Casas", "Del Centro", "Llave", "Vista"],
     uso: "Filtrar interesados",
-    bot: ["filtra interesados antes de la visita", "agenda visitas y manda las fichas de las propiedades", "contesta los avisos de los portales 24/7"],
+    bot: ["filtra interesados antes de la visita", "agenda visitas y envía las fichas de las propiedades", "responde los avisos de los portales las 24 horas"],
     descs: ["Inmobiliaria de zona", "Inmobiliaria con cartera propia", "Inmobiliaria boutique"] },
   "instituto": { g: "Profesionales y otros", label: "Institutos y academias", cita: false, factor: 1.6,
     pre: ["Instituto", "Academia", "Centro de Estudios"], suf: ["Alfa", "Éxito", "de Inglés Sol", "Futuro", "Delta", "Saber"],
     uso: "Inscripciones 24/7",
-    bot: ["contesta aranceles, horarios y vacantes al momento", "inscribe alumnos fuera de horario", "recuerda cuotas y renovaciones"],
+    bot: ["informa aranceles, horarios y vacantes al momento", "inscribe alumnos fuera de horario", "recuerda cuotas y renovaciones"],
     descs: ["Instituto de inglés", "Instituto de apoyo escolar", "Academia de oficios"] },
   "fotografo": { g: "Profesionales y otros", label: "Fotógrafos", cita: true, factor: 1.0,
     pre: ["Estudio", "Fotografía", "Fotos"], suf: ["Luz", "Enfoque", "Instantes", "Retrato", "Píxel", "Aurora"],
     uso: "Presupuestos de sesión",
-    bot: ["pasa presupuesto de books y eventos solo", "muestra el portfolio según lo que pidan", "agenda sesiones y manda recordatorios"],
+    bot: ["envía presupuestos de books y eventos automáticamente", "muestra el portfolio según lo que pidan", "agenda sesiones y envía recordatorios"],
     descs: ["Estudio de fotografía de casamientos y eventos", "Fotógrafo de retrato y producto", "Estudio fotográfico familiar"] },
   "agencia-viajes": { g: "Profesionales y otros", label: "Agencias de viajes", cita: false, factor: 1.7,
     pre: ["Viajes", "Agencia de Viajes", "Travel"], suf: ["Mundo", "Horizonte", "Destino", "Brújula", "Estrella", "Sur"],
     uso: "Cotizar viajes 24/7",
-    bot: ["levanta fechas y presupuesto y propone destinos", "contesta dudas de reservas ya hechas", "avisa promos a los clientes frecuentes"],
+    bot: ["releva fechas y presupuesto y propone destinos", "responde consultas sobre reservas ya realizadas", "comunica promociones a los clientes frecuentes"],
     descs: ["Agencia de viajes de barrio", "Agencia especializada en viajes a medida", "Agencia de viajes y escapadas"] },
 };
 
 /* Nombres cortos por rubro para que los mensajes suenen naturales:
-   [plural: "laburo con X", singular: "un ejemplo de X"] */
+   [plural: "trabajo con X", singular: "un ejemplo en X"] */
 const RUBRO_CORTO = {
   "clinica-dental": ["clínicas dentales", "una clínica dental"],
   "clinica-estetica": ["clínicas de estética", "una clínica de estética"],
@@ -1304,42 +1376,42 @@ function bizDescription(b) {
   return `${base} ${rep} en ${b.ciudad} (${ficha}). ${señal}${extra.length ? "; " + extra.join(", ") : ""}. Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} quedan sin respuesta.`;
 }
 
-/* ══ Mensaje de WhatsApp (argentino, sin olor a venta) ══
-   La lógica: arrancar con un dato real de SU ficha, hacer una pregunta
-   genuina según SU señal, recién ahí contar a qué te dedicás (corto,
-   un solo beneficio) y cerrar con salida fácil. Nada de "oferta",
-   "promoción", "demo gratis" ni párrafos largos. */
-const SALUDOS = ["Hola, ¿qué tal?", "¡Hola! ¿Cómo andan?", "Buenas, ¿cómo va?"];
+/* ══ Mensaje de WhatsApp ══════════════════════
+   Registro formal (usted), pero conversacional: se abre con un dato real
+   de SU ficha, sigue con una pregunta concreta según SUS señales, recién
+   después la presentación (breve, un solo beneficio) y un cierre sin
+   presión. Nada de "oferta", "promoción" ni párrafos largos. */
+const SALUDOS = ["Buenos días.", "Buenas tardes.", "Hola, ¿cómo están?"];
 
 function buildMessage(b, seed) {
-  const cfg = NICHOS[b.nicho] || { bot: ["contesta las consultas al toque"], label: b.nichoLabel };
+  const cfg = NICHOS[b.nicho] || { bot: ["responde las consultas de inmediato"], label: b.nichoLabel };
   const varNum = b.variant ?? 0;
   const s = (seed ?? b.msgSeed ?? 0) + varNum;
   const v = (arr, off = 0) => arr[(s + off) % arr.length];
   const firma = settings.name.trim();
   const producto = settings.product.trim();
-  const [rubro, rubroSg] = RUBRO_CORTO[b.nicho] || [cfg.label.toLowerCase(), "un negocio como el de ustedes"];
+  const [rubro, rubroSg] = RUBRO_CORTO[b.nicho] || [cfg.label.toLowerCase(), "un negocio como el suyo"];
 
-  // Apertura: un dato real de su ficha, sin chamuyo.
+  // Apertura: un dato real de su ficha.
   // Si no hay reseñas (pasa en modo real), no se menciona ninguna.
   const buenaFicha = b.rating >= 4.2 && b.reviews >= 20;
   const aperturas = !(b.rating && b.reviews)
     ? [
-        `Encontré ${b.name} en Google Maps buscando ${rubro} en ${b.ciudad} y les quería hacer una consulta cortita.`,
-        `Estaba mirando ${rubro} en ${b.ciudad} y me crucé con ${b.name}.`,
+        `Encontré ${b.name} en Google Maps buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
+        `Estaba buscando ${rubro} en ${b.ciudad} y llegué a la ficha de ${b.name}.`,
       ]
     : buenaFicha
       ? [
-          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me quedé mirando la ficha de ustedes: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas, un montón.`,
-          `Estaba mirando ${rubro} en ${b.ciudad} y ${b.name} me apareció de los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota que laburan bien.`,
-          `Me crucé con la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y les quería hacer una consulta cortita.`,
+          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me llamó la atención su ficha: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas.`,
+          `Estaba buscando ${rubro} en ${b.ciudad} y ${b.name} aparece entre los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota el buen trabajo.`,
+          `Encontré la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y quería hacerles una consulta breve.`,
         ]
       // Ficha floja: se menciona el movimiento, nunca la nota — un elogio
-      // que no se sostiene se nota al toque y arruina el mensaje.
+      // que no se sostiene se nota enseguida y arruina el mensaje.
       : [
-          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y les quería hacer una consulta cortita.`,
-          `Estaba mirando ${rubro} en ${b.ciudad} y me crucé con ${b.name}: ${b.reviews} reseñas, se ve que pasa gente.`,
-          `Me crucé con la ficha de ${b.name} en Google Maps y les quería preguntar una cosa.`,
+          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
+          `Estaba buscando ${rubro} en ${b.ciudad} y llegué a ${b.name}: ${b.reviews} reseñas, se ve que tienen movimiento.`,
+          `Encontré la ficha de ${b.name} en Google Maps y quería consultarles algo.`,
         ];
 
   // Cada rubro agenda algo distinto: turnos, reservas, consultas…
@@ -1356,60 +1428,59 @@ function buildMessage(b, seed) {
   };
   const [agN, agPron, agVerb] = AGENDA[b.nicho] || ["los turnos", "los", "dando"];
 
-  // Pregunta gancho: según SUS señales, y es una pregunta de verdad
+  // Pregunta inicial: según SUS señales, y es una pregunta concreta
   let pregunta;
   if (b.citaTelefono && b.web === "no") {
     pregunta = v([
-      `Una pregunta: ¿${agN} ${agPron} manejan solo por teléfono? Vi que no tienen página ni nada online.`,
-      `¿Todo lo que les entra lo atienden por teléfono? Busqué una página de ustedes y no encontré.`,
+      `Una consulta: ¿${agN} ${agPron} gestionan únicamente por teléfono? Vi que no tienen sitio web.`,
+      `¿Todas las consultas las atienden por teléfono? Busqué un sitio web de ustedes y no encontré.`,
     ], 1);
   } else if (b.citaTelefono) {
     pregunta = v([
-      `Una pregunta: ¿${agN} ${agPron} siguen ${agVerb} por teléfono?`,
-      `¿Cómo manejan ${agN}? ¿Por teléfono nomás?`,
+      `Una consulta: ¿${agN} ${agPron} siguen ${agVerb} por teléfono?`,
+      `¿Cómo gestionan ${agN} actualmente? ¿Solo por teléfono?`,
     ], 1);
   } else if (b.web === "no") {
     pregunta = v([
-      `Una pregunta: ¿las consultas les entran todas por teléfono? Vi que no tienen página.`,
-      `¿Por dónde les llega la gente? ¿Teléfono y boca en boca? No les encontré nada online.`,
+      `Una consulta: ¿todas las consultas les llegan por teléfono? Vi que no tienen sitio web.`,
+      `¿Por qué canales les llegan los clientes? No encontré un sitio web de ustedes.`,
     ], 1);
   } else if (b.web === "sinchat") {
     pregunta = v([
-      `Entré a la web de ustedes y no encontré por dónde escribirles. ¿Las consultas van todas al teléfono?`,
-      `Vi que tienen web pero no hay forma de escribirles por ahí. ¿Todo cae al teléfono?`,
+      `Entré a su sitio web y no encontré una forma de escribirles. ¿Las consultas llegan todas al teléfono?`,
+      `Vi que tienen sitio web, pero sin un canal de contacto directo. ¿Todo se deriva al teléfono?`,
     ], 1);
   } else {
     pregunta = v([
-      `Una pregunta: ¿quién les contesta lo que entra fuera de horario?`,
-      `¿Cómo vienen manejando las consultas que llegan fuera de horario?`,
+      `Una consulta: ¿quién responde los mensajes que entran fuera del horario de atención?`,
+      `¿Cómo están manejando las consultas que llegan fuera de horario?`,
     ], 1);
   }
 
-  // Por qué pregunto: presentación corta, un beneficio concreto, cero humo
+  // Presentación: breve, un beneficio concreto, sin exageraciones
   const puentes = [
-    `Te cuento por qué pregunto: armo asistentes de WhatsApp para ${rubro}${producto ? ` (le puse ${producto})` : ""}. El asistente ${v(cfg.bot, 0)}, incluso a las 2 de la mañana${b.horarioGap ? ", que es justo cuando nadie puede atender" : ""}.`,
-    `Lo pregunto porque me dedico a eso: armo un asistente de WhatsApp que ${v(cfg.bot, 0)}, solo, sin que nadie esté colgado al teléfono.${producto ? ` Le puse ${producto}.` : ""}`,
-    `Es que laburo con ${rubro}: les armo un asistente de WhatsApp que ${v(cfg.bot, 1)}. Y no suena a robot — contesta como contestarían ustedes.`,
+    `Le comento el motivo: desarrollo asistentes de WhatsApp para ${rubro}${producto ? ` (${producto})` : ""}. El asistente ${v(cfg.bot, 0)}, las 24 horas${b.horarioGap ? ", incluso fuera del horario de atención" : ""}.`,
+    `Le consulto porque me dedico a eso: desarrollo un asistente de WhatsApp que ${v(cfg.bot, 0)}, de forma autónoma y sin ocupar a nadie del equipo.${producto ? ` Se llama ${producto}.` : ""}`,
+    `Trabajo con ${rubro}: desarrollo un asistente de WhatsApp que ${v(cfg.bot, 1)}. Responde con el tono del negocio, no como un contestador automático.`,
   ];
 
   // Cierre con salida fácil, sin presión
   const cierres = [
-    `Si te interesa te muestro uno andando, son dos minutos. Y si no, todo bien, ya les dejo el saludo igual.`,
-    `¿Te copa que te muestre cómo funciona en ${rubroSg}? Si no es lo de ustedes, no pasa nada.`,
-    `Si querés te mando un video cortito de uno funcionando en ${rubroSg} y lo ves cuando puedas. Sin vueltas.`,
+    `Si le interesa, puedo mostrarle uno funcionando en dos minutos. Y si no es el momento, quedo a disposición igualmente.`,
+    `¿Le interesaría que le muestre cómo funcionaría en ${rubroSg}? Sin ningún compromiso.`,
+    `Si lo desea, le envío un video breve de uno funcionando en ${rubroSg} para que lo vea cuando tenga un momento.`,
   ];
 
   const firmas = firma
-    ? [`Abrazo, ${firma}`, `¡Saludos! ${firma}`, `Cualquier cosa me escribís por acá. ${firma}`]
-    : [`Un abrazo`, `¡Saludos!`, `Cualquier cosa me escribís por acá`];
+    ? [`Saludos cordiales,\n${firma}`, `Muchas gracias por su tiempo.\n${firma}`, `Quedo a disposición.\n${firma}`]
+    : [`Saludos cordiales.`, `Muchas gracias por su tiempo.`, `Quedo a disposición.`];
 
-  // Variante 0 (la que se ve primero): rompehielo. Solo un dato de su
-  // ficha y una pregunta — nada que vender todavía. Si contestan, el
-  // pitch va en el segundo mensaje. Es la que menos rebota con gente
-  // que está podrida de que le vendan.
+  // Variante 0 (la que se ve primero): mensaje de apertura. Solo un dato
+  // de su ficha y una pregunta — todavía no se propone nada. Si responden,
+  // la propuesta va en el segundo mensaje. Es la que menos rechazo genera.
   if (varNum % 3 === 0) {
     const partes = [`${v(SALUDOS)} ${v(aperturas)}`, pregunta];
-    if (firma) partes.push(firma);
+    if (firma) partes.push(`Saludos,\n${firma}`);
     return partes.join("\n\n");
   }
 
@@ -1419,7 +1490,7 @@ function buildMessage(b, seed) {
     v(puentes, 2),
     v(cierres, 1),
   ];
-  if (settings.demo) partes.push(`Acá hay uno andando por si querés chusmear: ${settings.demo}`);
+  if (settings.demo) partes.push(`Le dejo un ejemplo funcionando: ${settings.demo}`);
   if (settings.pd) partes.push(settings.pd);
   partes.push(v(firmas, 2));
   return partes.join("\n\n");
@@ -1929,8 +2000,115 @@ document.getElementById("sortBy").addEventListener("change", renderResults);
    número. Así que la cadena es asistida: la app arma la cola con el
    mensaje de cada negocio y abre wa.me uno por uno; el envío final lo
    confirma la persona. Rápido, y sin arriesgar la cuenta. */
-let campQueue = [];   // [{ biz, msg, state: 'pend'|'sent'|'skip' }]
+let campQueue = [];   // [{ biz, msg, state: 'pend'|'sent'|'skip'|'error' }]
 let campIdx = 0;
+let campAuto = false; // corriendo el envío automático
+let campStop = false;
+
+/* ── WhatsApp Cloud API (Meta) ────────────────
+   El canal oficial: manda de verdad, sin abrir WhatsApp. Meta obliga a
+   usar una plantilla aprobada para el primer contacto, así que la
+   personalización va en las variables de la plantilla. */
+const WA_VERSION = "v21.0";
+
+function waConfigured() {
+  return Boolean(wa.phoneId && wa.token && wa.template);
+}
+
+/* Las 4 variables de la plantilla, calculadas por negocio */
+function waParams(biz) {
+  const cfg = NICHOS[biz.nicho];
+  const [rubro] = RUBRO_CORTO[biz.nicho] || [(cfg?.label || biz.nichoLabel).toLowerCase(), ""];
+  // La plantilla ya cierra con "las 24 horas, sin ocupar a nadie del equipo",
+  // así que se recortan del beneficio las coletillas que dirían lo mismo.
+  const beneficio = (cfg ? cfg.bot[0] : "responde consultas y agenda turnos")
+    .replace(/,? (de forma autónoma|automáticamente|a cualquier hora|las 24 horas|al instante|de inmediato)$/i, "")
+    .replace(/,? también en pleno servicio$/i, "");
+  return [
+    biz.name,                                   // {{1}} negocio
+    rubro,                                      // {{2}} rubro
+    biz.ciudad,                                 // {{3}} ciudad
+    beneficio,                                  // {{4}} qué hace el asistente
+    settings.name.trim() || "un colega",        // {{5}} tu nombre
+  ];
+}
+
+/* Vista previa del texto que va a recibir ese negocio */
+function waPreview(biz) {
+  const p = waParams(biz);
+  return WA_TEMPLATE_TEXT.replace(/\{\{(\d)\}\}/g, (_, n) => p[Number(n) - 1] ?? "");
+}
+
+const WA_TEMPLATE_TEXT =
+`Buenos días. Encontré {{1}} en Google Maps buscando {{2}} en {{3}} y quería hacerles una consulta breve.
+
+Desarrollo asistentes de WhatsApp para este rubro: {{4}}, las 24 horas, sin ocupar a nadie del equipo.
+
+¿Les interesaría que les muestre cómo funcionaría en su caso? Sin ningún compromiso.
+
+Saludos cordiales,
+{{5}}`;
+
+async function waSend(biz) {
+  const to = waDigits(biz.phone);
+  if (!to) throw new Error("sin teléfono válido");
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: wa.template,
+      language: { code: wa.lang || "es_AR" },
+      components: [{
+        type: "body",
+        parameters: waParams(biz).map(text => ({ type: "text", text })),
+      }],
+    },
+  };
+
+  // Con relay, el token viaja al worker y no sale de acá al navegador
+  const url = wa.relay
+    ? wa.relay.replace(/\/$/, "") + "/send"
+    : `https://graph.facebook.com/${WA_VERSION}/${wa.phoneId}/messages`;
+  const headers = { "Content-Type": "application/json" };
+  if (!wa.relay) headers["Authorization"] = `Bearer ${wa.token}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(wa.relay ? { phoneId: wa.phoneId, token: wa.token, payload } : payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `Meta respondió ${res.status}`);
+  }
+  return data;
+}
+
+/* Código del relay, por si el navegador bloquea la llamada directa */
+const WORKER_CODE = `// Cloudflare Worker — relay para la WhatsApp Cloud API.
+// 1. Entrá a dash.cloudflare.com → Workers → Create Worker
+// 2. Pegá esto, deploy, y copiá la URL en Huntly.
+export default {
+  async fetch(request) {
+    const cors = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+    };
+    if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+    if (request.method !== "POST") return new Response("Solo POST", { status: 405, headers: cors });
+
+    const { phoneId, token, payload } = await request.json();
+    const r = await fetch(\`https://graph.facebook.com/v21.0/\${phoneId}/messages\`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: \`Bearer \${token}\` },
+      body: JSON.stringify(payload),
+    });
+    const body = await r.text();
+    return new Response(body, { status: r.status, headers: { ...cors, "Content-Type": "application/json" } });
+  },
+};`;
 
 function campPool() {
   const fuente = document.getElementById("campFuente").value;
@@ -1989,6 +2167,7 @@ function buildCampaign() {
 }
 
 function campSentCount() { return campQueue.filter(q => q.state === "sent").length; }
+function campPendCount() { return campQueue.filter(q => q.state === "pend").length; }
 
 function renderCampaign() {
   const total = campQueue.length;
@@ -2000,8 +2179,10 @@ function renderCampaign() {
   document.getElementById("campEta").textContent = quedan
     ? `${quedan} por delante`
     : "Tanda terminada";
+  const conError = campQueue.filter(q => q.state === "error").length;
   document.getElementById("campQueueMeta").textContent =
-    `${total} en total · ${sent} enviados · ${campQueue.filter(q => q.state === "skip").length} salteados`;
+    `${total} en total · ${sent} enviados · ${campQueue.filter(q => q.state === "skip").length} salteados` +
+    (conError ? ` · ${conError} con error` : "");
 
   // Negocio actual
   const cur = campQueue[campIdx];
@@ -2015,18 +2196,26 @@ function renderCampaign() {
     document.getElementById("campMsg").value = cur.msg;
   }
 
+  // Bloque de envío automático: solo si la API está configurada
+  const autoWrap = document.getElementById("campAutoWrap");
+  autoWrap.style.display = waConfigured() ? "block" : "none";
+  if (waConfigured() && !campAuto) {
+    document.getElementById("campAutoHint").textContent =
+      `Salen por la API oficial de Meta con la plantilla «${wa.template}», completada con los datos de cada negocio. No hace falta abrir WhatsApp.`;
+  }
+
   // Cola
   document.getElementById("campQueueBody").innerHTML = campQueue.map((q, i) => {
-    const st = i === campIdx && q.state === "pend"
-      ? `<span class="camp-q-state q-now">Ahora</span>`
-      : q.state === "sent" ? `<span class="camp-q-state q-sent">Enviado</span>`
+    const st = q.state === "sent" ? `<span class="camp-q-state q-sent">Enviado</span>`
       : q.state === "skip" ? `<span class="camp-q-state q-skip">Salteado</span>`
+      : q.state === "error" ? `<span class="camp-q-state q-err" title="${esc(q.error || "")}">Error</span>`
+      : i === campIdx ? `<span class="camp-q-state q-now">Ahora</span>`
       : `<span class="camp-q-state q-pend">En espera</span>`;
     return `<tr class="${q.state !== "pend" ? "row-done" : ""}">
       <td class="num">${i + 1}</td>
       <td>
         <div class="biz-name">${esc(q.biz.name)}</div>
-        <div class="biz-cat">${esc(q.biz.nichoLabel)}</div>
+        <div class="biz-cat">${q.state === "error" ? esc(q.error || "") : esc(q.biz.nichoLabel)}</div>
       </td>
       <td class="phone">${esc(q.biz.phone)}</td>
       <td>
@@ -2120,9 +2309,63 @@ document.getElementById("campVariant").addEventListener("click", () => {
   document.getElementById("campMsg").value = cur.msg;
 });
 
-document.getElementById("campStop").addEventListener("click", () => {
+document.getElementById("campStopBtn").addEventListener("click", () => {
   campQueue.forEach(q => { if (q.state === "pend") q.state = "skip"; });
   campAdvance();
+});
+
+/* ── Envío automático por la API oficial ────── */
+document.getElementById("campAutoBtn").addEventListener("click", async () => {
+  if (campAuto) { campStop = true; return; }        // segundo click = frenar
+  if (!waConfigured()) { toast("Configurá la API de WhatsApp en Ajustes"); return; }
+
+  const pend = campQueue.filter(q => q.state === "pend");
+  if (!pend.length) { toast("No queda nadie en la cola"); return; }
+
+  campAuto = true;
+  campStop = false;
+  const btn = document.getElementById("campAutoBtn");
+  const bar = document.getElementById("campAutoState");
+  document.getElementById("campCurrent").style.display = "none";
+  btn.textContent = "Detener envío";
+  btn.classList.add("btn-ghost");
+  btn.classList.remove("camp-send");
+
+  let ok = 0, fail = 0;
+  for (const q of pend) {
+    if (campStop) break;
+    campIdx = campQueue.indexOf(q);
+    bar.textContent = `Enviando a ${q.biz.name}…`;
+    try {
+      await waSend(q.biz);
+      q.state = "sent";
+      markContacted(q.biz);
+      ok++;
+    } catch (err) {
+      q.state = "error";
+      q.error = err.message;
+      fail++;
+      // Si falla el primero, casi seguro es config: no seguir quemando la cola
+      if (ok === 0 && fail >= 2) {
+        bar.textContent = `Se cortó el envío: ${err.message}`;
+        break;
+      }
+    }
+    renderCampaign();
+    renderAll();
+    // Espaciado entre mensajes: más natural y más sano para el número
+    if (!campStop) await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+  }
+
+  campAuto = false;
+  btn.textContent = "Enviar todos automáticamente";
+  btn.classList.remove("btn-ghost");
+  btn.classList.add("camp-send");
+  bar.textContent = fail
+    ? `${ok} enviados, ${fail} con error. Pasá el mouse por la cola para ver el motivo.`
+    : `${ok} mensajes enviados.`;
+  campAdvance();
+  toast(fail ? `${ok} enviados, ${fail} fallaron` : `${ok} mensajes enviados`);
 });
 
 document.getElementById("campRestart").addEventListener("click", () => {
@@ -2205,6 +2448,73 @@ document.getElementById("saveSettings").addEventListener("click", () => {
   toast(settings.source === "places" && !settings.gkey
     ? "Guardado, pero falta la clave de Google para usar negocios reales"
     : "Ajustes guardados");
+});
+
+/* ══ Ajustes de la API de WhatsApp ════════════ */
+document.getElementById("waPhoneId").value = wa.phoneId;
+document.getElementById("waToken").value = wa.token;
+document.getElementById("waTemplate").value = wa.template;
+document.getElementById("waLang").value = wa.lang;
+document.getElementById("waRelay").value = wa.relay;
+document.getElementById("waTplText").value = WA_TEMPLATE_TEXT;
+
+function waStatusMsg(html, kind) {
+  const color = kind === "ok" ? "var(--good-text)" : kind === "err" ? "var(--critical)" : "var(--ink-2)";
+  document.getElementById("waStatus").innerHTML = `<span style="color:${color}">${html}</span>`;
+}
+
+document.getElementById("saveWa").addEventListener("click", () => {
+  wa = {
+    phoneId: document.getElementById("waPhoneId").value.trim(),
+    token: document.getElementById("waToken").value.trim(),
+    template: document.getElementById("waTemplate").value.trim(),
+    lang: document.getElementById("waLang").value,
+    relay: document.getElementById("waRelay").value.trim(),
+  };
+  save(LS.wa, wa);
+  renderCampaign();
+  updateCampPreview();
+  toast(waConfigured()
+    ? "Envío automático configurado. Probá la conexión antes de la primera tanda."
+    : "Guardado. Faltan datos para el envío automático.");
+});
+
+document.getElementById("testWa").addEventListener("click", async () => {
+  const phoneId = document.getElementById("waPhoneId").value.trim();
+  const token = document.getElementById("waToken").value.trim();
+  const relay = document.getElementById("waRelay").value.trim();
+  if (!phoneId || !token) { waStatusMsg("Faltan el Phone Number ID y el token.", "err"); return; }
+  waStatusMsg("Probando…");
+  try {
+    const url = relay
+      ? relay.replace(/\/$/, "") + "/check"
+      : `https://graph.facebook.com/${WA_VERSION}/${phoneId}?fields=display_phone_number,verified_name`;
+    const res = relay
+      ? await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phoneId, token }) })
+      : await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      waStatusMsg(`Meta rechazó la conexión: ${esc(data?.error?.message || res.status)}`, "err");
+      return;
+    }
+    waStatusMsg(
+      `Conectado correctamente${data.verified_name ? ` como <strong>${esc(data.verified_name)}</strong>` : ""}${data.display_phone_number ? ` (${esc(data.display_phone_number)})` : ""}. Ya podés usar el envío automático.`,
+      "ok");
+  } catch (err) {
+    waStatusMsg(
+      `El navegador bloqueó la conexión (${esc(err.message)}). Esto es CORS y se resuelve con el relay: tocá «Copiar el código del relay», pegalo en un Cloudflare Worker gratuito y poné su URL en el campo de arriba.`,
+      "err");
+  }
+});
+
+document.getElementById("copyTpl").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(WA_TEMPLATE_TEXT); toast("Plantilla copiada: pegala en el creador de plantillas de Meta"); }
+  catch { document.getElementById("waTplText").select(); toast("Seleccioná el texto y copialo"); }
+});
+
+document.getElementById("copyWorker").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(WORKER_CODE); toast("Código del relay copiado: pegalo en un Cloudflare Worker"); }
+  catch { toast("No se pudo copiar automáticamente"); }
 });
 
 /* ══ Tema ═════════════════════════════════════ */

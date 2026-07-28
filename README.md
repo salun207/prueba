@@ -73,22 +73,47 @@ una estimación calculada a partir de las reseñas.
 > externas, así que el modo real solo funciona abriendo `index.html`
 > directamente en el navegador (o alojándolo en tu propio hosting).
 
-## Sobre el envío de mensajes
+## Envío de mensajes
 
-WhatsApp no expone una API abierta que permita a una página web enviar
-mensajes por su cuenta, y automatizarlo por fuera (bots no oficiales,
-extensiones de WhatsApp Web) suele terminar en el bloqueo del número.
+Hay dos modos, y conviven: el asistido funciona siempre, el automático
+requiere configuración.
 
-Por eso la campaña es **asistida**: la app arma la cola y prepara el
-mensaje de cada negocio, abre `wa.me` con el texto ya cargado y el envío
-final lo confirma la persona con un toque. En la práctica permite mandar
-decenas de mensajes en pocos minutos sin arriesgar la cuenta.
+### Asistido (sin configurar nada)
 
-Para automatización real hay dos caminos, y la exportación a CSV de la
-cola (con el teléfono ya normalizado y el mensaje de cada negocio) sirve
-como entrada para ambos:
+La app arma la cola y prepara el mensaje de cada negocio; al tocar
+«Enviar y seguir» abre `wa.me` con el texto ya cargado y el envío final
+lo confirma la persona. Permite mandar decenas de mensajes en pocos
+minutos desde el WhatsApp de siempre.
 
-- **WhatsApp Business Platform (API oficial)** vía un proveedor como
-  Twilio o 360dialog. Requiere plantillas aprobadas por Meta para
-  iniciar conversaciones y tiene costo por mensaje.
-- **Herramientas de terceros** que manejan el envío por su cuenta.
+### Automático — WhatsApp Cloud API (oficial de Meta)
+
+Con las credenciales cargadas en Ajustes, el botón «Enviar todos
+automáticamente» dispara la cola completa sin intervención: la app llama
+a la API de Meta para cada negocio, espacia los envíos y va marcando los
+leads como contactados.
+
+Configuración (una sola vez):
+
+1. Crear una app de tipo Empresa en
+   [developers.facebook.com](https://developers.facebook.com) y agregarle
+   el producto **WhatsApp**.
+2. Copiar el **Phone Number ID** y el **token de acceso** desde
+   «WhatsApp → Configuración de la API».
+3. Crear una plantilla de categoría **Marketing** con el texto que la
+   propia app muestra listo para copiar, y esperar la aprobación de Meta.
+4. Pegar el nombre de la plantilla en Ajustes y usar «Probar conexión».
+
+Meta exige que el **primer** mensaje a alguien que nunca escribió use una
+plantilla aprobada; por eso el envío automático usa la plantilla, con las
+variables completadas por negocio (nombre, rubro, ciudad, beneficio y
+firma). Cuando el negocio responde se abre una ventana de 24 horas en la
+que ya se puede escribir texto libre.
+
+**Relay opcional** (`whatsapp-relay-worker.js`): si el navegador bloquea
+la llamada directa a Meta por CORS, ese archivo se pega en un Cloudflare
+Worker gratuito y se pone su URL en Ajustes. También permite guardar el
+token como variable de entorno del worker, fuera del navegador.
+
+> Automatizar WhatsApp por fuera del canal oficial (bots no oficiales o
+> extensiones de WhatsApp Web) suele terminar en el bloqueo del número.
+> Por eso los dos modos de esta app son el asistido y la API oficial.
