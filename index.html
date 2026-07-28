@@ -257,6 +257,61 @@
   .settings-grid .full { grid-column: 1 / -1; }
   .settings-actions { margin-top: 18px; }
 
+  /* ── Campaña ─────────────────────────────── */
+  .camp-hero { padding: 22px; margin-bottom: 20px; }
+  .camp-hero h2 { font-size: 16px; margin-bottom: 4px; }
+  .camp-hero .hint { color: var(--ink-2); font-size: 13px; }
+  .camp-note {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--page); border: 1px solid var(--hairline);
+    border-radius: 10px; padding: 12px 14px; margin-top: 14px;
+    font-size: 12.5px; color: var(--ink-2); line-height: 1.5;
+  }
+  .camp-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: var(--muted); }
+  .camp-setup { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 16px; align-items: end; }
+
+  .camp-stage { padding: 0; overflow: hidden; margin-bottom: 20px; }
+  .camp-progress-wrap { padding: 18px 22px; border-bottom: 1px solid var(--hairline); }
+  .camp-progress-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .camp-progress-top .cp-count { font-size: 20px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .camp-progress-top .cp-of { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .camp-progress-top .cp-right { font-size: 13px; color: var(--ink-2); }
+  .camp-bar { height: 8px; background: var(--hairline); border-radius: 99px; overflow: hidden; }
+  .camp-bar > div { height: 100%; background: var(--brand); border-radius: 99px; transition: width .3s; }
+
+  .camp-current { padding: 22px; }
+  .camp-current-head { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .camp-biz-name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .camp-biz-meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .camp-msg {
+    width: 100%; min-height: 200px; padding: 14px 16px; border-radius: 10px;
+    border: 1px solid var(--hairline); background: var(--page);
+    resize: vertical; outline: none; font-size: 13.5px; line-height: 1.55;
+  }
+  .camp-msg:focus { border-color: var(--brand); }
+  .camp-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .camp-send {
+    background: #1faa53; color: #fff; border: none;
+    padding: 12px 26px; border-radius: 10px; font-weight: 700; font-size: 15px;
+    display: inline-flex; align-items: center; gap: 9px;
+  }
+  .camp-send:hover { background: #178a43; }
+  .camp-send svg { width: 18px; height: 18px; }
+  .camp-hintline { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+  .camp-queue-item { display: flex; align-items: center; gap: 10px; }
+  .camp-q-state { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--border); white-space: nowrap; }
+  .q-pend { color: var(--muted); }
+  .q-sent { color: var(--good-text); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+  .q-skip { color: var(--muted); text-decoration: line-through; }
+  .q-now { color: var(--brand-strong); background: var(--brand-soft); border-color: transparent; }
+  tr.row-done td { opacity: .55; }
+
+  .camp-done { text-align: center; padding: 44px 20px; }
+  .camp-done .cd-num { font-size: 40px; font-weight: 750; letter-spacing: -.03em; }
+  .camp-done h4 { font-size: 16px; margin: 6px 0 4px; }
+  .camp-done p { color: var(--ink-2); font-size: 13px; }
+
   /* ── Modal ───────────────────────────────── */
   .modal-back {
     position: fixed; inset: 0; background: rgba(0,0,0,.45);
@@ -329,6 +384,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Mis leads
         <span class="badge-count" id="leadCount">0</span>
+      </button>
+      <button class="nav-item" data-view="campana">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+        Campaña
+        <span class="badge-count" id="campCount" style="display:none">0</span>
       </button>
       <button class="nav-item" data-view="analitica">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx=".8"/><rect x="12" y="8" width="3" height="10" rx=".8"/><rect x="17" y="5" width="3" height="13" rx=".8"/></svg>
@@ -433,6 +493,10 @@
             <div class="meta" id="resultsMeta">Lanzá una búsqueda para ver oportunidades</div>
           </div>
           <div class="filters">
+            <button class="btn-primary" id="goCampaign" type="button" style="height:34px;padding:7px 16px;font-size:13px;align-self:auto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+              Escribirles a todos
+            </button>
             <label class="chk"><input type="checkbox" id="onlyHot"> Solo altas (70 o más)</label>
             <select id="sortBy">
               <option value="score">Ordenar: puntuación</option>
@@ -521,6 +585,126 @@
           <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
           <h4>Tu cartera está vacía</h4>
           <p>Guardá leads desde los resultados de búsqueda para hacer el seguimiento acá.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Vista: Campaña ── -->
+    <section class="view" id="view-campana">
+
+      <!-- Paso 1: armar la campaña -->
+      <div class="card camp-hero" id="campSetup">
+        <h2>Enviar en cadena por WhatsApp</h2>
+        <p class="hint">Armá una cola con los negocios que elijas. Cada uno lleva su propio mensaje, ya personalizado con los datos de su ficha. Vas tocando «Enviar» y la app abre WhatsApp con el texto cargado, marca el lead como contactado y pasa sola al siguiente.</p>
+        <div class="camp-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span>WhatsApp no deja que una web mande mensajes sola, y las herramientas que lo prometen suelen terminar en cuentas bloqueadas. Acá el envío lo confirmás vos con un toque, que es rápido y no te arriesga el número. Igual podés exportar la cola para usarla en WhatsApp Business API o en la herramienta que uses.</span>
+        </div>
+        <div class="camp-setup">
+          <div class="field">
+            <label for="campFuente">A quién le escribo</label>
+            <select id="campFuente">
+              <option value="results">Resultados de la última búsqueda</option>
+              <option value="leads">Mis leads guardados</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="campMin">Puntuación mínima</label>
+            <select id="campMin">
+              <option value="0">Todos</option>
+              <option value="45">45 o más (media y alta)</option>
+              <option value="70" selected>70 o más (solo altas)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="campMax">Cuántos como máximo</label>
+            <select id="campMax">
+              <option value="10">10 por tanda</option>
+              <option value="20" selected>20 por tanda</option>
+              <option value="30">30 por tanda</option>
+              <option value="999">Todos los que haya</option>
+            </select>
+          </div>
+          <button class="btn-primary" id="campBuild" type="button">Armar la cola</button>
+        </div>
+        <p class="camp-hintline" id="campPreview">—</p>
+      </div>
+
+      <!-- Paso 2: enviar -->
+      <div id="campRun" style="display:none">
+        <div class="card camp-stage">
+          <div class="camp-progress-wrap">
+            <div class="camp-progress-top">
+              <div>
+                <span class="cp-count" id="campSentNum">0</span>
+                <span class="cp-of">de <span id="campTotalNum">0</span> enviados</span>
+              </div>
+              <div class="cp-right" id="campEta">—</div>
+            </div>
+            <div class="camp-bar"><div id="campBar" style="width:0%"></div></div>
+          </div>
+
+          <div class="camp-current" id="campCurrent">
+            <div class="camp-current-head">
+              <div>
+                <div class="camp-biz-name" id="campBizName">—</div>
+                <div class="camp-biz-meta" id="campBizMeta">—</div>
+              </div>
+              <div class="pills" id="campBizPills"></div>
+            </div>
+            <textarea class="camp-msg" id="campMsg" spellcheck="false"></textarea>
+            <div class="camp-actions">
+              <button class="camp-send" id="campSend" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+                Enviar y seguir
+              </button>
+              <button class="btn-ghost" id="campSkip" type="button">Saltear este</button>
+              <button class="btn-ghost" id="campVariant" type="button">Otra variante</button>
+              <button class="btn-ghost" id="campStop" type="button">Terminar tanda</button>
+            </div>
+            <p class="camp-hintline">Se abre WhatsApp en otra pestaña con el mensaje cargado: tocás enviar ahí y volvés acá. Este lead ya queda marcado como contactado.</p>
+          </div>
+
+          <div class="camp-done" id="campDone" style="display:none">
+            <div class="cd-num" id="campDoneNum">0</div>
+            <h4>mensajes enviados</h4>
+            <p id="campDoneSub">Ya están todos marcados como contactados en tu cartera.</p>
+            <div style="margin-top:16px"><button class="btn-primary" id="campRestart" type="button">Armar otra tanda</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="results-head">
+            <div>
+              <h3>La cola</h3>
+              <div class="meta" id="campQueueMeta">—</div>
+            </div>
+            <div class="filters">
+              <button class="btn-ghost" id="campExport">Exportar la cola (CSV)</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Negocio</th>
+                  <th>Teléfono</th>
+                  <th>Puntuación</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="campQueueBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="campEmpty" style="display:none">
+        <div class="empty">
+          <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></div>
+          <h4>No hay negocios para esta tanda</h4>
+          <p id="campEmptyWhy">Hacé una búsqueda primero, o bajá la puntuación mínima.</p>
         </div>
       </div>
     </section>
@@ -1138,16 +1322,25 @@ function buildMessage(b, seed) {
 
   // Apertura: un dato real de su ficha, sin chamuyo.
   // Si no hay reseñas (pasa en modo real), no se menciona ninguna.
-  const aperturas = (b.rating && b.reviews)
+  const buenaFicha = b.rating >= 4.2 && b.reviews >= 20;
+  const aperturas = !(b.rating && b.reviews)
     ? [
-        `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me quedé mirando la ficha de ustedes: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas, un montón.`,
-        `Estaba mirando ${rubro} en ${b.ciudad} y ${b.name} me apareció de los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota que laburan bien.`,
-        `Me crucé con la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y les quería hacer una consulta cortita.`,
-      ]
-    : [
         `Encontré ${b.name} en Google Maps buscando ${rubro} en ${b.ciudad} y les quería hacer una consulta cortita.`,
         `Estaba mirando ${rubro} en ${b.ciudad} y me crucé con ${b.name}.`,
-      ];
+      ]
+    : buenaFicha
+      ? [
+          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me quedé mirando la ficha de ustedes: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas, un montón.`,
+          `Estaba mirando ${rubro} en ${b.ciudad} y ${b.name} me apareció de los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota que laburan bien.`,
+          `Me crucé con la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y les quería hacer una consulta cortita.`,
+        ]
+      // Ficha floja: se menciona el movimiento, nunca la nota — un elogio
+      // que no se sostiene se nota al toque y arruina el mensaje.
+      : [
+          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y les quería hacer una consulta cortita.`,
+          `Estaba mirando ${rubro} en ${b.ciudad} y me crucé con ${b.name}: ${b.reviews} reseñas, se ve que pasa gente.`,
+          `Me crucé con la ficha de ${b.name} en Google Maps y les quería preguntar una cosa.`,
+        ];
 
   // Cada rubro agenda algo distinto: turnos, reservas, consultas…
   const AGENDA = {
@@ -1730,10 +1923,236 @@ document.getElementById("exportCsv").addEventListener("click", () => {
 document.getElementById("onlyHot").addEventListener("change", renderResults);
 document.getElementById("sortBy").addEventListener("change", renderResults);
 
+/* ══ Campaña: envío en cadena ═════════════════
+   WhatsApp no expone una API abierta para mandar mensajes desde el
+   navegador, y automatizarlo por fuera suele terminar en bloqueo del
+   número. Así que la cadena es asistida: la app arma la cola con el
+   mensaje de cada negocio y abre wa.me uno por uno; el envío final lo
+   confirma la persona. Rápido, y sin arriesgar la cuenta. */
+let campQueue = [];   // [{ biz, msg, state: 'pend'|'sent'|'skip' }]
+let campIdx = 0;
+
+function campPool() {
+  const fuente = document.getElementById("campFuente").value;
+  const min = Number(document.getElementById("campMin").value);
+  const max = Number(document.getElementById("campMax").value);
+  let pool = fuente === "leads"
+    ? leads.filter(l => l.state === "Nuevo")
+    : results.slice();
+  pool = pool.filter(b => b.score >= min && waDigits(b.phone));
+  // Los ya contactados no se repiten
+  const yaContactados = new Set(
+    leads.filter(l => CONTACT_STATES.includes(l.state)).map(l => l.id)
+  );
+  pool = pool.filter(b => !yaContactados.has(b.id));
+  pool.sort((a, b) => b.score - a.score);
+  return pool.slice(0, max);
+}
+
+function updateCampPreview() {
+  const n = campPool().length;
+  const fuente = document.getElementById("campFuente").value;
+  const el = document.getElementById("campPreview");
+  if (!n) {
+    el.textContent = fuente === "leads"
+      ? "No hay leads nuevos con esos filtros. Guardá leads desde los resultados o bajá la puntuación mínima."
+      : "No hay resultados con esos filtros. Hacé una búsqueda o bajá la puntuación mínima.";
+    return;
+  }
+  const mins = Math.max(1, Math.round(n * 0.4));
+  el.textContent = `Quedan ${n} negocio${n === 1 ? "" : "s"} en la cola. Te va a llevar unos ${mins} minuto${mins === 1 ? "" : "s"}.`;
+}
+
+function buildCampaign() {
+  const pool = campPool();
+  const empty = document.getElementById("campEmpty");
+  const run = document.getElementById("campRun");
+  if (!pool.length) {
+    campQueue = [];
+    run.style.display = "none";
+    empty.style.display = "block";
+    document.getElementById("campEmptyWhy").textContent =
+      document.getElementById("campFuente").value === "leads"
+        ? "No hay leads en estado «Nuevo» con esa puntuación. Guardá leads desde los resultados o bajá el mínimo."
+        : "Hacé una búsqueda primero, o bajá la puntuación mínima.";
+    updateCampBadge();
+    return;
+  }
+  campQueue = pool.map(b => ({ biz: b, msg: buildMessage(b), state: "pend" }));
+  campIdx = 0;
+  empty.style.display = "none";
+  run.style.display = "block";
+  document.getElementById("campDone").style.display = "none";
+  document.getElementById("campCurrent").style.display = "block";
+  renderCampaign();
+  toast(`Cola lista: ${campQueue.length} mensajes personalizados`);
+}
+
+function campSentCount() { return campQueue.filter(q => q.state === "sent").length; }
+
+function renderCampaign() {
+  const total = campQueue.length;
+  const sent = campSentCount();
+  document.getElementById("campSentNum").textContent = sent;
+  document.getElementById("campTotalNum").textContent = total;
+  document.getElementById("campBar").style.width = total ? `${(sent / total) * 100}%` : "0%";
+  const quedan = campQueue.filter(q => q.state === "pend").length;
+  document.getElementById("campEta").textContent = quedan
+    ? `${quedan} por delante`
+    : "Tanda terminada";
+  document.getElementById("campQueueMeta").textContent =
+    `${total} en total · ${sent} enviados · ${campQueue.filter(q => q.state === "skip").length} salteados`;
+
+  // Negocio actual
+  const cur = campQueue[campIdx];
+  if (cur) {
+    const b = cur.biz;
+    document.getElementById("campBizName").textContent = b.name;
+    const ficha = b.rating ? `${b.rating.toFixed(1)}★ (${b.reviews} reseñas)` : "sin reseñas";
+    document.getElementById("campBizMeta").textContent =
+      `${b.nichoLabel} · ${b.ciudad} · ${ficha} · ${b.phone}`;
+    document.getElementById("campBizPills").innerHTML = signalPills(b, 3);
+    document.getElementById("campMsg").value = cur.msg;
+  }
+
+  // Cola
+  document.getElementById("campQueueBody").innerHTML = campQueue.map((q, i) => {
+    const st = i === campIdx && q.state === "pend"
+      ? `<span class="camp-q-state q-now">Ahora</span>`
+      : q.state === "sent" ? `<span class="camp-q-state q-sent">Enviado</span>`
+      : q.state === "skip" ? `<span class="camp-q-state q-skip">Salteado</span>`
+      : `<span class="camp-q-state q-pend">En espera</span>`;
+    return `<tr class="${q.state !== "pend" ? "row-done" : ""}">
+      <td class="num">${i + 1}</td>
+      <td>
+        <div class="biz-name">${esc(q.biz.name)}</div>
+        <div class="biz-cat">${esc(q.biz.nichoLabel)}</div>
+      </td>
+      <td class="phone">${esc(q.biz.phone)}</td>
+      <td>
+        <div class="score">
+          <span class="score-num">${q.biz.score}</span>
+          <span class="score-bar"><div style="width:${q.biz.score}%;background:${scoreColor(q.biz.score)}"></div></span>
+        </div>
+      </td>
+      <td>${st}</td>
+    </tr>`;
+  }).join("");
+
+  updateCampBadge();
+}
+
+function updateCampBadge() {
+  const badge = document.getElementById("campCount");
+  const quedan = campQueue.filter(q => q.state === "pend").length;
+  badge.style.display = quedan ? "inline-block" : "none";
+  badge.textContent = quedan;
+}
+
+/* Guarda el negocio como lead y lo deja en Contactado */
+function markContacted(biz) {
+  let l = leads.find(x => x.id === biz.id);
+  if (!l) {
+    l = { ...biz, state: "Contactado", savedAt: Date.now() };
+    leads.push(l);
+  } else if (l.state === "Nuevo") {
+    l.state = "Contactado";
+  }
+  save(LS.leads, leads);
+}
+
+function campAdvance() {
+  // Siguiente pendiente
+  let next = campQueue.findIndex((q, i) => i > campIdx && q.state === "pend");
+  if (next === -1) next = campQueue.findIndex(q => q.state === "pend");
+  if (next === -1) {
+    document.getElementById("campCurrent").style.display = "none";
+    const done = document.getElementById("campDone");
+    done.style.display = "block";
+    document.getElementById("campDoneNum").textContent = campSentCount();
+    document.getElementById("campDoneSub").textContent = campSentCount()
+      ? "Ya están todos marcados como contactados en tu cartera."
+      : "No enviaste ninguno en esta tanda.";
+    renderCampaign();
+    renderAll();
+    return;
+  }
+  campIdx = next;
+  renderCampaign();
+  renderAll();
+}
+
+document.getElementById("campBuild").addEventListener("click", buildCampaign);
+document.getElementById("goCampaign").addEventListener("click", () => {
+  if (!results.length) { toast("Primero hacé una búsqueda"); return; }
+  goToView("campana");
+  document.getElementById("campFuente").value = "results";
+  buildCampaign();
+});
+["campFuente", "campMin", "campMax"].forEach(id =>
+  document.getElementById(id).addEventListener("change", updateCampPreview));
+
+document.getElementById("campSend").addEventListener("click", () => {
+  const cur = campQueue[campIdx];
+  if (!cur) return;
+  const text = document.getElementById("campMsg").value;
+  const digits = waDigits(cur.biz.phone);
+  if (!digits) { toast("Este negocio no tiene teléfono válido: lo salteo"); cur.state = "skip"; campAdvance(); return; }
+  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  cur.msg = text;
+  cur.state = "sent";
+  markContacted(cur.biz);
+  campAdvance();
+});
+
+document.getElementById("campSkip").addEventListener("click", () => {
+  const cur = campQueue[campIdx];
+  if (!cur) return;
+  cur.state = "skip";
+  campAdvance();
+});
+
+document.getElementById("campVariant").addEventListener("click", () => {
+  const cur = campQueue[campIdx];
+  if (!cur) return;
+  cur.biz.variant = (cur.biz.variant ?? 0) + 1;
+  cur.msg = buildMessage(cur.biz);
+  document.getElementById("campMsg").value = cur.msg;
+});
+
+document.getElementById("campStop").addEventListener("click", () => {
+  campQueue.forEach(q => { if (q.state === "pend") q.state = "skip"; });
+  campAdvance();
+});
+
+document.getElementById("campRestart").addEventListener("click", () => {
+  document.getElementById("campRun").style.display = "none";
+  campQueue = [];
+  updateCampPreview();
+  updateCampBadge();
+});
+
+document.getElementById("campExport").addEventListener("click", () => {
+  if (!campQueue.length) { toast("No hay cola para exportar"); return; }
+  const rows = [["Negocio", "Rubro", "Ciudad", "Teléfono", "Teléfono WhatsApp", "Puntuación", "Estado", "Mensaje"]];
+  campQueue.forEach(q => rows.push([
+    q.biz.name, q.biz.nichoLabel, q.biz.ciudad, q.biz.phone, waDigits(q.biz.phone),
+    q.biz.score, q.state === "sent" ? "Enviado" : q.state === "skip" ? "Salteado" : "En espera", q.msg,
+  ]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "huntly-campana.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Cola exportada, con el mensaje de cada negocio");
+});
+
 /* ══ Navegación ═══════════════════════════════ */
 const VIEW_META = {
   panel: ["Panel", "Encontrá negocios que pierden consultas y ganalos con tu chatbot"],
   leads: ["Mis leads", "Tu cartera de clientes potenciales"],
+  campana: ["Campaña", "Mandá tu tanda de mensajes, uno atrás del otro"],
   analitica: ["Analítica", "Tu prospección de un vistazo"],
   ajustes: ["Ajustes", "Personalizá tu oferta y tus mensajes"],
 };
@@ -1745,8 +2164,14 @@ document.querySelectorAll(".nav-item[data-view]").forEach(btn => {
     document.getElementById("view-" + btn.dataset.view).classList.add("on");
     document.getElementById("viewTitle").textContent = VIEW_META[btn.dataset.view][0];
     document.getElementById("viewSub").textContent = VIEW_META[btn.dataset.view][1];
+    if (btn.dataset.view === "campana" && !campQueue.length) updateCampPreview();
   });
 });
+
+function goToView(name) {
+  const btn = document.querySelector(`.nav-item[data-view="${name}"]`);
+  if (btn) btn.click();
+}
 
 /* ══ Ajustes ══════════════════════════════════ */
 document.getElementById("myName").value = settings.name;

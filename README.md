@@ -33,6 +33,12 @@ todo (HTML, CSS y JS) va en un único archivo.
   (Nuevo → Contactado → Interesado → Demo agendada → Cliente / Descartado),
   KPIs de contacto y cierre, filtro por estado y export CSV con la
   descripción y el mensaje incluidos.
+- **Campaña**: arma una cola con los negocios filtrados por puntuación y
+  los recorre uno por uno. Cada negocio lleva su propio mensaje ya
+  personalizado; al tocar «Enviar y seguir» se abre WhatsApp con el texto
+  cargado, el lead queda marcado como contactado y la app pasa al
+  siguiente. Se puede saltear, pedir otra variante, cortar la tanda o
+  exportar la cola completa a CSV.
 - **Analítica**: embudo de ventas, leads por nicho, tasa de contacto y de
   cierre, pipeline en € e historial de búsquedas.
 - **Ajustes**: tu nombre, el nombre de tu chatbot, enlace a demo, tarifa
@@ -66,3 +72,23 @@ una estimación calculada a partir de las reseñas.
 > Nota: la vista previa hospedada en claude.ai bloquea conexiones
 > externas, así que el modo real solo funciona abriendo `index.html`
 > directamente en el navegador (o alojándolo en tu propio hosting).
+
+## Sobre el envío de mensajes
+
+WhatsApp no expone una API abierta que permita a una página web enviar
+mensajes por su cuenta, y automatizarlo por fuera (bots no oficiales,
+extensiones de WhatsApp Web) suele terminar en el bloqueo del número.
+
+Por eso la campaña es **asistida**: la app arma la cola y prepara el
+mensaje de cada negocio, abre `wa.me` con el texto ya cargado y el envío
+final lo confirma la persona con un toque. En la práctica permite mandar
+decenas de mensajes en pocos minutos sin arriesgar la cuenta.
+
+Para automatización real hay dos caminos, y la exportación a CSV de la
+cola (con el teléfono ya normalizado y el mensaje de cada negocio) sirve
+como entrada para ambos:
+
+- **WhatsApp Business Platform (API oficial)** vía un proveedor como
+  Twilio o 360dialog. Requiere plantillas aprobadas por Meta para
+  iniciar conversaciones y tiene costo por mensaje.
+- **Herramientas de terceros** que manejan el envío por su cuenta.
