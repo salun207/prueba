@@ -11,6 +11,34 @@ negocio** para ofrecerles tu chatbot.
 Abre `index.html` en el navegador. No necesita servidor ni dependencias:
 todo (HTML, CSS y JS) va en un único archivo.
 
+## Campañas
+
+El selector de la barra superior cambia la campaña activa, y con ella los
+rubros disponibles y los mensajes:
+
+- **Nexa** — venta de asistentes de WhatsApp. Busca negocios que pierden
+  consultas (sin web, sin chat, turnos solo por teléfono) en los 37
+  rubros del catálogo.
+- **DogStay** — plataforma para mascotas. Los rubros se agrupan por lo que
+  se les propone: *se suman a la plataforma* (paseadores, cuidadores,
+  guarderías caninas, adiestradores) o *alianzas y derivaciones*
+  (veterinarias, peluquerías caninas, pet shops), cada uno con su propio
+  mensaje.
+
+Cambiar de campaña limpia los resultados y la cola, porque pertenecen a
+la campaña anterior. Los leads guardados se mantienen.
+
+## Fuentes de contactos
+
+Tres, y se pueden combinar:
+
+1. **Demo** — negocios ficticios generados en el navegador.
+2. **Google Places** — negocios reales (requiere clave, ver más abajo).
+3. **Importar mi propia lista** — se pega la lista (`nombre, teléfono` y,
+   opcionalmente, `valoración, reseñas`; acepta comas, punto y coma o
+   tabulaciones, así que se puede pegar desde una planilla) y la app arma
+   las fichas y los mensajes. No necesita ninguna API.
+
 ## Funcionalidades
 
 - **31 nichos** agrupados: 8 tipos de clínicas (dental, estética, fisio,

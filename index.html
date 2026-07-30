@@ -119,6 +119,12 @@
   .topbar h1 { font-size: 22px; letter-spacing: -.02em; }
   .topbar .sub { color: var(--ink-2); font-size: 13px; }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .perfil-sel {
+    padding: 8px 12px; border-radius: 9px; border: 1px solid var(--hairline);
+    background: var(--surface-1); font-size: 13px; font-weight: 500; color: var(--ink);
+    max-width: 260px;
+  }
+  .perfil-sel:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
   .theme-toggle { width: 36px; height: 36px; border-radius: 99px; border: 1px solid var(--hairline); background: var(--surface-1); display: grid; place-items: center; color: var(--ink-2); }
   .theme-toggle:hover { color: var(--ink); border-color: var(--muted); }
   .avatar { width: 36px; height: 36px; border-radius: 99px; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
@@ -415,6 +421,10 @@
         <div class="sub" id="viewSub">Encontrá negocios que pierden consultas y ganalos con tu chatbot</div>
       </div>
       <div class="topbar-right">
+        <select id="perfilSel" class="perfil-sel" title="Campaña activa">
+          <option value="nexa">Nexa — asistentes de WhatsApp</option>
+          <option value="dogstay">DogStay — plataforma para mascotas</option>
+        </select>
         <button class="theme-toggle" id="themeBtn" title="Cambiar tema"></button>
         <div class="avatar" id="avatar">H</div>
       </div>
@@ -425,7 +435,7 @@
 
       <div class="card search-card">
         <h2>Nueva búsqueda</h2>
-        <p class="hint">Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.</p>
+        <p class="hint" id="searchHint">Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.</p>
         <form class="search-form" id="searchForm">
           <div class="field">
             <label for="nicho">Rubro</label>
@@ -440,6 +450,10 @@
             Buscar negocios
           </button>
         </form>
+        <div style="margin-top:12px">
+          <button class="btn-ghost" id="openImport" type="button">Importar mi propia lista</button>
+          <span class="camp-hintline" style="margin-left:8px">Si ya tenés contactos, pegalos y la app les arma el mensaje igual.</span>
+        </div>
         <div class="scan-box" id="scanBox">
           <div class="scan-status"><span class="spinner"></span><span id="scanMsg">Escaneando Google Maps…</span></div>
           <div class="scan-bar"><div id="scanBar"></div></div>
@@ -938,6 +952,34 @@
   </div>
 </div>
 
+<!-- ══ Modal de importación ══ -->
+<div class="modal-back" id="importBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="impTitle">
+    <div class="modal-head">
+      <h3 id="impTitle">Importar mi propia lista</h3>
+      <button class="modal-close" id="impClose" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="modal-sub">Pegá un contacto por línea. Alcanza con el nombre y el teléfono; lo demás es opcional y mejora el mensaje.</p>
+    <div class="settings-grid" style="margin-bottom:14px">
+      <div class="field">
+        <label for="impNicho">Rubro de estos contactos</label>
+        <select id="impNicho"></select>
+      </div>
+      <div class="field">
+        <label for="impCiudad">Ciudad</label>
+        <input id="impCiudad" type="text" placeholder="p. ej. Rosario">
+      </div>
+    </div>
+    <h4>Contactos</h4>
+    <textarea id="impText" spellcheck="false" placeholder="Veterinaria Zarpa, +54 9 341 555-0000&#10;Paseos Huellitas, 341 555-1234, 4.8, 96&#10;Guardería Patitas; 3415551111"></textarea>
+    <p class="camp-hintline">Formato: <code>nombre, teléfono</code> — y si los tenés, <code>, valoración, reseñas</code>. Separadores válidos: coma, punto y coma o tabulación (podés pegar desde una planilla).</p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="impDo" type="button">Importar</button>
+      <button class="btn-ghost" id="impCancel" type="button">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -974,7 +1016,7 @@ let leads = load(LS.leads, []);
 let searchesUsed = load(LS.searches, 0);
 let history = load(LS.history, []);
 let settings = Object.assign(
-  { name: "", product: "", demo: "", price: 49, pd: "", source: "demo", gkey: "" },
+  { name: "", product: "", demo: "", price: 49, pd: "", source: "demo", gkey: "", perfil: "nexa" },
   load(LS.settings, {})
 );
 let wa = Object.assign(
@@ -1013,7 +1055,10 @@ const NICHOS = {
     pre: ["Veterinaria", "Clínica Veterinaria", "Hospital Veterinario"], suf: ["Patitas", "Animalia", "Zarpa", "Mascota Feliz", "Fauna", "Amigo Fiel"],
     uso: "Turnos y urgencias 24/7",
     bot: ["otorga turnos y orienta urgencias a cualquier hora", "recuerda vacunas y desparasitaciones", "responde las consultas de los dueños de inmediato"],
-    descs: ["Veterinaria de referencia en la zona", "Veterinaria familiar", "Clínica veterinaria con urgencias"] },
+    descs: ["Veterinaria de referencia en la zona", "Veterinaria familiar", "Clínica veterinaria con urgencias"],
+    dog: { objetivo: "alianza", uso: "Alianza y derivaciones",
+      dolor: "dónde dejar al perro cuando se van de viaje",
+      valor: "les damos cuidadores verificados de la zona para recomendar, y una comisión por cada derivación que se concreta" } },
   "podologia": { g: "Salud y clínicas", label: "Podología", cita: true, factor: 1.2,
     pre: ["Podología", "Consultorio Podológico", "Centro del Pie"], suf: ["Paso", "Planta", "Confort", "Salud", "Andar"],
     uso: "Turnos 24/7",
@@ -1161,6 +1206,59 @@ const NICHOS = {
     uso: "Cotizar viajes 24/7",
     bot: ["releva fechas y presupuesto y propone destinos", "responde consultas sobre reservas ya realizadas", "comunica promociones a los clientes frecuentes"],
     descs: ["Agencia de viajes de barrio", "Agencia especializada en viajes a medida", "Agencia de viajes y escapadas"] },
+
+  /* ── Mascotas ──
+     Sirven a los dos perfiles: para Nexa son negocios que pierden
+     consultas; para DogStay son proveedores que se suman a la
+     plataforma o comercios con los que se arma una alianza. */
+  "paseador": { g: "Mascotas", label: "Paseadores de perros", cita: true, factor: 1.4,
+    pre: ["Paseos", "Paseador", "Dog Walker"], suf: ["Huellitas", "Colas Felices", "Guau", "Pet Walk", "Cuatro Patas", "El Parque"],
+    uso: "Agenda de paseos",
+    bot: ["agenda paseos y avisa cambios de horario", "informa zonas de cobertura y tarifas", "envía el reporte del paseo a cada dueño"],
+    descs: ["Servicio de paseo de perros por zona", "Paseador con grupos reducidos", "Servicio de paseos y recreación canina"],
+    dog: { objetivo: "proveedor", uso: "Sumar como paseador",
+      dolor: "conseguir clientes nuevos sin depender del boca en boca",
+      valor: "les llegan pedidos de dueños de su zona y eligen cuáles tomar, con el pago asegurado por la plataforma" } },
+  "guarderia-canina": { g: "Mascotas", label: "Guarderías caninas", cita: true, factor: 1.5,
+    pre: ["Guardería Canina", "Hotel Canino", "Daycare"], suf: ["Patitas", "El Refugio", "Casa Perro", "Happy Dogs", "La Manada", "Buen Amigo"],
+    uso: "Reservas de estadía",
+    bot: ["toma reservas de estadía y consulta disponibilidad", "informa tarifas por día y requisitos de vacunación", "manda fotos y novedades a los dueños"],
+    descs: ["Guardería canina con patio", "Hotel canino con estadías cortas y largas", "Daycare canino de zona"],
+    dog: { objetivo: "proveedor", uso: "Sumar como alojamiento",
+      dolor: "llenar los días de semana, que suelen quedar flojos",
+      valor: "les mandamos reservas de dueños que buscan alojamiento en su zona, sobre todo en fines de semana largos y vacaciones" } },
+  "peluqueria-canina": { g: "Mascotas", label: "Peluquerías caninas", cita: true, factor: 1.6,
+    pre: ["Peluquería Canina", "Estética Canina", "Baño y Corte"], suf: ["Pelusa", "Guau", "Bichos", "Spa Can", "Mimos", "Copetes"],
+    uso: "Turnos de baño y corte",
+    bot: ["agenda turnos de baño y corte", "informa precios según raza y tamaño", "recuerda el turno y ofrece el siguiente"],
+    descs: ["Peluquería canina con turnos", "Estética canina y felina", "Baño y corte con retiro a domicilio"],
+    dog: { objetivo: "alianza", uso: "Alianza y derivaciones",
+      dolor: "quién les puede cuidar o pasear el perro",
+      valor: "les damos cuidadores verificados para recomendar y una comisión por cada derivación que se concreta" } },
+  "petshop": { g: "Mascotas", label: "Pet shops y forrajerías", cita: false, factor: 1.8,
+    pre: ["Pet Shop", "Forrajería", "Mundo Mascotas"], suf: ["Patitas", "El Hueso", "Animal", "Mascotas", "Nutrición", "Del Barrio"],
+    uso: "Pedidos y consultas",
+    bot: ["toma pedidos de alimento y coordina el envío", "informa stock y precios al instante", "avisa cuando conviene reponer el alimento"],
+    descs: ["Pet shop de barrio con reparto", "Forrajería y alimentos balanceados", "Pet shop con accesorios y alimento"],
+    dog: { objetivo: "alianza", uso: "Alianza y derivaciones",
+      dolor: "dónde dejar al perro cuando se van de viaje",
+      valor: "les damos cuidadores verificados de la zona para recomendar y una comisión por cada derivación" } },
+  "adiestrador": { g: "Mascotas", label: "Adiestradores caninos", cita: true, factor: 1.1,
+    pre: ["Adiestramiento", "Educación Canina", "Entrenamiento"], suf: ["Canino", "Buen Can", "Obediencia", "Vínculo", "Alfa", "Positivo"],
+    uso: "Consultas y sesiones",
+    bot: ["agenda la primera evaluación", "explica los planes de trabajo y sus valores", "hace seguimiento entre sesión y sesión"],
+    descs: ["Adiestramiento canino a domicilio", "Educación canina en positivo", "Entrenamiento y modificación de conducta"],
+    dog: { objetivo: "proveedor", uso: "Sumar como profesional",
+      dolor: "conseguir consultas nuevas de forma constante",
+      valor: "les llegan consultas de dueños de su zona que ya están buscando ayuda con su perro" } },
+  "cuidador-mascotas": { g: "Mascotas", label: "Cuidadores de mascotas", cita: true, factor: 1.2,
+    pre: ["Cuidado de Mascotas", "Pet Sitter", "Cuidadores"], suf: ["En Casa", "Confianza", "Patitas", "Hogar", "Amigo Fiel", "Tranquilo"],
+    uso: "Reservas de cuidado",
+    bot: ["coordina las fechas de cuidado y confirma disponibilidad", "informa tarifas por día y servicios incluidos", "manda novedades y fotos a los dueños"],
+    descs: ["Cuidado de mascotas a domicilio", "Pet sitter con hospedaje en casa", "Cuidado y visitas a domicilio"],
+    dog: { objetivo: "proveedor", uso: "Sumar como cuidador",
+      dolor: "conseguir reservas sin depender de las recomendaciones de siempre",
+      valor: "les llegan solicitudes de dueños de su zona, con el pago asegurado y el respaldo de la plataforma" } },
 };
 
 /* Nombres cortos por rubro para que los mensajes suenen naturales:
@@ -1197,7 +1295,41 @@ const RUBRO_CORTO = {
   "instituto": ["institutos", "un instituto"],
   "fotografo": ["fotógrafos", "un estudio de fotografía"],
   "agencia-viajes": ["agencias de viajes", "una agencia de viajes"],
+  "paseador": ["paseadores de perros", "un servicio de paseos"],
+  "guarderia-canina": ["guarderías caninas", "una guardería canina"],
+  "peluqueria-canina": ["peluquerías caninas", "una peluquería canina"],
+  "petshop": ["pet shops", "un pet shop"],
+  "adiestrador": ["adiestradores caninos", "un adiestrador"],
+  "cuidador-mascotas": ["cuidadores de mascotas", "un cuidador de mascotas"],
 };
+
+/* ══ Perfiles de campaña ══════════════════════
+   Cada perfil cambia a quién le escribís y qué le proponés. Los rubros
+   que no lista un perfil no aparecen en su selector. */
+const PERFILES = {
+  nexa: {
+    label: "Nexa — asistentes de WhatsApp",
+    corto: "Nexa",
+    sub: "Encontrá negocios que pierden consultas y ganalos con tu asistente",
+    // Sin lista de rubros: usa todos
+  },
+  dogstay: {
+    label: "DogStay — plataforma para mascotas",
+    corto: "DogStay",
+    sub: "Sumá paseadores y cuidadores, y armá alianzas con veterinarias y pet shops",
+    rubros: ["paseador", "cuidador-mascotas", "guarderia-canina", "adiestrador", "veterinaria", "peluqueria-canina", "petshop"],
+  },
+};
+
+function perfilActual() { return PERFILES[settings.perfil] || PERFILES.nexa; }
+function esDogStay() { return settings.perfil === "dogstay"; }
+
+/* El caso de uso que se muestra depende del perfil */
+function usoDe(b) {
+  const cfg = NICHOS[b.nicho];
+  if (esDogStay() && cfg?.dog) return cfg.dog.uso;
+  return b.uso || cfg?.uso || "";
+}
 
 const CALLES = ["Av. Corrientes", "Av. Santa Fe", "Calle San Martín", "Av. Rivadavia", "Calle Belgrano", "Av. Mitre", "Calle Sarmiento", "Av. del Libertador", "Calle 25 de Mayo", "Bv. Oroño"];
 const HORARIOS = [
@@ -1367,6 +1499,7 @@ function bizDescription(b) {
   if (b.web === "no") señal = "No tiene página web ni ningún canal digital de atención";
   else if (b.web === "sinchat") señal = "Tiene web, pero sin chat ni reservas online";
   else if (b.web === "si") señal = "Tiene página web";
+  else if (b.web === "desconocida") señal = "Contacto de tu propia lista";
   else señal = "Tiene web con chat, aunque con margen de mejora";
   const extra = [];
   if (b.citaTelefono) extra.push("todo se maneja por teléfono");
@@ -1391,6 +1524,8 @@ function buildMessage(b, seed) {
   const firma = settings.name.trim();
   const producto = settings.product.trim();
   const [rubro, rubroSg] = RUBRO_CORTO[b.nicho] || [cfg.label.toLowerCase(), "un negocio como el suyo"];
+
+  if (esDogStay() && cfg.dog) return buildMessageDogStay(b, cfg, v, varNum, firma, rubro);
 
   // Apertura: un dato real de su ficha.
   // Si no hay reseñas (pasa en modo real), no se menciona ninguna.
@@ -1496,6 +1631,93 @@ function buildMessage(b, seed) {
   return partes.join("\n\n");
 }
 
+/* ══ Mensajes de DogStay ══════════════════════
+   Dos propuestas distintas según el rubro:
+   · proveedor → que se sumen a la plataforma y reciban pedidos
+   · alianza   → que deriven a sus clientes y cobren comisión
+   En los dos casos se abre con un dato real de su ficha y una pregunta,
+   igual que en Nexa: la propuesta llega después. */
+function buildMessageDogStay(b, cfg, v, varNum, firma, rubro) {
+  const marca = settings.product.trim() || "DogStay";
+  const esProveedor = cfg.dog.objetivo === "proveedor";
+  const buenaFicha = b.rating >= 4.2 && b.reviews >= 20;
+
+  const aperturas = !(b.rating && b.reviews)
+    ? [
+        `Encontré ${b.name} buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
+        `Estaba buscando ${rubro} en ${b.ciudad} y llegué a ${b.name}.`,
+      ]
+    : buenaFicha
+      ? [
+          `Los encontré buscando ${rubro} en ${b.ciudad} y me llamó la atención su ficha: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas.`,
+          `Estaba buscando ${rubro} en ${b.ciudad} y ${b.name} aparece entre los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota el buen trabajo.`,
+          `Encontré la ficha de ${b.name} (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y quería hacerles una consulta.`,
+        ]
+      : [
+          `Los encontré buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
+          `Estaba buscando ${rubro} en ${b.ciudad} y llegué a ${b.name}: ${b.reviews} reseñas, se ve que tienen movimiento.`,
+          `Encontré la ficha de ${b.name} y quería consultarles algo.`,
+        ];
+
+  const preguntas = esProveedor
+    ? [
+        `Una consulta: ¿están tomando clientes nuevos en este momento?`,
+        `Una consulta: ¿tienen lugar para más clientes o están completos?`,
+        `¿Cómo consiguen clientes hoy? ¿Boca en boca, redes?`,
+      ]
+    : [
+        `Una consulta: ¿les pasa seguido que un cliente les pregunte ${cfg.dog.dolor}?`,
+        `¿Qué les responden a los clientes que preguntan ${cfg.dog.dolor}? ¿Tienen a alguien para recomendar?`,
+      ];
+
+  const puentes = esProveedor
+    ? [
+        `Le comento el motivo: trabajo en ${marca}, una plataforma donde los dueños buscan ${rubro} en su zona. ${cap(cfg.dog.valor)}.`,
+        `Le consulto porque en ${marca} conectamos dueños de mascotas con ${rubro} de confianza. ${cap(cfg.dog.valor)}.`,
+        `Le escribo desde ${marca}: ${cap(cfg.dog.valor)}. Ustedes deciden qué trabajos toman y en qué horarios.`,
+      ]
+    : [
+        `Le comento el motivo: trabajo en ${marca}, donde conectamos dueños de mascotas con cuidadores verificados. ${cap(cfg.dog.valor)}.`,
+        `Le consulto porque en ${marca} armamos alianzas con negocios como el suyo: ${cfg.dog.valor}.`,
+      ];
+
+  const cierres = esProveedor
+    ? [
+        `Si le interesa, le doy de alta el perfil y en unos minutos queda visible para los dueños de la zona. Sin costo de alta.`,
+        `¿Le interesaría que le cuente cómo funciona? Darse de alta no tiene costo, cobramos una comisión solo cuando trabajan.`,
+        `Si quiere, le mando el enlace para que vea la plataforma por dentro y decida con tranquilidad.`,
+      ]
+    : [
+        `¿Le interesaría que le cuente cómo funciona la alianza? Son dos minutos y no les suma trabajo.`,
+        `Si le interesa, le acerco el material para tener en el mostrador y coordinamos la comisión por derivación.`,
+        `Si quiere le explico cómo lo estamos haciendo con otros negocios de la zona. Sin ningún compromiso.`,
+      ];
+
+  const firmas = firma
+    ? [`Saludos cordiales,\n${firma} — ${marca}`, `Muchas gracias por su tiempo.\n${firma} — ${marca}`, `Quedo a disposición.\n${firma} — ${marca}`]
+    : [`Saludos cordiales,\n${marca}`, `Muchas gracias por su tiempo.\n${marca}`, `Quedo a disposición.\n${marca}`];
+
+  // Variante 0: apertura sola, sin propuesta
+  if (varNum % 3 === 0) {
+    const partes = [`${v(SALUDOS)} ${v(aperturas)}`, v(preguntas, 1)];
+    partes.push(firma ? `Saludos,\n${firma} — ${marca}` : `Saludos,\n${marca}`);
+    return partes.join("\n\n");
+  }
+
+  const partes = [
+    `${v(SALUDOS)} ${v(aperturas)}`,
+    v(preguntas, 1),
+    v(puentes, 2),
+    v(cierres, 1),
+  ];
+  if (settings.demo) partes.push(`Acá pueden verla: ${settings.demo}`);
+  if (settings.pd) partes.push(settings.pd);
+  partes.push(v(firmas, 2));
+  return partes.join("\n\n");
+}
+
+function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
+
 /* ══ Utilidades UI ════════════════════════════ */
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function scoreColor(s) { return s >= 70 ? "var(--good)" : s >= 45 ? "var(--warning)" : "var(--serious)"; }
@@ -1510,18 +1732,30 @@ function signalPills(b, max = 99) {
   if (b.citaTelefono) p.push(`<span class="pill pill-info"><span class="dot"></span>Turnos por teléfono</span>`);
   if (!b.respondeResenas) p.push(`<span class="pill pill-warning"><span class="dot"></span>No responde reseñas</span>`);
   if (b.horarioGap) p.push(`<span class="pill pill-warning"><span class="dot"></span>Horas sin atención</span>`);
-  if (b.real && !b.phone) p.push(`<span class="pill pill-warning"><span class="dot"></span>Sin teléfono</span>`);
+  if ((b.real || b.importado) && !b.phone) p.push(`<span class="pill pill-warning"><span class="dot"></span>Sin teléfono</span>`);
+  if (b.importado) p.push(`<span class="pill pill-neutral"><span class="dot"></span>De tu lista</span>`);
   if (b.web === "si") p.push(`<span class="pill pill-neutral"><span class="dot"></span>Tiene web</span>`);
   if (b.web === "conchat") p.push(`<span class="pill pill-good"><span class="dot"></span>Ya tiene chat</span>`);
   return p.slice(0, max).join("");
 }
 
 /* ══ Selector de rubros agrupado ══════════════ */
-(function fillNichos() {
+function fillNichos() {
   const sel = document.getElementById("nicho");
+  const previo = sel.value;
+  sel.innerHTML = "";
+  const permitidos = perfilActual().rubros;
+  const entradas = permitidos
+    ? permitidos.filter(k => NICHOS[k]).map(k => [k, NICHOS[k]])
+    : Object.entries(NICHOS);
+
   const groups = {};
-  for (const [key, cfg] of Object.entries(NICHOS)) {
-    (groups[cfg.g] ||= []).push([key, cfg.label]);
+  for (const [key, cfg] of entradas) {
+    // En DogStay el agrupador útil es qué se le propone, no el rubro
+    const g = esDogStay() && cfg.dog
+      ? (cfg.dog.objetivo === "proveedor" ? "Se suman a la plataforma" : "Alianzas y derivaciones")
+      : cfg.g;
+    (groups[g] ||= []).push([key, cfg.label]);
   }
   for (const [g, items] of Object.entries(groups)) {
     const og = document.createElement("optgroup");
@@ -1533,7 +1767,23 @@ function signalPills(b, max = 99) {
     }
     sel.appendChild(og);
   }
-})();
+  if (previo && sel.querySelector(`option[value="${previo}"]`)) sel.value = previo;
+}
+fillNichos();
+
+/* Cambiar de perfil reconfigura la app entera */
+function applyPerfil() {
+  const p = perfilActual();
+  fillNichos();
+  document.getElementById("perfilSel").value = settings.perfil || "nexa";
+  if (document.getElementById("view-panel").classList.contains("on")) {
+    document.getElementById("viewSub").textContent = p.sub;
+  }
+  VIEW_META.panel[1] = p.sub;
+  document.getElementById("searchHint").textContent = esDogStay()
+    ? "Huntly busca en Google Maps a quién le podés proponer sumarse a la plataforma o armar una alianza, y deja un mensaje listo para cada uno."
+    : "Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.";
+}
 
 /* ══ Búsqueda / escaneo ═══════════════════════ */
 const SCAN_STEPS = [
@@ -1635,7 +1885,8 @@ function renderResults() {
   const meta = document.getElementById("resultsMeta");
 
   if (!lastQuery) { table.style.display = "none"; empty.style.display = "block"; return; }
-  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} negocios${lastQuery.real ? " · datos de Google" : " · datos de demo"}`;
+  const fuenteTxt = lastQuery.importado ? " · lista propia" : lastQuery.real ? " · datos de Google" : " · datos de demo";
+  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} negocios${fuenteTxt}`;
 
   if (!list.length) {
     table.style.display = "none";
@@ -1661,7 +1912,7 @@ function renderResults() {
           : `<div class="rev-count">Sin reseñas</div>`}
       </td>
       <td><div class="pills">${signalPills(b, 3)}</div></td>
-      <td><span class="chip-uso">${esc(b.uso)}</span></td>
+      <td><span class="chip-uso">${esc(usoDe(b))}</span></td>
       <td>
         <div class="score">
           <span class="score-num">${b.score}</span>
@@ -1691,7 +1942,8 @@ function hbar(label, value, max, suffix = "", color = "var(--brand)") {
 
 function renderSearchCharts() {
   const wrap = document.getElementById("searchCharts");
-  if (!results.length) { wrap.style.display = "none"; return; }
+  // Con listas importadas no hay señales que graficar: no se inventan
+  if (!results.length || lastQuery?.importado) { wrap.style.display = "none"; return; }
   wrap.style.display = "grid";
   const n = results.length;
   const pct = x => Math.round(x / n * 100);
@@ -1783,7 +2035,7 @@ function renderLeads() {
   body.innerHTML = list.map(l => `<tr>
     <td>
       <div class="biz-name">${esc(l.name)}</div>
-      <div class="biz-cat">${esc(l.nichoLabel)} · ${esc(l.uso || "")}</div>
+      <div class="biz-cat">${esc(l.nichoLabel)} · ${esc(usoDe(l))}</div>
     </td>
     <td>${esc(l.ciudad)}</td>
     <td class="phone">${esc(l.phone)}</td>
@@ -1879,7 +2131,7 @@ window.openMsg = function (id) {
   document.getElementById("mSub").innerHTML = esc(subParts.join(" · ")) +
     (b.maps ? ` · <a href="${esc(b.maps)}" target="_blank" rel="noopener" style="color:var(--brand)">Ver en Google Maps</a>` : "");
   document.getElementById("mDesc").textContent = bizDescription(b);
-  document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(b.uso || "")}</span>`;
+  document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(usoDe(b))}</span>`;
   document.getElementById("mConsultas").textContent = `~${b.consultas ?? "—"}`;
   document.getElementById("mPerdidas").textContent = `~${b.perdidas ?? "—"}`;
   document.getElementById("mHorario").textContent = b.horario || "—";
@@ -2449,6 +2701,114 @@ document.getElementById("saveSettings").addEventListener("click", () => {
     ? "Guardado, pero falta la clave de Google para usar negocios reales"
     : "Ajustes guardados");
 });
+
+/* ══ Importar lista propia ════════════════════
+   Para trabajar sin depender de ninguna API: se pega la lista y la app
+   arma las fichas y los mensajes. Lo que no venga en la lista queda
+   vacío y no se inventa ni se afirma en el mensaje. */
+const importBack = document.getElementById("importBack");
+
+document.getElementById("openImport").addEventListener("click", () => {
+  const sel = document.getElementById("impNicho");
+  sel.innerHTML = document.getElementById("nicho").innerHTML;
+  sel.value = document.getElementById("nicho").value;
+  document.getElementById("impCiudad").value = document.getElementById("ciudad").value.trim();
+  importBack.classList.add("on");
+  document.getElementById("impText").focus();
+});
+function closeImport() { importBack.classList.remove("on"); }
+document.getElementById("impClose").addEventListener("click", closeImport);
+document.getElementById("impCancel").addEventListener("click", closeImport);
+importBack.addEventListener("click", e => { if (e.target === importBack) closeImport(); });
+
+function parseImport(texto, nichoKey, ciudad) {
+  const cfg = NICHOS[nichoKey];
+  const seq = Date.now();
+  const out = [];
+  texto.split(/\r?\n/).forEach((linea, i) => {
+    const t = linea.trim();
+    if (!t) return;
+    const campos = t.split(/[\t;,]/).map(x => x.trim()).filter(Boolean);
+    if (!campos.length) return;
+
+    // El teléfono es el campo con más dígitos; el nombre, el primero que no lo sea
+    let idxTel = -1, maxD = 0;
+    campos.forEach((c, j) => {
+      const d = (c.match(/\d/g) || []).length;
+      if (d >= 8 && d > maxD) { maxD = d; idxTel = j; }
+    });
+    const phone = idxTel >= 0 ? campos[idxTel] : "";
+    const name = campos.find((c, j) => j !== idxTel && /[a-zá-úñ]/i.test(c)) || `Contacto ${i + 1}`;
+
+    const numeros = campos.filter((c, j) => j !== idxTel && /^[\d.,]+$/.test(c)).map(x => Number(x.replace(",", ".")));
+    const rating = numeros.find(n => n > 0 && n <= 5) || 0;
+    const reviews = numeros.find(n => Number.isInteger(n) && n > 5) || 0;
+
+    const consultas = reviews ? Math.max(5, Math.round(reviews * (cfg?.factor || 1.5) / 3)) : 0;
+    const perdidas = consultas ? Math.max(2, Math.round(consultas * 0.22)) : 0;
+    let score = 55 + (phone ? 10 : -25) + Math.min(20, Math.round(reviews / 14));
+    if (rating) score += Math.round(Math.max(0, rating - 3.2) * 6);
+    score = Math.max(5, Math.min(99, score));
+
+    out.push({
+      id: `imp-${seq}-${i}`,
+      name, nicho: nichoKey, nichoLabel: cfg?.label || nichoKey, grupo: cfg?.g || "",
+      ciudad, address: "", rating, reviews, phone,
+      web: "desconocida", respondeResenas: true, citaTelefono: false,
+      horario: "", horarioGap: false,
+      consultas, perdidas, score,
+      uso: cfg?.uso || "", descIdx: 0, msgSeed: rnd(1000),
+      importado: true,
+    });
+  });
+  return out;
+}
+
+document.getElementById("impDo").addEventListener("click", () => {
+  const texto = document.getElementById("impText").value;
+  const nichoKey = document.getElementById("impNicho").value;
+  const ciudad = document.getElementById("impCiudad").value.trim() || "tu zona";
+  if (!texto.trim()) { toast("Pegá al menos un contacto"); return; }
+
+  const lista = parseImport(texto, nichoKey, ciudad);
+  if (!lista.length) { toast("No se pudo leer ningún contacto de esa lista"); return; }
+  const sinTel = lista.filter(b => !waDigits(b.phone)).length;
+
+  results = lista;
+  lastQuery = { nicho: nichoKey, ciudad, label: NICHOS[nichoKey].label, importado: true };
+  save(LS.last, { query: lastQuery, results });
+  history.unshift({
+    fecha: new Date().toISOString(),
+    nicho: NICHOS[nichoKey].label + " (importados)", ciudad,
+    total: results.length,
+    altas: results.filter(b => b.score >= 70).length,
+    perdidas: results.reduce((a, b) => a + b.perdidas, 0),
+  });
+  history = history.slice(0, 20);
+  save(LS.history, history);
+  closeImport();
+  renderAll();
+  toast(sinTel
+    ? `${lista.length} contactos importados (${sinTel} sin teléfono válido)`
+    : `${lista.length} contactos importados`);
+});
+
+/* ══ Selector de campaña ══════════════════════ */
+document.getElementById("perfilSel").addEventListener("change", (e) => {
+  settings.perfil = e.target.value;
+  save(LS.settings, settings);
+  // Los resultados y la cola son de la campaña anterior: se limpian
+  results = [];
+  lastQuery = null;
+  campQueue = [];
+  save(LS.last, null);
+  document.getElementById("campRun").style.display = "none";
+  document.getElementById("campEmpty").style.display = "none";
+  applyPerfil();
+  renderAll();
+  toast(`Campaña activa: ${perfilActual().corto}. Hacé una búsqueda para empezar.`);
+});
+applyPerfil();
 
 /* ══ Ajustes de la API de WhatsApp ════════════ */
 document.getElementById("waPhoneId").value = wa.phoneId;
