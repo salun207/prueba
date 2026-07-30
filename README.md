@@ -30,14 +30,30 @@ la campaña anterior. Los leads guardados se mantienen.
 
 ## Fuentes de contactos
 
-Tres, y se pueden combinar:
+Tres, y se eligen en Ajustes:
 
-1. **Demo** — negocios ficticios generados en el navegador.
-2. **Google Places** — negocios reales (requiere clave, ver más abajo).
+1. **OpenStreetMap** (por defecto) — negocios reales, **sin clave ni
+   tarjeta**. Nominatim resuelve la ciudad y Overpass devuelve los
+   negocios del rubro con nombre, teléfono, dirección, sitio web y
+   horario. No trae reseñas ni valoraciones, así que esos datos no se
+   muestran y los mensajes se adaptan solos.
+2. **Google Places** — negocios reales con reseñas y valoraciones.
+   Requiere clave de Google Cloud con tarjeta asociada (ver más abajo).
 3. **Importar mi propia lista** — se pega la lista (`nombre, teléfono` y,
    opcionalmente, `valoración, reseñas`; acepta comas, punto y coma o
    tabulaciones, así que se puede pegar desde una planilla) y la app arma
    las fichas y los mensajes. No necesita ninguna API.
+
+Los datos de demostración **no permiten enviar mensajes**: los teléfonos
+son inventados y podrían pertenecer a cualquier persona, así que el envío
+queda bloqueado hasta que la fuente sea real o importada.
+
+Algunos rubros no existen en OpenStreetMap porque son oficios sin local
+fijo (paseadores de perros, cuidadores de mascotas). En esos casos la app
+lo avisa y conviene usar Google Places o una lista propia.
+
+> Datos de OpenStreetMap © colaboradores de OpenStreetMap, bajo licencia
+> ODbL.
 
 ## Funcionalidades
 

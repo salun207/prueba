@@ -435,7 +435,7 @@
 
       <div class="card search-card">
         <h2>Nueva búsqueda</h2>
-        <p class="hint" id="searchHint">Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.</p>
+        <p class="hint" id="searchHint">Huntly busca negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.</p>
         <form class="search-form" id="searchForm">
           <div class="field">
             <label for="nicho">Rubro</label>
@@ -471,7 +471,7 @@
           <div class="t-value" id="statHot">0</div>
           <div class="t-foot">puntuación 70 o más</div>
         </div>
-        <div class="card tile">
+        <div class="card tile" id="tileLost">
           <div class="t-label">Consultas perdidas</div>
           <div class="t-value" id="statLost">0</div>
           <div class="t-foot">estimadas por mes, en total</div>
@@ -851,14 +851,15 @@
       </div>
 
       <div class="card settings-card" style="margin-top:14px">
-        <h3>Negocios reales (Google Places)</h3>
-        <p class="hint">Con una clave de Google, «Buscar negocios» trae negocios reales de Google Maps: nombre, teléfono, reseñas, web y horario. La clave queda guardada solo en tu navegador. En modo real no se inventa nada: lo que no se sabe, no se afirma en la ficha ni en el mensaje.</p>
+        <h3>De dónde salen los negocios</h3>
+        <p class="hint"><strong>OpenStreetMap</strong> viene elegido por defecto y funciona sin configurar nada: son negocios reales, con teléfono y dirección, y no pide clave ni tarjeta. No trae reseñas ni puntuaciones, así que esos datos no aparecen (y los mensajes se adaptan). <strong>Google Places</strong> agrega reseñas y valoraciones, pero necesita una clave con tarjeta asociada. En cualquiera de las dos, lo que no se sabe no se afirma ni en la ficha ni en el mensaje.</p>
         <div class="settings-grid">
           <div class="field">
             <label for="mySource">Fuente de datos</label>
             <select id="mySource">
-              <option value="demo">Demo (datos simulados)</option>
-              <option value="places">Google Places (negocios reales)</option>
+              <option value="osm">OpenStreetMap — negocios reales, sin clave</option>
+              <option value="places">Google Places — negocios reales, con clave</option>
+              <option value="demo">Demo — datos inventados, solo para probar</option>
             </select>
           </div>
           <div class="field">
@@ -866,12 +867,14 @@
             <input id="myGkey" type="password" placeholder="AIza…" autocomplete="off">
           </div>
         </div>
-        <ol class="hint" style="margin:14px 0 0 18px">
+        <p class="hint" style="margin-top:14px"><strong>Solo si elegís Google Places:</strong></p>
+        <ol class="hint" style="margin:6px 0 0 18px">
           <li>Entrá a <strong>console.cloud.google.com</strong> y creá un proyecto.</li>
           <li>En «APIs y servicios», habilitá <strong>Places API (New)</strong>.</li>
           <li>En «Credenciales», creá una <strong>clave de API</strong> y pegala acá.</li>
           <li>Elegí «Google Places» como fuente y guardá.</li>
         </ol>
+        <p class="hint" style="margin-top:14px">Datos de OpenStreetMap © colaboradores de OpenStreetMap, bajo licencia ODbL.</p>
         <p class="hint" style="margin-top:10px">Tené en cuenta: Google pide tarjeta y cobra por uso pasada la capa gratuita mensual. Y la vista previa de claude.ai bloquea conexiones externas, así que para usar datos reales abrí el archivo <strong>index.html</strong> descargado en tu navegador.</p>
       </div>
 
@@ -1029,7 +1032,7 @@ let leads = load(LS.leads, []);
 let searchesUsed = load(LS.searches, 0);
 let history = load(LS.history, []);
 let settings = Object.assign(
-  { name: "", product: "", demo: "", price: 49, pd: "", source: "demo", gkey: "", perfil: "nexa" },
+  { name: "", product: "", demo: "", price: 49, pd: "", source: "osm", gkey: "", perfil: "nexa" },
   load(LS.settings, {})
 );
 let wa = Object.assign(
@@ -1416,6 +1419,138 @@ function genBusinesses(nichoKey, ciudad) {
   return out;
 }
 
+/* ══ Negocios reales: OpenStreetMap ═══════════
+   Datos abiertos, sin clave ni tarjeta. Nominatim resuelve la ciudad a
+   un rectángulo y Overpass devuelve los negocios de ese rubro dentro.
+   OSM no tiene reseñas ni puntuaciones: eso no se inventa, simplemente
+   no aparece (y los mensajes ya se adaptan cuando no hay ficha). */
+const OSM_TAGS = {
+  "clinica-dental": ['["amenity"="dentist"]', '["healthcare"="dentist"]'],
+  "clinica-estetica": ['["shop"="beauty"]'],
+  "kinesiologia": ['["healthcare"="physiotherapist"]'],
+  "veterinaria": ['["amenity"="veterinary"]'],
+  "podologia": ['["healthcare"="podiatrist"]'],
+  "psicologia": ['["healthcare"="psychotherapist"]'],
+  "oftalmologia": ['["shop"="optician"]'],
+  "nutricion": ['["healthcare"="nutrition_counselling"]'],
+  "peluqueria": ['["shop"="hairdresser"]'],
+  "barberia": ['["shop"="hairdresser"]'],
+  "centro-unas": ['["shop"="beauty"]["beauty"="nails"]'],
+  "spa": ['["leisure"="spa"]', '["shop"="massage"]'],
+  "restaurante": ['["amenity"="restaurant"]'],
+  "cafeteria": ['["amenity"="cafe"]'],
+  "pizzeria": ['["amenity"="restaurant"]["cuisine"~"pizza"]', '["amenity"="fast_food"]["cuisine"~"pizza"]'],
+  "catering": ['["craft"="caterer"]'],
+  "gimnasio": ['["leisure"="fitness_centre"]'],
+  "yoga-pilates": ['["leisure"="fitness_centre"]["sport"~"yoga|pilates"]'],
+  "plomeria": ['["craft"="plumber"]'],
+  "electricista": ['["craft"="electrician"]'],
+  "cerrajeria": ['["craft"="locksmith"]', '["shop"="locksmith"]'],
+  "reformas": ['["craft"="builder"]'],
+  "limpieza": ['["shop"="dry_cleaning"]', '["shop"="laundry"]'],
+  "taller": ['["shop"="car_repair"]'],
+  "escuela-manejo": ['["amenity"="driving_school"]'],
+  "estudio-juridico": ['["office"="lawyer"]'],
+  "estudio-contable": ['["office"="accountant"]'],
+  "inmobiliaria": ['["office"="estate_agent"]'],
+  "instituto": ['["amenity"="language_school"]', '["office"="educational_institution"]'],
+  "fotografo": ['["shop"="photo"]', '["craft"="photographer"]'],
+  "agencia-viajes": ['["shop"="travel_agency"]'],
+  "guarderia-canina": ['["amenity"="animal_boarding"]'],
+  "peluqueria-canina": ['["shop"="pet_grooming"]'],
+  "petshop": ['["shop"="pet"]'],
+  "adiestrador": ['["amenity"="animal_training"]'],
+  // Sin equivalente en OSM: son oficios sin local, no se mapean
+  "paseador": null,
+  "cuidador-mascotas": null,
+};
+
+async function geocodeCiudad(ciudad) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=${encodeURIComponent(ciudad)}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`no se pudo ubicar «${ciudad}»`);
+  const data = await res.json();
+  if (!data.length) throw new Error(`no se encontró la ciudad «${ciudad}»`);
+  const bb = data[0].boundingbox.map(Number); // [sur, norte, oeste, este]
+  return { sur: bb[0], norte: bb[1], oeste: bb[2], este: bb[3], nombre: data[0].display_name };
+}
+
+async function fetchOSM(nichoKey, ciudad) {
+  const cfg = NICHOS[nichoKey];
+  const tags = OSM_TAGS[nichoKey];
+  if (!tags) {
+    throw new Error(`OpenStreetMap no cataloga «${cfg.label}» (son oficios sin local fijo). Probá otro rubro o importá tu propia lista.`);
+  }
+
+  const bb = await geocodeCiudad(ciudad);
+  const box = `${bb.sur},${bb.oeste},${bb.norte},${bb.este}`;
+  const cuerpo = tags.map(t => `nwr${t}(${box});`).join("");
+  const query = `[out:json][timeout:40];(${cuerpo});out center 120;`;
+
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "data=" + encodeURIComponent(query),
+  });
+  if (!res.ok) throw new Error(`Overpass respondió ${res.status}. Suele ser saturación: probá de nuevo en un minuto.`);
+  const data = await res.json();
+
+  const seq = Date.now();
+  const vistos = new Set();
+  const out = [];
+  (data.elements || []).forEach((el, i) => {
+    const t = el.tags || {};
+    const name = t.name || t["operator"] || "";
+    if (!name || vistos.has(name.toLowerCase())) return;
+    vistos.add(name.toLowerCase());
+
+    const phone = t.phone || t["contact:phone"] || t["contact:mobile"] || t.mobile || "";
+    const webUri = t.website || t["contact:website"] || "";
+    const horario = t.opening_hours || "";
+    const calle = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
+
+    const web = webUri ? "si" : "no";
+    // Horario 24/7 explícito o vacío no cuenta como hueco de atención
+    const horarioGap = horario ? !/24\/7/.test(horario) : false;
+    const citaTelefono = cfg.cita && web === "no" && Boolean(phone);
+
+    // Sin reseñas no hay volumen que estimar: se deja en cero y no se muestra
+    let score = 40;
+    if (web === "no") score += 25;
+    if (phone) score += 15; else score -= 20;
+    if (citaTelefono) score += 10;
+    if (horarioGap) score += 6;
+    if (calle) score += 4;
+    score = Math.max(5, Math.min(99, score));
+
+    out.push({
+      id: `osm-${el.type}-${el.id || seq + "-" + i}`,
+      name, nicho: nichoKey, nichoLabel: cfg.label, grupo: cfg.g, ciudad,
+      address: calle,
+      rating: 0, reviews: 0, phone,
+      web, respondeResenas: true, citaTelefono,
+      horario, horarioGap,
+      consultas: 0, perdidas: 0, score,
+      uso: cfg.uso,
+      descIdx: 0,
+      msgSeed: rnd(1000),
+      maps: (el.lat || el.center?.lat)
+        ? `https://www.openstreetmap.org/?mlat=${el.lat || el.center.lat}&mlon=${el.lon || el.center.lon}#map=19/${el.lat || el.center.lat}/${el.lon || el.center.lon}`
+        : "",
+      webUri,
+      real: true,
+      fuente: "osm",
+    });
+  });
+
+  if (!out.length) {
+    throw new Error(`No hay ${cfg.label.toLowerCase()} cargados en OpenStreetMap para ${ciudad}. Probá otra ciudad o rubro.`);
+  }
+  // Primero los que tienen teléfono: son los únicos contactables
+  out.sort((a, b) => (b.phone ? 1 : 0) - (a.phone ? 1 : 0) || b.score - a.score);
+  return out;
+}
+
 /* ══ Negocios reales: Google Places API (New) ═ */
 /* Se llama directo desde el navegador con la clave del usuario.
    Regla del modo real: lo que la API no informa, no se afirma
@@ -1543,23 +1678,25 @@ function buildMessage(b, seed) {
   // Apertura: un dato real de su ficha.
   // Si no hay reseñas (pasa en modo real), no se menciona ninguna.
   const buenaFicha = b.rating >= 4.2 && b.reviews >= 20;
+  // Solo se nombra Google Maps si el dato salió realmente de ahí
+  const enMaps = b.fuente === "osm" || b.importado ? "" : " en Google Maps";
   const aperturas = !(b.rating && b.reviews)
     ? [
-        `Encontré ${b.name} en Google Maps buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
-        `Estaba buscando ${rubro} en ${b.ciudad} y llegué a la ficha de ${b.name}.`,
+        `Encontré ${b.name}${enMaps} buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
+        `Estaba buscando ${rubro} en ${b.ciudad} y llegué a ${b.name}.`,
       ]
     : buenaFicha
       ? [
-          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y me llamó la atención su ficha: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas.`,
+          `Los encontré${enMaps} buscando ${rubro} en ${b.ciudad} y me llamó la atención su ficha: ${b.rating.toFixed(1)}★ con ${b.reviews} reseñas.`,
           `Estaba buscando ${rubro} en ${b.ciudad} y ${b.name} aparece entre los primeros: ${b.rating.toFixed(1)}★ y ${b.reviews} reseñas, se nota el buen trabajo.`,
-          `Encontré la ficha de ${b.name} en Google Maps (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y quería hacerles una consulta breve.`,
+          `Encontré la ficha de ${b.name}${enMaps} (${b.rating.toFixed(1)}★, ${b.reviews} reseñas) y quería hacerles una consulta breve.`,
         ]
       // Ficha floja: se menciona el movimiento, nunca la nota — un elogio
       // que no se sostiene se nota enseguida y arruina el mensaje.
       : [
-          `Los encontré en Google Maps buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
+          `Los encontré${enMaps} buscando ${rubro} en ${b.ciudad} y quería hacerles una consulta breve.`,
           `Estaba buscando ${rubro} en ${b.ciudad} y llegué a ${b.name}: ${b.reviews} reseñas, se ve que tienen movimiento.`,
-          `Encontré la ficha de ${b.name} en Google Maps y quería consultarles algo.`,
+          `Encontré la ficha de ${b.name}${enMaps} y quería consultarles algo.`,
         ];
 
   // Cada rubro agenda algo distinto: turnos, reservas, consultas…
@@ -1794,8 +1931,8 @@ function applyPerfil() {
   }
   VIEW_META.panel[1] = p.sub;
   document.getElementById("searchHint").textContent = esDogStay()
-    ? "Huntly busca en Google Maps a quién le podés proponer sumarse a la plataforma o armar una alianza, y deja un mensaje listo para cada uno."
-    : "Huntly escanea Google Maps, detecta negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.";
+    ? "Huntly busca a quién le podés proponer sumarse a la plataforma o armar una alianza, y deja un mensaje listo para cada uno."
+    : "Huntly busca negocios que pierden consultas (sin web, sin chat, turnos solo por teléfono…) y te deja un mensaje de WhatsApp listo para cada uno.";
 }
 
 /* ══ Búsqueda / escaneo ═══════════════════════ */
@@ -1814,9 +1951,10 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
   const ciudad = document.getElementById("ciudad").value.trim();
   if (!ciudad) return;
 
-  const usarPlaces = settings.source === "places";
-  if (usarPlaces && !settings.gkey) {
-    toast("Cargá tu clave de Google Places en Ajustes, o volvé a la fuente Demo");
+  const fuente = settings.source || "osm";
+  const esReal = fuente === "places" || fuente === "osm";
+  if (fuente === "places" && !settings.gkey) {
+    toast("Cargá tu clave de Google Places en Ajustes, o usá OpenStreetMap que no necesita clave");
     return;
   }
 
@@ -1828,15 +1966,17 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
   box.classList.add("on");
   bar.style.width = "4%";
 
-  // En modo real la consulta a Google arranca ya; la animación acompaña.
-  const dataPromise = usarPlaces ? fetchPlaces(nicho, ciudad) : Promise.resolve(null);
+  // En modo real la consulta arranca ya; la animación acompaña.
+  const dataPromise = fuente === "places" ? fetchPlaces(nicho, ciudad)
+    : fuente === "osm" ? fetchOSM(nicho, ciudad)
+    : Promise.resolve(null);
   dataPromise.catch(() => {}); // el error se maneja al final
 
   const finish = (lista) => {
     box.classList.remove("on");
     btn.disabled = false;
     results = lista;
-    lastQuery = { nicho, ciudad, label: NICHOS[nicho].label, real: usarPlaces };
+    lastQuery = { nicho, ciudad, label: NICHOS[nicho].label, real: esReal, fuente };
     searchesUsed++;
     save(LS.searches, searchesUsed);
     save(LS.last, { query: lastQuery, results });
@@ -1850,7 +1990,7 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
     history = history.slice(0, 20);
     save(LS.history, history);
     renderAll();
-    toast(usarPlaces
+    toast(esReal
       ? `Listo: ${results.length} negocios reales encontrados en ${ciudad}`
       : `Listo: ${results.length} negocios analizados en ${ciudad}`);
   };
@@ -1870,11 +2010,12 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
           .catch(err => {
             box.classList.remove("on");
             btn.disabled = false;
-            toast(`No se pudo buscar en Google: ${err.message}`);
+            const donde = fuente === "osm" ? "OpenStreetMap" : "Google";
+            toast(`${err.message.length > 60 ? "" : `No se pudo buscar en ${donde}: `}${err.message}`);
           });
       }, 350);
     }
-  }, usarPlaces ? 300 : 420);
+  }, esReal ? 260 : 420);
 });
 
 /* ══ Render: panel ════════════════════════════ */
@@ -1900,6 +2041,7 @@ function renderResults() {
   if (!lastQuery) { table.style.display = "none"; empty.style.display = "block"; return; }
   meta.innerHTML = `${esc(lastQuery.label)} en ${esc(lastQuery.ciudad)} · ${list.length} negocios · ` + (
     lastQuery.importado ? `lista propia`
+    : lastQuery.fuente === "osm" ? `datos reales de OpenStreetMap`
     : lastQuery.real ? `datos reales de Google`
     : `<strong style="color:var(--critical)">negocios inventados (demo)</strong>`);
 
@@ -1963,7 +2105,15 @@ function renderSearchCharts() {
   const n = results.length;
   const pct = x => Math.round(x / n * 100);
 
-  const señales = lastQuery?.real
+  const señales = lastQuery?.fuente === "osm"
+    ? [
+        ["Sin sitio web", pct(results.filter(b => b.web === "no").length)],
+        ["Tiene sitio web", pct(results.filter(b => b.web === "si").length)],
+        ["Con teléfono", pct(results.filter(b => b.phone).length)],
+        ["Horas sin atención", pct(results.filter(b => b.horarioGap).length)],
+        ["Sin teléfono publicado", pct(results.filter(b => !b.phone).length)],
+      ]
+    : lastQuery?.real
     ? [
         ["Sin web", pct(results.filter(b => b.web === "no").length)],
         ["Tiene web", pct(results.filter(b => b.web === "si").length)],
@@ -1992,6 +2142,9 @@ function renderSearchCharts() {
 }
 
 function renderStats() {
+  // OSM no trae reseñas, así que no hay volumen que estimar
+  const sinVolumen = lastQuery?.fuente === "osm" || lastQuery?.importado;
+  document.getElementById("tileLost").style.display = sinVolumen ? "none" : "";
   const lost = results.reduce((a, b) => a + b.perdidas, 0);
   const hot = results.filter(b => b.score >= 70).length;
   document.getElementById("statScanned").textContent = results.length;
@@ -2144,7 +2297,7 @@ window.openMsg = function (id) {
   const ficha = b.rating ? `${b.rating.toFixed(1)}★ (${b.reviews} reseñas)` : "sin reseñas";
   const subParts = [b.nichoLabel, `${b.address}, ${b.ciudad}`, ficha, b.phone || "sin teléfono"];
   document.getElementById("mSub").innerHTML = esc(subParts.join(" · ")) +
-    (b.maps ? ` · <a href="${esc(b.maps)}" target="_blank" rel="noopener" style="color:var(--brand)">Ver en Google Maps</a>` : "");
+    (b.maps ? ` · <a href="${esc(b.maps)}" target="_blank" rel="noopener" style="color:var(--brand)">Ver en ${b.fuente === "osm" ? "OpenStreetMap" : "Google Maps"}</a>` : "");
   document.getElementById("mDesc").textContent = bizDescription(b);
   document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(usoDe(b))}</span>` +
     (!b.real && !b.importado ? ` <span class="pill pill-critical"><span class="dot"></span>Negocio inventado (demo)</span>` : "");
@@ -2309,7 +2462,7 @@ function waPreview(biz) {
 }
 
 const WA_TEMPLATE_TEXT =
-`Buenos días. Encontré {{1}} en Google Maps buscando {{2}} en {{3}} y quería hacerles una consulta breve.
+`Buenos días. Encontré {{1}} buscando {{2}} en {{3}} y quería hacerles una consulta breve.
 
 Desarrollo asistentes de WhatsApp para este rubro: {{4}}, las 24 horas, sin ocupar a nadie del equipo.
 
