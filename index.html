@@ -645,6 +645,19 @@
         <p class="camp-hintline" id="campPreview">—</p>
       </div>
 
+      <div class="card" id="campDemoWarn" style="display:none;border-color:var(--critical);margin-bottom:20px">
+        <div style="padding:18px 22px;display:flex;gap:12px;align-items:flex-start">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--critical)" stroke-width="2" stroke-linecap="round" style="width:22px;height:22px;flex-shrink:0;margin-top:1px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+          <div>
+            <div style="font-weight:700;margin-bottom:4px">Estos negocios son inventados</div>
+            <p style="font-size:13px;color:var(--ink-2);line-height:1.55">
+              Son datos de demostración generados en tu navegador. Los teléfonos no corresponden a estos negocios y podrían pertenecer a cualquier persona, así que el envío está bloqueado.
+              Para trabajar con negocios reales, configurá <strong>Google Places</strong> en Ajustes o usá <strong>Importar mi propia lista</strong> en el panel.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Paso 2: enviar -->
       <div id="campRun" style="display:none">
         <div class="card camp-stage">
@@ -1885,8 +1898,10 @@ function renderResults() {
   const meta = document.getElementById("resultsMeta");
 
   if (!lastQuery) { table.style.display = "none"; empty.style.display = "block"; return; }
-  const fuenteTxt = lastQuery.importado ? " · lista propia" : lastQuery.real ? " · datos de Google" : " · datos de demo";
-  meta.textContent = `${lastQuery.label} en ${lastQuery.ciudad} · ${list.length} negocios${fuenteTxt}`;
+  meta.innerHTML = `${esc(lastQuery.label)} en ${esc(lastQuery.ciudad)} · ${list.length} negocios · ` + (
+    lastQuery.importado ? `lista propia`
+    : lastQuery.real ? `datos reales de Google`
+    : `<strong style="color:var(--critical)">negocios inventados (demo)</strong>`);
 
   if (!list.length) {
     table.style.display = "none";
@@ -2131,7 +2146,8 @@ window.openMsg = function (id) {
   document.getElementById("mSub").innerHTML = esc(subParts.join(" · ")) +
     (b.maps ? ` · <a href="${esc(b.maps)}" target="_blank" rel="noopener" style="color:var(--brand)">Ver en Google Maps</a>` : "");
   document.getElementById("mDesc").textContent = bizDescription(b);
-  document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(usoDe(b))}</span>`;
+  document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(usoDe(b))}</span>` +
+    (!b.real && !b.importado ? ` <span class="pill pill-critical"><span class="dot"></span>Negocio inventado (demo)</span>` : "");
   document.getElementById("mConsultas").textContent = `~${b.consultas ?? "—"}`;
   document.getElementById("mPerdidas").textContent = `~${b.perdidas ?? "—"}`;
   document.getElementById("mHorario").textContent = b.horario || "—";
@@ -2186,6 +2202,7 @@ document.getElementById("mCopy").addEventListener("click", async () => {
 
 document.getElementById("mWhatsapp").addEventListener("click", () => {
   if (!modalBiz) return;
+  if (!modalBiz.real && !modalBiz.importado) { bloquearSiDemo(); return; }
   const digits = waDigits(modalBiz.phone);
   if (!digits) { toast("Este negocio no tiene teléfono publicado: copiá el mensaje y mandalo por otro canal"); return; }
   const text = document.getElementById("mMsg").value;
@@ -2418,6 +2435,17 @@ function buildCampaign() {
   toast(`Cola lista: ${campQueue.length} mensajes personalizados`);
 }
 
+/* Los datos de demo son inventados: los teléfonos podrían ser de
+   cualquier persona, así que nunca se envían mensajes con esa fuente. */
+function datosEnviables() {
+  return Boolean(lastQuery && (lastQuery.real || lastQuery.importado));
+}
+function bloquearSiDemo() {
+  if (datosEnviables()) return false;
+  toast("Los negocios de demo son inventados: configurá Google Places o importá tu lista antes de enviar");
+  return true;
+}
+
 function campSentCount() { return campQueue.filter(q => q.state === "sent").length; }
 function campPendCount() { return campQueue.filter(q => q.state === "pend").length; }
 
@@ -2447,6 +2475,14 @@ function renderCampaign() {
     document.getElementById("campBizPills").innerHTML = signalPills(b, 3);
     document.getElementById("campMsg").value = cur.msg;
   }
+
+  // Aviso de datos de demo: bloquea todo envío
+  const demo = campQueue.length && !datosEnviables();
+  document.getElementById("campDemoWarn").style.display = demo ? "block" : "none";
+  ["campSend", "campAutoBtn"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = Boolean(demo); el.style.opacity = demo ? ".5" : ""; el.style.cursor = demo ? "not-allowed" : ""; }
+  });
 
   // Bloque de envío automático: solo si la API está configurada
   const autoWrap = document.getElementById("campAutoWrap");
@@ -2536,6 +2572,7 @@ document.getElementById("goCampaign").addEventListener("click", () => {
 document.getElementById("campSend").addEventListener("click", () => {
   const cur = campQueue[campIdx];
   if (!cur) return;
+  if (bloquearSiDemo()) return;
   const text = document.getElementById("campMsg").value;
   const digits = waDigits(cur.biz.phone);
   if (!digits) { toast("Este negocio no tiene teléfono válido: lo salteo"); cur.state = "skip"; campAdvance(); return; }
@@ -2569,6 +2606,7 @@ document.getElementById("campStopBtn").addEventListener("click", () => {
 /* ── Envío automático por la API oficial ────── */
 document.getElementById("campAutoBtn").addEventListener("click", async () => {
   if (campAuto) { campStop = true; return; }        // segundo click = frenar
+  if (bloquearSiDemo()) return;
   if (!waConfigured()) { toast("Configurá la API de WhatsApp en Ajustes"); return; }
 
   const pend = campQueue.filter(q => q.state === "pend");
