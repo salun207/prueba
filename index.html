@@ -454,6 +454,14 @@
           <button class="btn-ghost" id="openImport" type="button">Importar mi propia lista</button>
           <span class="camp-hintline" style="margin-left:8px">Si ya tenés contactos, pegalos y la app les arma el mensaje igual.</span>
         </div>
+        <div id="previewWarn" style="display:none;margin-top:14px;border:1px solid var(--warning);border-radius:10px;padding:12px 14px;background:var(--page)">
+          <div style="font-weight:700;font-size:13px;margin-bottom:3px">Estás viendo la vista previa</div>
+          <p style="font-size:12.5px;color:var(--ink-2);line-height:1.55">
+            Esta página bloquea las conexiones a servicios externos, así que la búsqueda de negocios reales no va a funcionar acá.
+            Descargá <strong>index.html</strong> del repositorio y abrilo en tu navegador: ahí sí funciona.
+            Mientras tanto podés usar «Importar mi propia lista», que anda en los dos lados.
+          </p>
+        </div>
         <div class="scan-box" id="scanBox">
           <div class="scan-status"><span class="spinner"></span><span id="scanMsg">Escaneando Google Maps…</span></div>
           <div class="scan-bar"><div id="scanBar"></div></div>
@@ -1475,6 +1483,32 @@ async function geocodeCiudad(ciudad) {
   return { sur: bb[0], norte: bb[1], oeste: bb[2], este: bb[3], nombre: data[0].display_name };
 }
 
+/* Overpass tiene varios espejos: si uno está saturado se prueba el
+   siguiente antes de dar la búsqueda por perdida. */
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
+
+async function overpassQuery(query) {
+  let ultimoError;
+  for (const url of OVERPASS_MIRRORS) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "data=" + encodeURIComponent(query),
+      });
+      if (res.ok) return await res.json();
+      ultimoError = new Error(`el servidor de mapas respondió ${res.status}`);
+    } catch (e) {
+      ultimoError = e;
+    }
+  }
+  throw ultimoError || new Error("no se pudo consultar el servidor de mapas");
+}
+
 async function fetchOSM(nichoKey, ciudad) {
   const cfg = NICHOS[nichoKey];
   const tags = OSM_TAGS[nichoKey];
@@ -1482,18 +1516,20 @@ async function fetchOSM(nichoKey, ciudad) {
     throw new Error(`OpenStreetMap no cataloga «${cfg.label}» (son oficios sin local fijo). Probá otro rubro o importá tu propia lista.`);
   }
 
-  const bb = await geocodeCiudad(ciudad);
-  const box = `${bb.sur},${bb.oeste},${bb.norte},${bb.este}`;
-  const cuerpo = tags.map(t => `nwr${t}(${box});`).join("");
-  const query = `[out:json][timeout:40];(${cuerpo});out center 120;`;
+  // Camino principal: ubicar la ciudad y buscar dentro de su rectángulo.
+  // Si el geocodificador no responde, se busca por nombre de área.
+  let query;
+  try {
+    const bb = await geocodeCiudad(ciudad);
+    const box = `${bb.sur},${bb.oeste},${bb.norte},${bb.este}`;
+    query = `[out:json][timeout:40];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 120;`;
+  } catch {
+    const limpia = ciudad.split(",")[0].trim().replace(/"/g, "");
+    query = `[out:json][timeout:40];area["name"="${limpia}"]["boundary"="administrative"]->.a;` +
+            `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 120;`;
+  }
 
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: "data=" + encodeURIComponent(query),
-  });
-  if (!res.ok) throw new Error(`Overpass respondió ${res.status}. Suele ser saturación: probá de nuevo en un minuto.`);
-  const data = await res.json();
+  const data = await overpassQuery(query);
 
   const seq = Date.now();
   const vistos = new Set();
@@ -2892,6 +2928,18 @@ document.getElementById("saveSettings").addEventListener("click", () => {
     ? "Guardado, pero falta la clave de Google para usar negocios reales"
     : "Ajustes guardados");
 });
+
+/* ══ Aviso de vista previa ════════════════════
+   En el artifact de claude.ai las conexiones externas están bloqueadas,
+   así que las fuentes reales no pueden funcionar. Conviene decirlo antes
+   de que parezca que la app está rota. */
+(function avisarSiPreview() {
+  const host = location.hostname;
+  const enSandbox = /claude\.ai$|claudeusercontent\.com$|\.usercontent\./.test(host) || window.top !== window.self;
+  if (enSandbox && location.protocol !== "file:") {
+    document.getElementById("previewWarn").style.display = "block";
+  }
+})();
 
 /* ══ Importar lista propia ════════════════════
    Para trabajar sin depender de ninguna API: se pega la lista y la app
