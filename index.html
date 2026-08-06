@@ -1486,15 +1486,30 @@ function genBusinesses(nichoKey, ciudad) {
    un rectángulo y Overpass devuelve los negocios de ese rubro dentro.
    OSM no tiene reseñas ni puntuaciones: eso no se inventa, simplemente
    no aparece (y los mensajes ya se adaptan cuando no hay ficha). */
+/* Cobertura en OSM por rubro: "alta" = suele haber muchos cargados,
+   "baja" = casi no están mapeados (conviene importar lista propia). */
+const OSM_COBERTURA = {
+  restaurante: "alta", cafeteria: "alta", pizzeria: "alta", veterinaria: "alta",
+  peluqueria: "alta", barberia: "alta", gimnasio: "alta", "clinica-dental": "alta",
+  taller: "alta", petshop: "alta", inmobiliaria: "alta", "agencia-viajes": "alta",
+  spa: "media", "clinica-estetica": "media", "escuela-manejo": "media",
+  "estudio-juridico": "media", "estudio-contable": "media", instituto: "media",
+  fotografo: "media", "yoga-pilates": "media", oftalmologia: "media",
+  "guarderia-canina": "media", "peluqueria-canina": "media",
+  nutricion: "baja", podologia: "baja", psicologia: "baja", kinesiologia: "baja",
+  plomeria: "baja", electricista: "baja", cerrajeria: "baja", reformas: "baja",
+  limpieza: "baja", catering: "baja", "centro-unas": "baja", adiestrador: "baja",
+};
+
 const OSM_TAGS = {
   "clinica-dental": ['["amenity"="dentist"]', '["healthcare"="dentist"]'],
-  "clinica-estetica": ['["shop"="beauty"]'],
-  "kinesiologia": ['["healthcare"="physiotherapist"]'],
+  "clinica-estetica": ['["shop"="beauty"]', '["shop"="beauty"]["beauty"="cosmetic"]'],
+  "kinesiologia": ['["healthcare"="physiotherapist"]', '["healthcare:speciality"="physiotherapy"]'],
   "veterinaria": ['["amenity"="veterinary"]'],
-  "podologia": ['["healthcare"="podiatrist"]'],
-  "psicologia": ['["healthcare"="psychotherapist"]'],
-  "oftalmologia": ['["shop"="optician"]'],
-  "nutricion": ['["healthcare"="nutrition_counselling"]'],
+  "podologia": ['["healthcare"="podiatrist"]', '["healthcare:speciality"="podiatry"]'],
+  "psicologia": ['["healthcare"="psychotherapist"]', '["healthcare:speciality"~"psychiatry|psychology"]'],
+  "oftalmologia": ['["shop"="optician"]', '["healthcare:speciality"="ophthalmology"]'],
+  "nutricion": ['["healthcare"="nutrition_counselling"]', '["healthcare:speciality"="nutrition"]', '["amenity"="doctors"]["healthcare:speciality"~"nutrition"]'],
   "peluqueria": ['["shop"="hairdresser"]'],
   "barberia": ['["shop"="hairdresser"]'],
   "centro-unas": ['["shop"="beauty"]["beauty"="nails"]'],
@@ -1587,17 +1602,22 @@ const OVERPASS_MIRRORS = [
   "https://overpass.private.coffee/api/interpreter",
 ];
 
-async function overpassQuery(query) {
+async function overpassQuery(query, onIntento) {
   let ultimoError;
-  for (const url of OVERPASS_MIRRORS) {
+  for (let i = 0; i < OVERPASS_MIRRORS.length; i++) {
+    const url = OVERPASS_MIRRORS[i];
+    if (onIntento) onIntento(i + 1, OVERPASS_MIRRORS.length);
     try {
       const res = await fetchConTimeout(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "data=" + encodeURIComponent(query),
-      }, 15000);
+      }, 45000);
       if (res.ok) return await res.json();
-      ultimoError = new Error(`el servidor de mapas respondió ${res.status}`);
+      // 429 y 504 son saturación: vale la pena probar otro servidor
+      ultimoError = new Error(res.status === 429 || res.status === 504
+        ? "el servidor de mapas está saturado"
+        : `el servidor de mapas respondió ${res.status}`);
     } catch (e) {
       ultimoError = e;
     }
@@ -1619,14 +1639,19 @@ async function fetchOSM(nichoKey, ciudad) {
     const bb = await geocodeCiudad(ciudad);
     recortado = bb.recortado;
     const box = `${bb.sur},${bb.oeste},${bb.norte},${bb.este}`;
-    query = `[out:json][timeout:25];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 150;`;
+    query = `[out:json][timeout:20];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 150;`;
   } catch {
     const limpia = ciudad.split(",")[0].trim().replace(/"/g, "");
-    query = `[out:json][timeout:25];area["name"="${limpia}"]["boundary"="administrative"]->.a;` +
+    query = `[out:json][timeout:20];area["name"="${limpia}"]["boundary"="administrative"]->.a;` +
             `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 150;`;
   }
 
-  const data = await overpassQuery(query);
+  const data = await overpassQuery(query, (n, total) => {
+    const msg = document.getElementById("scanMsg");
+    if (msg) msg.textContent = n === 1
+      ? "Consultando el mapa… puede tardar unos segundos"
+      : `El primer servidor no respondió, probando otro (${n} de ${total})…`;
+  });
   if (recortado) ultimoAvisoZona = `«${ciudad}» abarca un área muy grande: se buscó en el centro, unos 35 km a la redonda.`;
 
   const seq = Date.now();
@@ -2108,7 +2133,10 @@ function fillNichos() {
     og.label = g;
     for (const [key, label] of items) {
       const o = document.createElement("option");
-      o.value = key; o.textContent = label;
+      o.value = key;
+      // Con datos reales se avisa qué rubros están poco cargados en el mapa
+      const cob = settings.source === "osm" ? OSM_COBERTURA[key] : null;
+      o.textContent = label + (cob === "baja" ? "  (pocos en el mapa)" : "");
       og.appendChild(o);
     }
     sel.appendChild(og);
@@ -2242,7 +2270,16 @@ function mostrarErrorBusqueda(rubro, ciudad, fuente, detalle) {
   const bloqueado = /Failed to fetch|NetworkError|Load failed/i.test(detalle);
   document.getElementById("seTitle").textContent =
     `No se pudo buscar ${rubro.toLowerCase()} en ${ciudad}`;
-  document.getElementById("seDetail").innerHTML = bloqueado
+  const lento = /tardó demasiado/i.test(detalle);
+  const cob = OSM_COBERTURA[document.getElementById("nicho").value];
+  document.getElementById("seDetail").innerHTML = lento
+    ? `El servidor de mapas es gratuito y a veces está saturado.
+       <ul style="margin:8px 0 0 18px">
+         <li><strong>Probá de nuevo</strong>: suele funcionar al segundo o tercer intento.</li>
+         ${cob === "baja" ? "<li>Además, este rubro está poco cargado en el mapa. Rinden mucho mejor: restaurantes, veterinarias, peluquerías, gimnasios, talleres, odontólogos y pet shops.</li>" : ""}
+         <li>Si la ciudad es muy grande, probá con un barrio (por ejemplo «Palermo» en vez de «Buenos Aires»).</li>
+       </ul>`
+    : bloqueado
     ? `El navegador no pudo conectarse al servidor de mapas. Suele pasar por dos motivos:
        <ul style="margin:8px 0 0 18px">
          <li>Estás viendo la vista previa de claude.ai, que bloquea conexiones externas. Descargá <strong>index.html</strong> y abrilo desde tu compu.</li>
@@ -2966,6 +3003,13 @@ canalSel.addEventListener("change", () => {
   toast(canalSel.value === "web"
     ? "Los mensajes se van a abrir en WhatsApp Web"
     : "Los mensajes se van a abrir en la app de WhatsApp");
+});
+
+document.getElementById("nicho").addEventListener("change", (e) => {
+  const cob = OSM_COBERTURA[e.target.value];
+  if (settings.source === "osm" && cob === "baja") {
+    toast("Este rubro está poco cargado en el mapa: puede traer pocos o ningún resultado");
+  }
 });
 
 document.getElementById("campBuild").addEventListener("click", buildCampaign);
