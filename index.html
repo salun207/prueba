@@ -872,6 +872,28 @@
             <input id="myPd" type="text" placeholder="p. ej. PD: el primer mes va de regalo, sin permanencia.">
           </div>
         </div>
+
+        <div style="margin-top:20px;border-top:1px solid var(--hairline);padding-top:18px">
+          <h3>Tono del mensaje</h3>
+          <div class="settings-grid" style="margin-top:10px">
+            <div class="field full">
+              <label for="myTono">Cómo abordás al negocio</label>
+              <select id="myTono">
+                <option value="consulta">Consulta — solo pregunto, no ofrezco nada</option>
+                <option value="propuesta">Propuesta — pregunto y cuento qué hago</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="myContexto">Por qué escribís (solo para el tono «Consulta»)</label>
+              <input id="myContexto" type="text" placeholder="p. ej. Estoy haciendo un TP en el ITBA sobre atención al cliente en pymes">
+            </div>
+          </div>
+          <p class="hint" style="margin-top:10px">
+            Con <strong>Consulta</strong> el mensaje no menciona lo que vendés: es una pregunta sobre cómo atienden por WhatsApp, con una salida cómoda. Sirve para entender el problema antes de proponer nada, y es lo que menos rechazo genera.
+            Escribí el motivo con tus palabras — y que sea cierto: si te contestan creyendo que es para un trabajo y les caés con una venta, perdés el contacto y la referencia.
+          </p>
+        </div>
+
         <div class="settings-actions">
           <button class="btn-primary" id="saveSettings" type="button">Guardar ajustes</button>
         </div>
@@ -1059,7 +1081,7 @@ let leads = load(LS.leads, []);
 let searchesUsed = load(LS.searches, 0);
 let history = load(LS.history, []);
 let settings = Object.assign(
-  { name: "", product: "", demo: "", price: 49, pd: "", source: "osm", gkey: "", perfil: "nexa" },
+  { name: "", product: "", demo: "", price: 49, pd: "", source: "osm", gkey: "", perfil: "nexa", tono: "consulta", contexto: "" },
   load(LS.settings, {})
 );
 let wa = Object.assign(
@@ -1824,33 +1846,31 @@ function buildMessage(b, seed) {
   };
   const [agN, agPron, agVerb] = AGENDA[b.nicho] || ["los turnos", "los", "dando"];
 
-  // Pregunta inicial: según SUS señales, y es una pregunta concreta
+  // Pregunta inicial: siempre sobre WhatsApp, que es el canal que importa.
+  // Nunca sobre el sitio web: eso lleva la charla a otro lado.
+  const preguntasWA = [
+    `¿${agN} ${agPron} manejan por WhatsApp o la gente llama?`,
+    `¿Quién contesta los mensajes de WhatsApp cuando están atendiendo?`,
+    `¿Les entran muchas consultas por WhatsApp?`,
+    `¿Los mensajes que llegan de noche los contestan al otro día?`,
+    `¿Se les llegan a acumular mensajes sin responder?`,
+    `¿${agN} ${agPron} coordinan por WhatsApp?`,
+  ];
   let pregunta;
-  if (b.citaTelefono && b.web === "no") {
+  if (b.citaTelefono) {
     pregunta = v([
-      `Una consulta: ¿${agN} ${agPron} gestionan únicamente por teléfono? Vi que no tienen sitio web.`,
-      `¿Todas las consultas las atienden por teléfono? Busqué un sitio web de ustedes y no encontré.`,
+      `Una consulta: ¿${agN} ${agPron} coordinan por WhatsApp o ${agPron} siguen ${agVerb} por teléfono?`,
+      `¿Cómo manejan ${agN}? ¿Por WhatsApp o por teléfono?`,
+      preguntasWA[1],
     ], 1);
-  } else if (b.citaTelefono) {
+  } else if (b.horarioGap) {
     pregunta = v([
-      `Una consulta: ¿${agN} ${agPron} siguen ${agVerb} por teléfono?`,
-      `¿Cómo gestionan ${agN} actualmente? ¿Solo por teléfono?`,
-    ], 1);
-  } else if (b.web === "no") {
-    pregunta = v([
-      `Una consulta: ¿todas las consultas les llegan por teléfono? Vi que no tienen sitio web.`,
-      `¿Por qué canales les llegan los clientes? No encontré un sitio web de ustedes.`,
-    ], 1);
-  } else if (b.web === "sinchat") {
-    pregunta = v([
-      `Entré a su sitio web y no encontré una forma de escribirles. ¿Las consultas llegan todas al teléfono?`,
-      `Vi que tienen sitio web, pero sin un canal de contacto directo. ¿Todo se deriva al teléfono?`,
+      `Una consulta: ¿los mensajes de WhatsApp que entran fuera de horario los contestan al otro día?`,
+      `¿Quién responde lo que llega por WhatsApp cuando el local está cerrado?`,
+      preguntasWA[2],
     ], 1);
   } else {
-    pregunta = v([
-      `Una consulta: ¿quién responde los mensajes que entran fuera del horario de atención?`,
-      `¿Cómo están manejando las consultas que llegan fuera de horario?`,
-    ], 1);
+    pregunta = v(preguntasWA, 1);
   }
 
   // Presentación: breve, un beneficio concreto, sin exageraciones
@@ -1870,6 +1890,32 @@ function buildMessage(b, seed) {
   const firmas = firma
     ? [`Saludos cordiales,\n${firma}`, `Muchas gracias por su tiempo.\n${firma}`, `Quedo a disposición.\n${firma}`]
     : [`Saludos cordiales.`, `Muchas gracias por su tiempo.`, `Quedo a disposición.`];
+
+  // Tono «consulta»: no se ofrece nada, ni siquiera al final. Es una
+  // pregunta real sobre cómo trabajan. Sirve para entender el problema
+  // antes de tener algo que vender, y es lo que menos rechazo genera.
+  if (settings.tono === "consulta") {
+    const ctx = settings.contexto.trim();
+    const motivos = ctx
+      ? [ctx, ctx, ctx]
+      : [
+          `Estoy investigando cómo ${rubro} manejan las consultas por WhatsApp`,
+          `Estoy relevando cómo trabaja la atención por WhatsApp en ${rubro}`,
+          `Estoy haciendo un relevamiento sobre atención al cliente en ${rubro}`,
+        ];
+    const desarmes = [
+      `Es pura curiosidad, no les vendo nada.`,
+      `No les quiero vender nada, es solo para entender cómo lo resuelven.`,
+      `Si no llegan a contestar no hay problema, gracias igual.`,
+    ];
+    const partes = [
+      `${v(SALUDOS)} ${v(motivos)} y llegué a ${b.name}.`,
+      `¿Les puedo hacer una pregunta? ${capPregunta(pregunta.replace(/^Una consulta: /, ""))}`,
+      v(desarmes, 1),
+    ];
+    if (firma) partes.push(`Gracias,\n${firma}`);
+    return partes.join("\n\n");
+  }
 
   // Variante 0 (la que se ve primero): mensaje de apertura. Solo un dato
   // de su ficha y una pregunta — todavía no se propone nada. Si responden,
@@ -1958,6 +2004,28 @@ function buildMessageDogStay(b, cfg, v, varNum, firma, rubro) {
     ? [`Saludos cordiales,\n${firma} — ${marca}`, `Muchas gracias por su tiempo.\n${firma} — ${marca}`, `Quedo a disposición.\n${firma} — ${marca}`]
     : [`Saludos cordiales,\n${marca}`, `Muchas gracias por su tiempo.\n${marca}`, `Quedo a disposición.\n${marca}`];
 
+  // Tono «consulta»: se pregunta, no se propone nada
+  if (settings.tono === "consulta") {
+    const ctx = settings.contexto.trim();
+    const motivos = ctx ? [ctx, ctx, ctx] : [
+      `Estoy investigando cómo trabajan ${rubro} en la zona`,
+      `Estoy relevando cómo funciona el rubro de ${rubro}`,
+      `Estoy haciendo un relevamiento sobre ${rubro}`,
+    ];
+    const desarmes = [
+      `Es pura curiosidad, no les vendo nada.`,
+      `No les quiero vender nada, es solo para entender cómo lo resuelven.`,
+      `Si no llegan a contestar no hay problema, gracias igual.`,
+    ];
+    const partes = [
+      `${v(SALUDOS)} ${v(motivos)} y llegué a ${b.name}.`,
+      `¿Les puedo hacer una pregunta? ${capPregunta(v(preguntas, 1).replace(/^Una consulta: /, ""))}`,
+      v(desarmes, 1),
+    ];
+    if (firma) partes.push(`Gracias,\n${firma}`);
+    return partes.join("\n\n");
+  }
+
   // Variante 0: apertura sola, sin propuesta
   if (varNum % 3 === 0) {
     const partes = [`${v(SALUDOS)} ${v(aperturas)}`, v(preguntas, 1)];
@@ -1978,6 +2046,10 @@ function buildMessageDogStay(b, cfg, v, varNum, firma, rubro) {
 }
 
 function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
+/* Capitaliza la primera letra real, salteando signos como ¿ */
+function capPregunta(s) {
+  return String(s).replace(/^(\s*[¿¡]?\s*)(\p{L})/u, (_, pre, letra) => pre + letra.toUpperCase());
+}
 
 /* ══ Utilidades UI ════════════════════════════ */
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
@@ -2441,9 +2513,14 @@ window.openMsg = function (id) {
 
 function updateMsgHint() {
   if (!modalBiz) return;
+  const el = document.getElementById("mHint");
+  if (settings.tono === "consulta") {
+    el.textContent = "Tono consulta: solo pregunta, no menciona lo que vendés. Si te contestan, ahí arranca la charla.";
+    return;
+  }
   const short = (modalBiz.variant ?? 0) % 3 === 0;
-  document.getElementById("mHint").textContent = short
-    ? "Variante rompehielo: solo un dato y una pregunta. Si contestan, ahí recién contás lo tuyo — es la que menos rebota."
+  el.textContent = short
+    ? "Variante de apertura: solo un dato y una pregunta. Si contestan, ahí recién contás lo tuyo — es la que menos rebota."
     : "Variante completa: con presentación y cierre. Mejor para cuando ya te conocen o te derivaron.";
 }
 
@@ -3000,6 +3077,8 @@ document.getElementById("myProduct").value = settings.product;
 document.getElementById("myDemo").value = settings.demo;
 document.getElementById("myPrice").value = settings.price;
 document.getElementById("myPd").value = settings.pd;
+document.getElementById("myTono").value = settings.tono || "consulta";
+document.getElementById("myContexto").value = settings.contexto || "";
 document.getElementById("mySource").value = settings.source || "demo";
 document.getElementById("myGkey").value = settings.gkey || "";
 
@@ -3017,6 +3096,8 @@ document.getElementById("saveSettings").addEventListener("click", () => {
     demo: document.getElementById("myDemo").value.trim(),
     price: Math.max(0, Number(document.getElementById("myPrice").value) || 0),
     pd: document.getElementById("myPd").value.trim(),
+    tono: document.getElementById("myTono").value,
+    contexto: document.getElementById("myContexto").value.trim(),
     source: document.getElementById("mySource").value,
     gkey: document.getElementById("myGkey").value.trim(),
   };
