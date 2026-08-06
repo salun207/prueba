@@ -450,10 +450,12 @@
             Buscar negocios
           </button>
         </form>
-        <div style="margin-top:12px">
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn-ghost" id="openImport" type="button">Importar mi propia lista</button>
-          <span class="camp-hintline" style="margin-left:8px">Si ya tenés contactos, pegalos y la app les arma el mensaje igual.</span>
+          <button class="btn-ghost" id="diagBtn" type="button">Probar conexión</button>
+          <span class="camp-hintline">Si ya tenés contactos, pegalos y la app les arma el mensaje igual.</span>
         </div>
+        <div id="diagOut" style="display:none;margin-top:12px;font-size:12.5px;line-height:1.7;border:1px solid var(--hairline);border-radius:10px;padding:12px 14px;background:var(--page)"></div>
         <div id="previewWarn" style="display:none;margin-top:14px;border:1px solid var(--warning);border-radius:10px;padding:12px 14px;background:var(--page)">
           <div style="font-weight:700;font-size:13px;margin-bottom:3px">Estás viendo la vista previa</div>
           <p style="font-size:12.5px;color:var(--ink-2);line-height:1.55">
@@ -463,8 +465,18 @@
           </p>
         </div>
         <div class="scan-box" id="scanBox">
-          <div class="scan-status"><span class="spinner"></span><span id="scanMsg">Escaneando Google Maps…</span></div>
+          <div class="scan-status"><span class="spinner"></span><span id="scanMsg">Buscando negocios…</span></div>
           <div class="scan-bar"><div id="scanBar"></div></div>
+        </div>
+        <div id="searchError" style="display:none;margin-top:14px;border:1px solid var(--critical);border-radius:10px;padding:14px 16px;background:var(--page)">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--critical)" stroke-width="2" stroke-linecap="round" style="width:20px;height:20px;flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:13.5px;margin-bottom:5px" id="seTitle">No se pudo buscar</div>
+              <div style="font-size:12.5px;color:var(--ink-2);line-height:1.55" id="seDetail"></div>
+            </div>
+            <button class="modal-close" onclick="document.getElementById('searchError').style.display='none'" aria-label="Cerrar">✕</button>
+          </div>
         </div>
       </div>
 
@@ -885,7 +897,8 @@
             </div>
             <div class="field full">
               <label for="myContexto">Por qué escribís (solo para el tono «Consulta»)</label>
-              <input id="myContexto" type="text" placeholder="p. ej. Estoy haciendo un TP en el ITBA sobre atención al cliente en pymes">
+              <input id="myContexto" type="text" placeholder="Dejalo vacío y la app usa uno neutro">
+              <div id="motivoChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
             </div>
           </div>
           <p class="hint" style="margin-top:10px">
@@ -2152,6 +2165,7 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
 
   // En modo real la consulta arranca ya; la animación acompaña.
   ultimoAvisoZona = "";
+  document.getElementById("searchError").style.display = "none";
   const dataPromise = fuente === "places" ? fetchPlaces(nicho, ciudad)
     : fuente === "osm" ? fetchOSM(nicho, ciudad)
     : Promise.resolve(null);
@@ -2211,10 +2225,34 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
     })
     .catch(err => {
       terminar();
-      const donde = fuente === "osm" ? "OpenStreetMap" : "Google";
-      toast(`${err.message.length > 60 ? "" : `No se pudo buscar en ${donde}: `}${err.message}`);
+      // Sin esto quedaban a la vista los resultados de la búsqueda
+      // anterior y parecía que el buscador devolvía otro rubro.
+      results = [];
+      lastQuery = null;
+      save(LS.last, null);
+      renderAll();
+      mostrarErrorBusqueda(NICHOS[nicho].label, ciudad, fuente, err.message);
     });
 });
+
+/* Error de búsqueda: queda a la vista hasta la próxima búsqueda, en vez
+   de un aviso que se desvanece y pasa desapercibido. */
+function mostrarErrorBusqueda(rubro, ciudad, fuente, detalle) {
+  const box = document.getElementById("searchError");
+  const bloqueado = /Failed to fetch|NetworkError|Load failed/i.test(detalle);
+  document.getElementById("seTitle").textContent =
+    `No se pudo buscar ${rubro.toLowerCase()} en ${ciudad}`;
+  document.getElementById("seDetail").innerHTML = bloqueado
+    ? `El navegador no pudo conectarse al servidor de mapas. Suele pasar por dos motivos:
+       <ul style="margin:8px 0 0 18px">
+         <li>Estás viendo la vista previa de claude.ai, que bloquea conexiones externas. Descargá <strong>index.html</strong> y abrilo desde tu compu.</li>
+         <li>O una extensión del navegador (bloqueador de anuncios, VPN) está frenando el pedido. Probá en una ventana de incógnito.</li>
+       </ul>
+       <p style="margin-top:8px">Mientras tanto podés usar <strong>Importar mi propia lista</strong>, que funciona sin conexión a servicios externos.</p>`
+    : `<p>${esc(detalle)}</p>
+       <p style="margin-top:8px">Probá con otra ciudad o rubro, o usá <strong>Importar mi propia lista</strong>.</p>`;
+  box.style.display = "block";
+}
 
 /* ══ Render: panel ════════════════════════════ */
 function visibleResults() {
@@ -2236,7 +2274,13 @@ function renderResults() {
   const body = document.getElementById("resultsBody");
   const meta = document.getElementById("resultsMeta");
 
-  if (!lastQuery) { table.style.display = "none"; empty.style.display = "block"; return; }
+  if (!lastQuery) {
+    table.style.display = "none";
+    empty.style.display = "block";
+    meta.textContent = "";
+    document.getElementById("resultsBody").innerHTML = "";
+    return;
+  }
   meta.innerHTML = `${esc(lastQuery.label)} en ${esc(lastQuery.ciudad)} · ${list.length} negocios · ` + (
     lastQuery.importado ? `lista propia`
     : lastQuery.fuente === "osm" ? `datos reales de OpenStreetMap`
@@ -3107,6 +3151,76 @@ document.getElementById("saveSettings").addEventListener("click", () => {
   toast(settings.source === "places" && !settings.gkey
     ? "Guardado, pero falta la clave de Google para usar negocios reales"
     : "Ajustes guardados");
+});
+
+/* Motivos sugeridos: se completan con un clic y después se editan.
+   Los primeros no dicen nada que haya que sostener después. */
+const MOTIVOS = [
+  "Estoy armando algo para negocios de la zona y quería entender cómo trabajan",
+  "Estoy investigando cómo atienden los negocios de acá por WhatsApp",
+  "Estoy viendo si tiene sentido algo que estoy desarrollando",
+  "Estoy haciendo un TP en el ITBA sobre atención al cliente en pymes",
+];
+(function pintarMotivos() {
+  const cont = document.getElementById("motivoChips");
+  MOTIVOS.forEach(m => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn-ghost";
+    b.style.cssText = "font-size:11.5px;padding:5px 10px;height:auto;text-align:left";
+    b.textContent = m.length > 46 ? m.slice(0, 44) + "…" : m;
+    b.title = m;
+    b.addEventListener("click", () => { document.getElementById("myContexto").value = m; });
+    cont.appendChild(b);
+  });
+})();
+
+/* ══ Diagnóstico de conexión ══════════════════
+   Prueba cada servicio por separado y dice cuál falla y por qué, en vez
+   de dejar al usuario adivinando por qué no aparecen resultados. */
+document.getElementById("diagBtn").addEventListener("click", async () => {
+  const out = document.getElementById("diagOut");
+  out.style.display = "block";
+  out.innerHTML = "Probando…";
+  const lineas = [];
+  const ok = (t) => `<div style="color:var(--good-text)">✓ ${t}</div>`;
+  const mal = (t) => `<div style="color:var(--critical)">✕ ${t}</div>`;
+
+  lineas.push(location.protocol === "file:"
+    ? ok("Estás abriendo el archivo desde tu compu (así tiene que ser)")
+    : `<div style="color:var(--warning-text,var(--ink-2))">• Estás en ${esc(location.hostname || location.protocol)}. Si es la vista previa de claude.ai, las conexiones externas están bloqueadas: descargá index.html y abrilo desde tu compu.</div>`);
+  out.innerHTML = lineas.join("");
+
+  // Nominatim
+  try {
+    const r = await fetchConTimeout("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=Rosario", { headers: { Accept: "application/json" } }, 15000);
+    const d = await r.json();
+    lineas.push(r.ok && d.length
+      ? ok(`Buscador de ciudades: responde (encontró ${esc(d[0].display_name.split(",")[0])})`)
+      : mal(`Buscador de ciudades: respondió ${r.status} sin resultados`));
+  } catch (e) {
+    lineas.push(mal(`Buscador de ciudades: ${esc(e.message)}`));
+  }
+  out.innerHTML = lineas.join("");
+
+  // Overpass
+  try {
+    const d = await overpassQuery('[out:json][timeout:20];node["amenity"="veterinary"](-32.96,-60.70,-32.92,-60.63);out 3;');
+    const n = (d.elements || []).length;
+    lineas.push(n
+      ? ok(`Servidor de mapas: responde (probó veterinarias en Rosario y encontró ${n})`)
+      : mal("Servidor de mapas: responde pero no devolvió nada"));
+  } catch (e) {
+    lineas.push(mal(`Servidor de mapas: ${esc(e.message)}`));
+  }
+
+  const fallo = lineas.some(l => l.includes("✕"));
+  lineas.push(`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline)">${
+    fallo
+      ? "Con algún servicio caído, usá <strong>Importar mi propia lista</strong>: funciona sin conexión a servicios externos."
+      : "Todo en orden: la búsqueda de negocios reales debería funcionar."
+  }</div>`);
+  out.innerHTML = lineas.join("");
 });
 
 /* ══ Aviso de vista previa ════════════════════
