@@ -648,9 +648,28 @@
               <option value="999">Todos los que haya</option>
             </select>
           </div>
+          <div class="field">
+            <label for="campCanal">Desde dónde envío</label>
+            <select id="campCanal">
+              <option value="web">WhatsApp Web (estoy en la compu)</option>
+              <option value="app">WhatsApp del celular</option>
+            </select>
+          </div>
           <button class="btn-primary" id="campBuild" type="button">Armar la cola</button>
         </div>
         <p class="camp-hintline" id="campPreview">—</p>
+        <details style="margin-top:12px">
+          <summary style="font-size:13px;cursor:pointer;color:var(--brand-strong);font-weight:600">¿Cómo mando con mi WhatsApp Business?</summary>
+          <div style="font-size:13px;color:var(--ink-2);line-height:1.65;margin-top:10px">
+            <p style="margin-bottom:8px">Se usa tu WhatsApp de siempre, no hace falta conectar ninguna API. Desde la computadora:</p>
+            <ol style="margin-left:18px">
+              <li>Abrí <strong>web.whatsapp.com</strong> en otra pestaña.</li>
+              <li>En el celular entrá a WhatsApp Business → <strong>Dispositivos vinculados</strong> → Vincular dispositivo, y escaneá el código.</li>
+              <li>Volvé acá y tocá <strong>Enviar y seguir</strong>: se abre el chat con el mensaje ya escrito, apretás Enter y volvés.</li>
+            </ol>
+            <p style="margin-top:8px">Si tenés el número personal y el de Business en el mismo celular, fijate de vincular el de Business: WhatsApp Web usa el que hayas escaneado.</p>
+          </div>
+        </details>
       </div>
 
       <div class="card" id="campDemoWarn" style="display:none;border-color:var(--critical);margin-bottom:20px">
@@ -1473,18 +1492,60 @@ const OSM_TAGS = {
   "cuidador-mascotas": null,
 };
 
+/* Ningún fetch puede quedarse colgado: sin esto, un servidor que no
+   responde deja la búsqueda girando para siempre. */
+async function fetchConTimeout(url, opciones = {}, ms = 25000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opciones, signal: ctrl.signal });
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error(`el servidor tardó demasiado (más de ${Math.round(ms / 1000)} s)`);
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/* Un área muy grande (una provincia entera, por ejemplo) hace que la
+   consulta tarde minutos o directamente falle. Se recorta a un cuadrado
+   de ~35 km alrededor del centro, que cubre una ciudad completa. */
+const BBOX_MAX_GRADOS = 0.32;
+function recortarBBox(bb) {
+  const alto = bb.norte - bb.sur;
+  const ancho = bb.este - bb.oeste;
+  if (alto <= BBOX_MAX_GRADOS && ancho <= BBOX_MAX_GRADOS) return { ...bb, recortado: false };
+  const cLat = (bb.norte + bb.sur) / 2;
+  const cLon = (bb.este + bb.oeste) / 2;
+  const h = BBOX_MAX_GRADOS / 2;
+  return {
+    sur: cLat - h, norte: cLat + h,
+    oeste: cLon - h, este: cLon + h,
+    nombre: bb.nombre, recortado: true,
+  };
+}
+
 async function geocodeCiudad(ciudad) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=${encodeURIComponent(ciudad)}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`no se pudo ubicar «${ciudad}»`);
-  const data = await res.json();
+  // Primero se busca solo entre localidades: si no, «Buenos Aires»
+  // devuelve la provincia y el centro cae en medio del campo.
+  const base = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=${encodeURIComponent(ciudad)}`;
+  let data = [];
+  for (const url of [`${base}&featureType=settlement`, base]) {
+    try {
+      const res = await fetchConTimeout(url, { headers: { Accept: "application/json" } }, 15000);
+      if (!res.ok) continue;
+      data = await res.json();
+      if (data.length) break;
+    } catch { /* se prueba la siguiente */ }
+  }
   if (!data.length) throw new Error(`no se encontró la ciudad «${ciudad}»`);
   const bb = data[0].boundingbox.map(Number); // [sur, norte, oeste, este]
-  return { sur: bb[0], norte: bb[1], oeste: bb[2], este: bb[3], nombre: data[0].display_name };
+  return recortarBBox({ sur: bb[0], norte: bb[1], oeste: bb[2], este: bb[3], nombre: data[0].display_name });
 }
 
 /* Overpass tiene varios espejos: si uno está saturado se prueba el
    siguiente antes de dar la búsqueda por perdida. */
+let ultimoAvisoZona = "";
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -1495,11 +1556,11 @@ async function overpassQuery(query) {
   let ultimoError;
   for (const url of OVERPASS_MIRRORS) {
     try {
-      const res = await fetch(url, {
+      const res = await fetchConTimeout(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "data=" + encodeURIComponent(query),
-      });
+      }, 15000);
       if (res.ok) return await res.json();
       ultimoError = new Error(`el servidor de mapas respondió ${res.status}`);
     } catch (e) {
@@ -1518,18 +1579,20 @@ async function fetchOSM(nichoKey, ciudad) {
 
   // Camino principal: ubicar la ciudad y buscar dentro de su rectángulo.
   // Si el geocodificador no responde, se busca por nombre de área.
-  let query;
+  let query, recortado = false;
   try {
     const bb = await geocodeCiudad(ciudad);
+    recortado = bb.recortado;
     const box = `${bb.sur},${bb.oeste},${bb.norte},${bb.este}`;
-    query = `[out:json][timeout:40];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 120;`;
+    query = `[out:json][timeout:25];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 150;`;
   } catch {
     const limpia = ciudad.split(",")[0].trim().replace(/"/g, "");
-    query = `[out:json][timeout:40];area["name"="${limpia}"]["boundary"="administrative"]->.a;` +
-            `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 120;`;
+    query = `[out:json][timeout:25];area["name"="${limpia}"]["boundary"="administrative"]->.a;` +
+            `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 150;`;
   }
 
   const data = await overpassQuery(query);
+  if (recortado) ultimoAvisoZona = `«${ciudad}» abarca un área muy grande: se buscó en el centro, unos 35 km a la redonda.`;
 
   const seq = Date.now();
   const vistos = new Set();
@@ -1659,6 +1722,18 @@ async function fetchPlaces(nichoKey, ciudad) {
         real: true,
       };
     });
+}
+
+/* Enlace de envío. Desde la compu conviene web.whatsapp.com porque va
+   directo al chat; wa.me mete una pantalla intermedia de "Continuar". */
+function waLink(phone, texto) {
+  const d = waDigits(phone);
+  if (!d) return "";
+  const canal = localStorage.getItem("huntly2.canal") || "web";
+  const base = canal === "web"
+    ? `https://web.whatsapp.com/send?phone=${d}&text=`
+    : `https://wa.me/${d}?text=`;
+  return base + encodeURIComponent(texto);
 }
 
 /* Teléfonos argentinos a formato wa.me: 549 + área + número */
@@ -1998,11 +2073,13 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
   const box = document.getElementById("scanBox");
   const bar = document.getElementById("scanBar");
   const msg = document.getElementById("scanMsg");
+  const t0 = Date.now();
   btn.disabled = true;
   box.classList.add("on");
   bar.style.width = "4%";
 
   // En modo real la consulta arranca ya; la animación acompaña.
+  ultimoAvisoZona = "";
   const dataPromise = fuente === "places" ? fetchPlaces(nicho, ciudad)
     : fuente === "osm" ? fetchOSM(nicho, ciudad)
     : Promise.resolve(null);
@@ -2026,32 +2103,45 @@ document.getElementById("searchForm").addEventListener("submit", (e) => {
     history = history.slice(0, 20);
     save(LS.history, history);
     renderAll();
-    toast(esReal
+    if (ultimoAvisoZona) { toast(ultimoAvisoZona); ultimoAvisoZona = ""; }
+    else toast(esReal
       ? `Listo: ${results.length} negocios reales encontrados en ${ciudad}`
       : `Listo: ${results.length} negocios analizados en ${ciudad}`);
   };
 
   let step = 0;
+  let listo = false;
   const tick = setInterval(() => {
     if (step < SCAN_STEPS.length) {
       bar.style.width = SCAN_STEPS[step][0] + "%";
       msg.textContent = SCAN_STEPS[step][1];
       step++;
-    } else {
-      clearInterval(tick);
-      bar.style.width = "100%";
-      setTimeout(() => {
-        dataPromise
-          .then(real => finish(real ?? genBusinesses(nicho, ciudad)))
-          .catch(err => {
-            box.classList.remove("on");
-            btn.disabled = false;
-            const donde = fuente === "osm" ? "OpenStreetMap" : "Google";
-            toast(`${err.message.length > 60 ? "" : `No se pudo buscar en ${donde}: `}${err.message}`);
-          });
-      }, 350);
+      return;
+    }
+    // La animación terminó pero la consulta real sigue: se avisa en vez
+    // de dejar el spinner girando sin explicación.
+    clearInterval(tick);
+    bar.style.width = "100%";
+    if (!listo && esReal) {
+      msg.textContent = "Consultando el mapa… puede tardar unos segundos";
     }
   }, esReal ? 260 : 420);
+
+  const terminar = () => { listo = true; clearInterval(tick); box.classList.remove("on"); btn.disabled = false; };
+
+  dataPromise
+    .then(real => {
+      // Con datos de demo se respeta la animación; con datos reales se
+      // muestra apenas llegan.
+      const mostrar = () => { terminar(); finish(real ?? genBusinesses(nicho, ciudad)); };
+      if (esReal) mostrar();
+      else setTimeout(mostrar, Math.max(0, SCAN_STEPS.length * 420 + 350 - (Date.now() - t0)));
+    })
+    .catch(err => {
+      terminar();
+      const donde = fuente === "osm" ? "OpenStreetMap" : "Google";
+      toast(`${err.message.length > 60 ? "" : `No se pudo buscar en ${donde}: `}${err.message}`);
+    });
 });
 
 /* ══ Render: panel ════════════════════════════ */
@@ -2392,10 +2482,10 @@ document.getElementById("mCopy").addEventListener("click", async () => {
 document.getElementById("mWhatsapp").addEventListener("click", () => {
   if (!modalBiz) return;
   if (!modalBiz.real && !modalBiz.importado) { bloquearSiDemo(); return; }
-  const digits = waDigits(modalBiz.phone);
-  if (!digits) { toast("Este negocio no tiene teléfono publicado: copiá el mensaje y mandalo por otro canal"); return; }
   const text = document.getElementById("mMsg").value;
-  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  const url = waLink(modalBiz.phone, text);
+  if (!url) { toast("Este negocio no tiene teléfono publicado: copiá el mensaje y mandalo por otro canal"); return; }
+  window.open(url, "_blank", "noopener");
 });
 
 document.getElementById("mSave").addEventListener("click", () => {
@@ -2748,6 +2838,15 @@ function campAdvance() {
   renderAll();
 }
 
+const canalSel = document.getElementById("campCanal");
+canalSel.value = localStorage.getItem("huntly2.canal") || "web";
+canalSel.addEventListener("change", () => {
+  localStorage.setItem("huntly2.canal", canalSel.value);
+  toast(canalSel.value === "web"
+    ? "Los mensajes se van a abrir en WhatsApp Web"
+    : "Los mensajes se van a abrir en la app de WhatsApp");
+});
+
 document.getElementById("campBuild").addEventListener("click", buildCampaign);
 document.getElementById("goCampaign").addEventListener("click", () => {
   if (!results.length) { toast("Primero hacé una búsqueda"); return; }
@@ -2763,9 +2862,9 @@ document.getElementById("campSend").addEventListener("click", () => {
   if (!cur) return;
   if (bloquearSiDemo()) return;
   const text = document.getElementById("campMsg").value;
-  const digits = waDigits(cur.biz.phone);
-  if (!digits) { toast("Este negocio no tiene teléfono válido: lo salteo"); cur.state = "skip"; campAdvance(); return; }
-  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  const url = waLink(cur.biz.phone, text);
+  if (!url) { toast("Este negocio no tiene teléfono válido: lo salteo"); cur.state = "skip"; campAdvance(); return; }
+  window.open(url, "_blank", "noopener");
   cur.msg = text;
   cur.state = "sent";
   markContacted(cur.biz);
