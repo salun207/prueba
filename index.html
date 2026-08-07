@@ -755,6 +755,7 @@
               <div class="meta" id="campQueueMeta">—</div>
             </div>
             <div class="filters">
+              <button class="btn-ghost" id="campMapa" type="button">Ver la zona en el mapa</button>
               <button class="btn-ghost" id="campExport">Exportar la cola (CSV)</button>
             </div>
           </div>
@@ -1017,6 +1018,19 @@
       <div class="mini-stat"><div class="ms-l">Sin responder (est.)</div><div class="ms-v" id="mPerdidas">—</div></div>
       <div class="mini-stat"><div class="ms-l">Horario</div><div class="ms-v" id="mHorario" style="font-size:13px">—</div></div>
     </div>
+    <div id="mMapWrap" style="display:none;margin-bottom:16px">
+      <h4>Dónde queda</h4>
+      <div id="mMap" style="position:relative;width:100%;height:170px;overflow:hidden;border-radius:10px;border:1px solid var(--hairline);background:var(--page);margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn-ghost" id="mMapsLink" href="#" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Abrir en Google Maps
+        </a>
+        <a class="btn-ghost" id="mDirLink" href="#" target="_blank" rel="noopener" style="text-decoration:none">Cómo llegar</a>
+        <button class="btn-ghost" id="mCopyDir" type="button">Copiar dirección</button>
+      </div>
+    </div>
+
     <h4>Mensaje de WhatsApp <span style="color:var(--muted);font-weight:400">(editalo antes de mandarlo)</span></h4>
     <textarea id="mMsg" spellcheck="false"></textarea>
     <div id="mHint" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
@@ -1065,6 +1079,7 @@
 
 /* ══ Iconos SVG ═══════════════════════════════ */
 const ICONS = {
+  pin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
   phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
@@ -1693,9 +1708,8 @@ async function fetchOSM(nichoKey, ciudad) {
       uso: cfg.uso,
       descIdx: 0,
       msgSeed: rnd(1000),
-      maps: (el.lat || el.center?.lat)
-        ? `https://www.openstreetmap.org/?mlat=${el.lat || el.center.lat}&mlon=${el.lon || el.center.lon}#map=19/${el.lat || el.center.lat}/${el.lon || el.center.lon}`
-        : "",
+      lat: el.lat ?? el.center?.lat ?? null,
+      lon: el.lon ?? el.center?.lon ?? null,
       webUri,
       real: true,
       fuente: "osm",
@@ -1726,7 +1740,7 @@ async function fetchPlaces(nichoKey, ciudad) {
         "places.nationalPhoneNumber", "places.internationalPhoneNumber",
         "places.rating", "places.userRatingCount", "places.websiteUri",
         "places.regularOpeningHours.weekdayDescriptions",
-        "places.businessStatus", "places.googleMapsUri",
+        "places.businessStatus", "places.googleMapsUri", "places.location",
       ].join(","),
     },
     body: JSON.stringify({
@@ -1779,6 +1793,8 @@ async function fetchPlaces(nichoKey, ciudad) {
         descIdx: 0,
         msgSeed: rnd(1000),
         maps: p.googleMapsUri || "",
+        lat: p.location?.latitude ?? null,
+        lon: p.location?.longitude ?? null,
         real: true,
       };
     });
@@ -1806,6 +1822,62 @@ function waDigits(phone) {
   return d;
 }
 
+/* ══ Ubicación y mapas ════════════════════════
+   Todo negocio termina con enlace a Google Maps: si hay coordenadas se
+   usan; si no (listas importadas), se busca por nombre y ciudad. */
+function mapLinks(b) {
+  const tieneCoords = typeof b.lat === "number" && typeof b.lon === "number";
+  const consulta = tieneCoords
+    ? `${b.lat},${b.lon}`
+    : [b.name, b.address, b.ciudad].filter(Boolean).join(" ");
+  return {
+    ver: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consulta)}`,
+    comoLlegar: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(consulta)}`,
+    osm: tieneCoords
+      ? `https://www.openstreetmap.org/?mlat=${b.lat}&mlon=${b.lon}#map=18/${b.lat}/${b.lon}`
+      : "",
+    tieneCoords,
+  };
+}
+
+/* Mini mapa armado con las imágenes del mapa de OSM. Sin librerías: se
+   calcula qué recuadros cubren el punto y se los ubica desplazados para
+   que la chinche quede en el centro. */
+const TILE = 256;
+function lonToPx(lon, z) { return (lon + 180) / 360 * TILE * 2 ** z; }
+function latToPx(lat, z) {
+  const r = lat * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * TILE * 2 ** z;
+}
+
+function renderMiniMapa(b, cont, z = 16) {
+  const { lat, lon } = b;
+  if (typeof lat !== "number" || typeof lon !== "number") { cont.style.display = "none"; return; }
+  cont.style.display = "block";
+
+  const W = cont.clientWidth || 560, H = 170;
+  const cx = lonToPx(lon, z), cy = latToPx(lat, z);
+  const x0 = cx - W / 2, y0 = cy - H / 2;           // esquina superior izquierda en píxeles globales
+  const tx0 = Math.floor(x0 / TILE), ty0 = Math.floor(y0 / TILE);
+  const tx1 = Math.floor((x0 + W) / TILE), ty1 = Math.floor((y0 + H) / TILE);
+
+  let html = "";
+  for (let tx = tx0; tx <= tx1; tx++) {
+    for (let ty = ty0; ty <= ty1; ty++) {
+      const max = 2 ** z;
+      if (ty < 0 || ty >= max) continue;
+      const txw = ((tx % max) + max) % max;         // el mundo da la vuelta en longitud
+      html += `<img src="https://tile.openstreetmap.org/${z}/${txw}/${ty}.png" alt="" loading="lazy"
+        style="position:absolute;width:${TILE}px;height:${TILE}px;left:${tx * TILE - x0}px;top:${ty * TILE - y0}px">`;
+    }
+  }
+  html += `<div style="position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;
+    border-radius:50%;background:var(--brand);border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4)"></div>`;
+  html += `<div style="position:absolute;right:0;bottom:0;background:rgba(255,255,255,.82);color:#333;
+    font-size:9.5px;padding:1px 5px;border-radius:4px 0 0 0">© OpenStreetMap</div>`;
+  cont.innerHTML = html;
+}
+
 /* ══ Descripción por negocio ══════════════════ */
 function bizDescription(b) {
   const cfg = NICHOS[b.nicho];
@@ -1825,7 +1897,10 @@ function bizDescription(b) {
   if (!b.respondeResenas) extra.push("no responden reseñas");
   if (b.horarioGap) extra.push("hay horas del día sin nadie que atienda");
   if (b.real && !b.phone) extra.push("sin teléfono publicado");
-  return `${base} ${rep} en ${b.ciudad} (${ficha}). ${señal}${extra.length ? "; " + extra.join(", ") : ""}. Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} quedan sin respuesta.`;
+  const est = b.consultas
+    ? ` Estimación: ~${b.consultas} consultas/mes, de las que ~${b.perdidas} quedan sin respuesta.`
+    : "";
+  return `${base} ${rep} en ${b.ciudad} (${ficha}). ${señal}${extra.length ? "; " + extra.join(", ") : ""}.${est}`;
 }
 
 /* ══ Mensaje de WhatsApp ══════════════════════
@@ -2360,6 +2435,7 @@ function renderResults() {
         <div class="actions">
           <a class="icon-btn" href="tel:${b.phone.replace(/[\s-]/g, "")}" title="Llamar al ${esc(b.phone)}">${ICONS.phone}</a>
           <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${b.id}')">${ICONS.chat}</button>
+          <a class="icon-btn" href="${esc(mapLinks(b).ver)}" target="_blank" rel="noopener" title="Ver en Google Maps">${ICONS.pin}</a>
           <button class="icon-btn ${isSaved ? "saved" : ""}" title="${isSaved ? "Quitar de mi cartera" : "Guardar lead"}" onclick="toggleLead('${b.id}')">${isSaved ? ICONS.check : ICONS.plus}</button>
         </div>
       </td>
@@ -2501,6 +2577,7 @@ function renderLeads() {
       <div class="actions">
         <a class="icon-btn" href="tel:${l.phone.replace(/[\s-]/g, "")}" title="Llamar">${ICONS.phone}</a>
         <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${l.id}')">${ICONS.chat}</button>
+        <a class="icon-btn" href="${esc(mapLinks(l).ver)}" target="_blank" rel="noopener" title="Ver en Google Maps">${ICONS.pin}</a>
         <button class="icon-btn" title="Eliminar de la cartera" onclick="toggleLead('${l.id}')">${ICONS.trash}</button>
       </div>
     </td>
@@ -2576,13 +2653,28 @@ window.openMsg = function (id) {
   const ficha = b.rating ? `${b.rating.toFixed(1)}★ (${b.reviews} reseñas)` : "sin reseñas";
   const subParts = [b.nichoLabel, `${b.address}, ${b.ciudad}`, ficha, b.phone || "sin teléfono"];
   document.getElementById("mSub").innerHTML = esc(subParts.join(" · ")) +
-    (b.maps ? ` · <a href="${esc(b.maps)}" target="_blank" rel="noopener" style="color:var(--brand)">Ver en ${b.fuente === "osm" ? "OpenStreetMap" : "Google Maps"}</a>` : "");
+    ` · <a href="${esc(mapLinks(b).ver)}" target="_blank" rel="noopener" style="color:var(--brand)">Ver en Google Maps</a>`;
   document.getElementById("mDesc").textContent = bizDescription(b);
   document.getElementById("mPills").innerHTML = signalPills(b) + ` <span class="chip-uso">${esc(usoDe(b))}</span>` +
     (!b.real && !b.importado ? ` <span class="pill pill-critical"><span class="dot"></span>Negocio inventado (demo)</span>` : "");
-  document.getElementById("mConsultas").textContent = `~${b.consultas ?? "—"}`;
-  document.getElementById("mPerdidas").textContent = `~${b.perdidas ?? "—"}`;
+  // Sin reseñas no hay volumen que estimar: se muestra un guion, no un cero
+  document.getElementById("mConsultas").textContent = b.consultas ? `~${b.consultas}` : "—";
+  document.getElementById("mPerdidas").textContent = b.perdidas ? `~${b.perdidas}` : "—";
   document.getElementById("mHorario").textContent = b.horario || "—";
+  // Ubicación: el mapa solo si hay coordenadas; los enlaces, siempre
+  const ml = mapLinks(b);
+  const wrap = document.getElementById("mMapWrap");
+  wrap.style.display = "block";
+  document.getElementById("mMapsLink").href = ml.ver;
+  document.getElementById("mDirLink").href = ml.comoLlegar;
+  const mapa = document.getElementById("mMap");
+  if (ml.tieneCoords) {
+    mapa.style.display = "block";
+    requestAnimationFrame(() => renderMiniMapa(b, mapa));
+  } else {
+    mapa.style.display = "none";
+  }
+
   const ta = document.getElementById("mMsg");
   ta.value = buildMessage(b);
   updateMsgHint();
@@ -2615,6 +2707,13 @@ function closeModal() { modalBack.classList.remove("on"); modalBiz = null; }
 document.getElementById("mClose").addEventListener("click", closeModal);
 modalBack.addEventListener("click", (e) => { if (e.target === modalBack) closeModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalBack.classList.contains("on")) closeModal(); });
+
+document.getElementById("mCopyDir").addEventListener("click", async () => {
+  if (!modalBiz) return;
+  const txt = [modalBiz.name, modalBiz.address, modalBiz.ciudad].filter(Boolean).join(", ");
+  try { await navigator.clipboard.writeText(txt); toast("Dirección copiada"); }
+  catch { toast("No se pudo copiar"); }
+});
 
 document.getElementById("mVariant").addEventListener("click", () => {
   if (!modalBiz) return;
@@ -3118,12 +3217,28 @@ document.getElementById("campRestart").addEventListener("click", () => {
   updateCampBadge();
 });
 
+/* Abre Google Maps centrado en la zona de la tanda, para ver de un
+   vistazo qué tan cerca están entre sí. */
+document.getElementById("campMapa").addEventListener("click", () => {
+  const conCoords = campQueue.filter(q => typeof q.biz.lat === "number");
+  if (!conCoords.length) {
+    const b = campQueue[0]?.biz;
+    if (!b) { toast("No hay negocios en la cola"); return; }
+    window.open(mapLinks(b).ver, "_blank", "noopener");
+    return;
+  }
+  const lat = conCoords.reduce((a, q) => a + q.biz.lat, 0) / conCoords.length;
+  const lon = conCoords.reduce((a, q) => a + q.biz.lon, 0) / conCoords.length;
+  window.open(`https://www.google.com/maps/@${lat},${lon},14z`, "_blank", "noopener");
+});
+
 document.getElementById("campExport").addEventListener("click", () => {
   if (!campQueue.length) { toast("No hay cola para exportar"); return; }
-  const rows = [["Negocio", "Rubro", "Ciudad", "Teléfono", "Teléfono WhatsApp", "Puntuación", "Estado", "Mensaje"]];
+  const rows = [["Negocio", "Rubro", "Ciudad", "Dirección", "Teléfono", "Teléfono WhatsApp", "Puntuación", "Estado", "Google Maps", "Mensaje"]];
   campQueue.forEach(q => rows.push([
-    q.biz.name, q.biz.nichoLabel, q.biz.ciudad, q.biz.phone, waDigits(q.biz.phone),
-    q.biz.score, q.state === "sent" ? "Enviado" : q.state === "skip" ? "Salteado" : "En espera", q.msg,
+    q.biz.name, q.biz.nichoLabel, q.biz.ciudad, q.biz.address || "", q.biz.phone, waDigits(q.biz.phone),
+    q.biz.score, q.state === "sent" ? "Enviado" : q.state === "skip" ? "Salteado" : "En espera",
+    mapLinks(q.biz).ver, q.msg,
   ]));
   const csv = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
   const a = document.createElement("a");
