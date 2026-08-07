@@ -1150,6 +1150,33 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Aviso de arranque fallido: sin esto la app queda muda y parece rota -->
+<div id="bootError" style="display:none;position:fixed;inset:auto 12px 12px 12px;z-index:9999;
+     background:#fff;color:#111;border:2px solid #d92d20;border-radius:12px;padding:14px 16px;
+     box-shadow:0 8px 30px rgba(0,0,0,.25);font:14px/1.5 system-ui,sans-serif;max-width:640px;margin:0 auto">
+  <strong style="display:block;margin-bottom:6px">La app no arrancó del todo</strong>
+  <div id="bootErrorMsg" style="font-size:12.5px;color:#444"></div>
+  <div style="font-size:12.5px;color:#444;margin-top:8px">
+    Si estás en iPad o iPhone: no lo abras desde el visor de Archivos. Mantené apretado el archivo,
+    tocá <strong>Compartir</strong> y elegí <strong>Safari</strong> o <strong>Chrome</strong>.
+  </div>
+  <button onclick="this.parentNode.style.display='none'"
+          style="margin-top:10px;padding:8px 14px;border:1px solid #ccc;border-radius:8px;background:#f5f5f5;min-height:40px">
+    Entendido
+  </button>
+</div>
+<script>
+// Se registra antes que el resto: si algo falla al cargar, hay que verlo.
+window.addEventListener("error", function (e) {
+  var box = document.getElementById("bootError");
+  var msg = document.getElementById("bootErrorMsg");
+  if (!box || !msg || box.style.display === "block") return;
+  msg.textContent = (e.message || "Error desconocido") +
+    (e.lineno ? " (línea " + e.lineno + ")" : "");
+  box.style.display = "block";
+});
+</script>
+
 <script>
 "use strict";
 
@@ -1180,6 +1207,11 @@ function load(key, fallback) {
   catch { return fallback; }
 }
 function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
+/* Safari puede negar el acceso al almacenamiento cuando la página se
+   abre como archivo local: sin protección, cualquier lectura suelta
+   corta el script entero. */
+function loadRaw(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function saveRaw(key, val) { try { localStorage.setItem(key, val); } catch {} }
 
 let leads = load(LS.leads, []);
 let searchesUsed = load(LS.searches, 0);
@@ -1935,7 +1967,7 @@ async function fetchPlaces(nichoKey, ciudad) {
 function waLink(phone, texto) {
   const d = waDigits(phone);
   if (!d) return "";
-  const canal = localStorage.getItem("huntly2.canal") || "web";
+  const canal = loadRaw("huntly2.canal") || "web";
   const base = canal === "web"
     ? `https://web.whatsapp.com/send?phone=${d}&text=`
     : `https://wa.me/${d}?text=`;
@@ -3303,9 +3335,9 @@ function campAdvance() {
 }
 
 const canalSel = document.getElementById("campCanal");
-canalSel.value = localStorage.getItem("huntly2.canal") || "web";
+canalSel.value = loadRaw("huntly2.canal") || "web";
 canalSel.addEventListener("change", () => {
-  localStorage.setItem("huntly2.canal", canalSel.value);
+  saveRaw("huntly2.canal", canalSel.value);
   toast(canalSel.value === "web"
     ? "Los mensajes se van a abrir en WhatsApp Web"
     : "Los mensajes se van a abrir en la app de WhatsApp");
@@ -3717,6 +3749,21 @@ document.getElementById("perfilSel").addEventListener("change", (e) => {
   toast(`Campaña activa: ${perfilActual().corto}. Hacé una búsqueda para empezar.`);
 });
 applyPerfil();
+
+/* Última red de seguridad: si el selector de rubros quedó vacío, algo
+   se cortó en el camino y conviene decirlo en lugar de mostrar una
+   pantalla que parece funcionar pero no deja hacer nada. */
+setTimeout(function () {
+  var sel = document.getElementById("nicho");
+  if (sel && sel.options.length === 0) {
+    var box = document.getElementById("bootError");
+    var msg = document.getElementById("bootErrorMsg");
+    if (box && msg && box.style.display !== "block") {
+      msg.textContent = "La lista de rubros quedó vacía: el navegador no ejecutó parte de la página.";
+      box.style.display = "block";
+    }
+  }
+}, 800);
 
 /* ══ Ajustes de la API de WhatsApp ════════════ */
 document.getElementById("waPhoneId").value = wa.phoneId;
