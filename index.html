@@ -646,17 +646,18 @@
           <div class="field">
             <label for="campMin">Puntuación mínima</label>
             <select id="campMin">
-              <option value="0">Todos</option>
+              <option value="0" selected>Todos</option>
               <option value="45">45 o más (media y alta)</option>
-              <option value="70" selected>70 o más (solo altas)</option>
+              <option value="70">70 o más (solo altas)</option>
             </select>
           </div>
           <div class="field">
             <label for="campMax">Cuántos como máximo</label>
             <select id="campMax">
               <option value="10">10 por tanda</option>
-              <option value="20" selected>20 por tanda</option>
-              <option value="30">30 por tanda</option>
+              <option value="20">20 por tanda</option>
+              <option value="30" selected>30 por tanda</option>
+              <option value="50">50 por tanda</option>
               <option value="999">Todos los que haya</option>
             </select>
           </div>
@@ -1587,7 +1588,7 @@ async function fetchConTimeout(url, opciones = {}, ms = 25000) {
 /* Un área muy grande (una provincia entera, por ejemplo) hace que la
    consulta tarde minutos o directamente falle. Se recorta a un cuadrado
    de ~35 km alrededor del centro, que cubre una ciudad completa. */
-const BBOX_MAX_GRADOS = 0.32;
+const BBOX_MAX_GRADOS = 0.55;
 function recortarBBox(bb) {
   const alto = bb.norte - bb.sur;
   const ancho = bb.este - bb.oeste;
@@ -1623,6 +1624,7 @@ async function geocodeCiudad(ciudad) {
 /* Overpass tiene varios espejos: si uno está saturado se prueba el
    siguiente antes de dar la búsqueda por perdida. */
 let ultimoAvisoZona = "";
+let ultimoConteo = null;
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -1666,11 +1668,11 @@ async function fetchOSM(nichoKey, ciudad) {
     const bb = await geocodeCiudad(ciudad);
     recortado = bb.recortado;
     const box = `${bb.sur},${bb.oeste},${bb.norte},${bb.este}`;
-    query = `[out:json][timeout:20];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 150;`;
+    query = `[out:json][timeout:20];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 600;`;
   } catch {
     const limpia = ciudad.split(",")[0].trim().replace(/"/g, "");
     query = `[out:json][timeout:20];area["name"="${limpia}"]["boundary"="administrative"]->.a;` +
-            `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 150;`;
+            `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 600;`;
   }
 
   const data = await overpassQuery(query, (n, total) => {
@@ -1679,7 +1681,7 @@ async function fetchOSM(nichoKey, ciudad) {
       ? "Consultando el mapa… puede tardar unos segundos"
       : `El primer servidor no respondió, probando otro (${n} de ${total})…`;
   });
-  if (recortado) ultimoAvisoZona = `«${ciudad}» abarca un área muy grande: se buscó en el centro, unos 35 km a la redonda.`;
+  if (recortado) ultimoAvisoZona = `«${ciudad}» abarca un área muy grande: se buscó en el centro, unos 60 km a la redonda.`;
 
   const seq = Date.now();
   const vistos = new Set();
@@ -1731,6 +1733,7 @@ async function fetchOSM(nichoKey, ciudad) {
   if (!out.length) {
     throw new Error(`No hay ${cfg.label.toLowerCase()} cargados en OpenStreetMap para ${ciudad}. Probá otra ciudad o rubro.`);
   }
+  ultimoConteo = { total: out.length, conTel: out.filter(b => waDigits(b.phone)).length };
   // Primero los que tienen teléfono: son los únicos contactables
   out.sort((a, b) => (b.phone ? 1 : 0) - (a.phone ? 1 : 0) || b.score - a.score);
   return out;
@@ -2020,21 +2023,7 @@ function buildMessage(b, seed) {
   // pregunta real sobre cómo trabajan. Sirve para entender el problema
   // antes de tener algo que vender, y es lo que menos rechazo genera.
   if (settings.tono === "consulta") {
-    const ctx = settings.contexto.trim();
-    const uni = (settings.uni || "").trim();
-    const motivos = motivosConsulta(ctx, uni, rubro);
-    const desarmes = [
-      `Es pura curiosidad, no les vendo nada.`,
-      `No les quiero vender nada, es solo para entender cómo lo resuelven.`,
-      `Si no llegan a contestar no hay problema, gracias igual.`,
-    ];
-    const partes = [
-      `${v(SALUDOS)} ${v(motivos)} y llegué a ${b.name}.`,
-      `¿Les puedo hacer una pregunta? ${capPregunta(pregunta.replace(/^Una consulta: /, ""))}`,
-      v(desarmes, 1),
-    ];
-    if (firma) partes.push(`Gracias,\n${firma}`);
-    return partes.join("\n\n");
+    return armarConsulta(b, v, varNum, firma, rubro, pregunta);
   }
 
   // Variante 0 (la que se ve primero): mensaje de apertura. Solo un dato
@@ -2126,21 +2115,7 @@ function buildMessageDogStay(b, cfg, v, varNum, firma, rubro) {
 
   // Tono «consulta»: se pregunta, no se propone nada
   if (settings.tono === "consulta") {
-    const ctx = settings.contexto.trim();
-    const uni = (settings.uni || "").trim();
-    const motivos = motivosConsulta(ctx, uni, rubro);
-    const desarmes = [
-      `Es pura curiosidad, no les vendo nada.`,
-      `No les quiero vender nada, es solo para entender cómo lo resuelven.`,
-      `Si no llegan a contestar no hay problema, gracias igual.`,
-    ];
-    const partes = [
-      `${v(SALUDOS)} ${v(motivos)} y llegué a ${b.name}.`,
-      `¿Les puedo hacer una pregunta? ${capPregunta(v(preguntas, 1).replace(/^Una consulta: /, ""))}`,
-      v(desarmes, 1),
-    ];
-    if (firma) partes.push(`Gracias,\n${firma}`);
-    return partes.join("\n\n");
+    return armarConsulta(b, v, varNum, firma, rubro, v(preguntas, 1));
   }
 
   // Variante 0: apertura sola, sin propuesta
@@ -2171,6 +2146,8 @@ function motivosConsulta(ctx, uni, rubro) {
     `Estoy investigando cómo las ${rubro} manejan las consultas por WhatsApp`,
     `Estoy relevando cómo funciona la atención por WhatsApp en ${rubro}`,
     `Estoy haciendo un relevamiento sobre atención al cliente en ${rubro}`,
+    `Estoy juntando información sobre cómo atienden las ${rubro} de la zona`,
+    `Estoy estudiando cómo resuelven la atención al cliente las ${rubro}`,
   ];
   if (ctx && uni) {
     return [ctx, `${ctx} (es para un proyecto de la facultad, ${uni})`, ctx, neutros[0]];
@@ -2183,9 +2160,59 @@ function motivosConsulta(ctx, uni, rubro) {
       neutros[0],
       `Estoy relevando para un proyecto de la facultad (${uni}) cómo las ${rubro} manejan los mensajes`,
       neutros[1],
+      `Estoy haciendo una investigación en ${uni} sobre atención al cliente en comercios de barrio`,
+      neutros[3],
+      `Estamos con unos compañeros de ${uni} armando un relevamiento sobre cómo atienden las ${rubro}`,
     ];
   }
   return neutros;
+}
+
+/* Armador del tono consulta. Cada variante cambia la estructura entera
+   —no solo alguna palabra— para que una tanda no se lea como una
+   plantilla repetida. */
+function armarConsulta(b, v, varNum, firma, rubro, pregunta) {
+  const ctx = settings.contexto.trim();
+  const uni = (settings.uni || "").trim();
+  const motivos = motivosConsulta(ctx, uni, rubro);
+  const q = capPregunta(pregunta.replace(/^Una consulta: /, ""));
+  const inst = uni ? `de ${uni}` : "de la facultad";
+
+  const desarmes = [
+    `Es pura curiosidad, no les vendo nada.`,
+    `No les quiero vender nada, es para entender cómo lo resuelven.`,
+    `Si no llegan a contestar, no hay drama. Gracias igual.`,
+    `Es solo para el relevamiento, no les hago perder tiempo con otra cosa.`,
+    `Son dos minutos y me sirve un montón.`,
+  ];
+  const gracias = firma ? `Gracias,\n${firma}` : "Gracias.";
+
+  // Seis estructuras distintas: pregunta directa, pedido de permiso,
+  // el dato primero, la pregunta al final, formato breve y el
+  // planteo explícito de investigación.
+  const formas = [
+    () => [`${v(SALUDOS)} ${v(motivos)} y llegué a ${b.name}.`, `¿Les puedo hacer una pregunta? ${q}`, v(desarmes, 1), gracias],
+
+    () => [`${v(SALUDOS)} Les escribo por algo puntual.`, q,
+           `${cap(v(motivos, 1))} y ${b.name} entra en lo que estoy mirando.`, v(desarmes, 2), gracias],
+
+    () => [`${v(SALUDOS)} ${cap(v(motivos, 2))}.`, q, v(desarmes), gracias],
+
+    () => [`${v(SALUDOS)} Vi ${b.name} en ${b.ciudad} y quería consultarles algo del día a día.`,
+           q, `${cap(v(motivos, 1))}, por eso pregunto. ${v(desarmes, 3)}`, gracias],
+
+    () => [`${v(SALUDOS)} Una sola pregunta y no les molesto más: ${q}`,
+           `${cap(v(motivos))}.`, gracias],
+
+    () => [`${v(SALUDOS)} Estoy armando un relevamiento ${inst} sobre cómo trabajan las ${rubro} de ${b.ciudad}, y ${b.name} es una de las que estoy consultando.`,
+           `La pregunta es simple: ${q}`,
+           `Con una respuesta corta me alcanza. ${v(desarmes, 4)}`, gracias],
+  ];
+
+  // La semilla del negocio decide con qué estructura arranca; «Otra
+  // variante» avanza desde ahí.
+  const i = ((b.msgSeed ?? 0) + varNum) % formas.length;
+  return formas[i]().join("\n\n");
 }
 
 function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
@@ -2423,11 +2450,14 @@ function renderResults() {
     document.getElementById("resultsBody").innerHTML = "";
     return;
   }
+  // Solo los que tienen teléfono son contactables: conviene decirlo
+  const conTel = list.filter(b => waDigits(b.phone)).length;
   meta.innerHTML = `${esc(lastQuery.label)} en ${esc(lastQuery.ciudad)} · ${list.length} negocios · ` + (
     lastQuery.importado ? `lista propia`
     : lastQuery.fuente === "osm" ? `datos reales de OpenStreetMap`
     : lastQuery.real ? `datos reales de Google`
-    : `<strong style="color:var(--critical)">negocios inventados (demo)</strong>`);
+    : `<strong style="color:var(--critical)">negocios inventados (demo)</strong>`) +
+    (conTel < list.length ? ` · <strong>${conTel} con teléfono</strong>` : "");
 
   if (!list.length) {
     table.style.display = "none";
@@ -2973,7 +3003,16 @@ function updateCampPreview() {
     return;
   }
   const mins = Math.max(1, Math.round(n * 0.4));
-  el.textContent = `Quedan ${n} negocio${n === 1 ? "" : "s"} en la cola. Te va a llevar unos ${mins} minuto${mins === 1 ? "" : "s"}.`;
+  const min = Number(document.getElementById("campMin").value);
+  const base = fuente === "leads" ? leads.filter(l => l.state === "Nuevo") : results;
+  const sinTel = base.filter(b => !waDigits(b.phone)).length;
+  const porScore = base.filter(b => waDigits(b.phone) && b.score < min).length;
+  const notas = [];
+  if (sinTel) notas.push(`${sinTel} sin teléfono publicado`);
+  if (porScore) notas.push(`${porScore} bajo la puntuación mínima`);
+  el.textContent = `Quedan ${n} negocio${n === 1 ? "" : "s"} en la cola` +
+    (notas.length ? ` (se descartaron ${notas.join(" y ")})` : "") +
+    `. Te va a llevar unos ${mins} minuto${mins === 1 ? "" : "s"}.`;
 }
 
 function buildCampaign() {
