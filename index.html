@@ -1612,27 +1612,49 @@ function recortarBBox(bb) {
 }
 
 async function geocodeCiudad(ciudad) {
-  // Primero se busca solo entre localidades: si no, «Buenos Aires»
-  // devuelve la provincia y el centro cae en medio del campo.
-  const base = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=${encodeURIComponent(ciudad)}`;
-  let data = [];
-  for (const url of [`${base}&featureType=settlement`, base]) {
+  // Se prueban varias estrategias: acotado a Argentina y entre
+  // localidades primero, después cada vez más amplio. Sin esto, un
+  // partido del conurbano o un nombre repetido resuelve a cualquier
+  // lugar del mundo.
+  const q = encodeURIComponent(ciudad);
+  const base = "https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es";
+  const intentos = [
+    `${base}&countrycodes=ar&featureType=settlement&q=${q}`,
+    `${base}&countrycodes=ar&q=${q}`,
+    `${base}&countrycodes=ar&q=${encodeURIComponent(ciudad + ", Argentina")}`,
+    `${base}&featureType=settlement&q=${q}`,
+    `${base}&q=${q}`,
+  ];
+  for (const url of intentos) {
     try {
-      const res = await fetchConTimeout(url, { headers: { Accept: "application/json" } }, 15000);
+      const res = await fetchConTimeout(url, { headers: { Accept: "application/json" } }, 12000);
       if (!res.ok) continue;
-      data = await res.json();
-      if (data.length) break;
+      const data = await res.json();
+      if (!data.length || !data[0].boundingbox) continue;
+      const bb = data[0].boundingbox.map(Number); // [sur, norte, oeste, este]
+      return recortarBBox({
+        sur: bb[0], norte: bb[1], oeste: bb[2], este: bb[3],
+        nombre: data[0].display_name,
+      });
     } catch { /* se prueba la siguiente */ }
   }
-  if (!data.length) throw new Error(`no se encontró la ciudad «${ciudad}»`);
-  const bb = data[0].boundingbox.map(Number); // [sur, norte, oeste, este]
-  return recortarBBox({ sur: bb[0], norte: bb[1], oeste: bb[2], este: bb[3], nombre: data[0].display_name });
+  throw new Error(`no se encontró la zona «${ciudad}». Probá agregando la provincia, por ejemplo «${ciudad}, Buenos Aires».`);
+}
+
+/* Un partido chico da un rectángulo chico: si vuelve casi vacío, se
+   amplía el radio y se busca de nuevo antes de darlo por perdido. */
+function ampliarBBox(bb, factor) {
+  const cLat = (bb.norte + bb.sur) / 2, cLon = (bb.este + bb.oeste) / 2;
+  const hLat = Math.max((bb.norte - bb.sur) / 2, 0.02) * factor;
+  const hLon = Math.max((bb.este - bb.oeste) / 2, 0.02) * factor;
+  return { sur: cLat - hLat, norte: cLat + hLat, oeste: cLon - hLon, este: cLon + hLon, nombre: bb.nombre };
 }
 
 /* Overpass tiene varios espejos: si uno está saturado se prueba el
    siguiente antes de dar la búsqueda por perdida. */
 let ultimoAvisoZona = "";
 let ultimoConteo = null;
+let zonaResuelta = "";
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -1671,24 +1693,41 @@ async function fetchOSM(nichoKey, ciudad) {
 
   // Camino principal: ubicar la ciudad y buscar dentro de su rectángulo.
   // Si el geocodificador no responde, se busca por nombre de área.
-  let query, recortado = false;
-  try {
-    const bb = await geocodeCiudad(ciudad);
-    recortado = bb.recortado;
-    const box = `${bb.sur},${bb.oeste},${bb.norte},${bb.este}`;
-    query = `[out:json][timeout:20];(${tags.map(t => `nwr${t}(${box});`).join("")});out center 600;`;
-  } catch {
-    const limpia = ciudad.split(",")[0].trim().replace(/"/g, "");
-    query = `[out:json][timeout:20];area["name"="${limpia}"]["boundary"="administrative"]->.a;` +
-            `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 600;`;
-  }
-
-  const data = await overpassQuery(query, (n, total) => {
+  const avisar = (n, total) => {
     const msg = document.getElementById("scanMsg");
     if (msg) msg.textContent = n === 1
       ? "Consultando el mapa… puede tardar unos segundos"
       : `El primer servidor no respondió, probando otro (${n} de ${total})…`;
-  });
+  };
+  const armarQuery = bb => `[out:json][timeout:20];(${tags
+    .map(t => `nwr${t}(${bb.sur},${bb.oeste},${bb.norte},${bb.este});`).join("")});out center 600;`;
+
+  let data, bb = null, recortado = false, ampliado = false;
+  try {
+    bb = await geocodeCiudad(ciudad);
+    recortado = bb.recortado;
+    zonaResuelta = bb.nombre || "";
+    data = await overpassQuery(armarQuery(bb), avisar);
+
+    // Un partido chico puede dar apenas un puñado: se amplía y reintenta
+    if ((data.elements || []).length < 8) {
+      const msg = document.getElementById("scanMsg");
+      if (msg) msg.textContent = "Pocos resultados: ampliando la zona…";
+      const data2 = await overpassQuery(armarQuery(ampliarBBox(bb, 3)), avisar);
+      if ((data2.elements || []).length > (data.elements || []).length) {
+        data = data2;
+        ampliado = true;
+      }
+    }
+  } catch (e) {
+    if (bb) throw e;                       // ya tenía la zona: el fallo es de Overpass
+    const limpia = ciudad.split(",")[0].trim().replace(/"/g, "");
+    zonaResuelta = "";
+    data = await overpassQuery(
+      `[out:json][timeout:20];area["name"="${limpia}"]->.a;` +
+      `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 600;`, avisar);
+  }
+  if (ampliado) ultimoAvisoZona = `En ${ciudad} había muy pocos cargados: se amplió la búsqueda a los alrededores.`;
   if (recortado) ultimoAvisoZona = `«${ciudad}» abarca un área muy grande: se buscó en el centro, unos 60 km a la redonda.`;
 
   const seq = Date.now();
@@ -2483,7 +2522,9 @@ function renderResults() {
     : lastQuery.fuente === "osm" ? `datos reales de OpenStreetMap`
     : lastQuery.real ? `datos reales de Google`
     : `<strong style="color:var(--critical)">negocios inventados (demo)</strong>`) +
-    (conTel < list.length ? ` · <strong>${conTel} con teléfono</strong>` : "");
+    (conTel < list.length ? ` · <strong>${conTel} con teléfono</strong>` : "") +
+    (zonaResuelta && lastQuery.fuente === "osm"
+      ? `<div style="font-size:11.5px;color:var(--muted);margin-top:3px">Zona encontrada: ${esc(zonaResuelta)}</div>` : "");
 
   if (!list.length) {
     table.style.display = "none";
