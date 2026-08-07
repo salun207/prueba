@@ -1122,9 +1122,17 @@ let leads = load(LS.leads, []);
 let searchesUsed = load(LS.searches, 0);
 let history = load(LS.history, []);
 let settings = Object.assign(
-  { name: "", product: "", demo: "", price: 49, pd: "", source: "osm", gkey: "", perfil: "nexa", tono: "consulta", contexto: "", uni: "" },
+  { name: "", product: "", demo: "", price: 49, pd: "", source: "osm", gkey: "", perfil: "nexa", tono: "consulta", contexto: "", uni: "ITBA" },
   load(LS.settings, {})
 );
+// Quien ya venía usando la app tiene el campo guardado vacío: se le
+// carga ITBA una sola vez, y si lo borra a mano queda borrado.
+if (!settings.uniInit) {
+  settings.uni = settings.uni || "ITBA";
+  settings.uniInit = true;
+  save(LS.settings, settings);
+}
+
 let wa = Object.assign(
   { phoneId: "", token: "", template: "", lang: "es_AR", relay: "" },
   load(LS.wa, {})
@@ -1530,40 +1538,40 @@ const OSM_COBERTURA = {
 };
 
 const OSM_TAGS = {
-  "clinica-dental": ['["amenity"="dentist"]', '["healthcare"="dentist"]'],
+  "clinica-dental": ['["amenity"="dentist"]', '["healthcare"="dentist"]', '["healthcare:speciality"="dentistry"]'],
   "clinica-estetica": ['["shop"="beauty"]', '["shop"="beauty"]["beauty"="cosmetic"]'],
   "kinesiologia": ['["healthcare"="physiotherapist"]', '["healthcare:speciality"="physiotherapy"]'],
-  "veterinaria": ['["amenity"="veterinary"]'],
+  "veterinaria": ['["amenity"="veterinary"]', '["shop"="pet"]["veterinary"="yes"]', '["healthcare"="veterinary"]'],
   "podologia": ['["healthcare"="podiatrist"]', '["healthcare:speciality"="podiatry"]'],
   "psicologia": ['["healthcare"="psychotherapist"]', '["healthcare:speciality"~"psychiatry|psychology"]'],
   "oftalmologia": ['["shop"="optician"]', '["healthcare:speciality"="ophthalmology"]'],
   "nutricion": ['["healthcare"="nutrition_counselling"]', '["healthcare:speciality"="nutrition"]', '["amenity"="doctors"]["healthcare:speciality"~"nutrition"]'],
-  "peluqueria": ['["shop"="hairdresser"]'],
-  "barberia": ['["shop"="hairdresser"]'],
+  "peluqueria": ['["shop"="hairdresser"]', '["shop"="beauty"]["beauty"="hairdresser"]', '["craft"="hairdresser"]'],
+  "barberia": ['["shop"="hairdresser"]', '["shop"="barber"]', '["craft"="hairdresser"]'],
   "centro-unas": ['["shop"="beauty"]["beauty"="nails"]'],
   "spa": ['["leisure"="spa"]', '["shop"="massage"]'],
-  "restaurante": ['["amenity"="restaurant"]'],
-  "cafeteria": ['["amenity"="cafe"]'],
+  "restaurante": ['["amenity"="restaurant"]', '["amenity"="fast_food"]'],
+  "cafeteria": ['["amenity"="cafe"]', '["shop"="bakery"]["cafe"="yes"]', '["shop"="coffee"]'],
   "pizzeria": ['["amenity"="restaurant"]["cuisine"~"pizza"]', '["amenity"="fast_food"]["cuisine"~"pizza"]'],
   "catering": ['["craft"="caterer"]'],
-  "gimnasio": ['["leisure"="fitness_centre"]'],
+  "gimnasio": ['["leisure"="fitness_centre"]', '["leisure"="sports_centre"]["sport"~"fitness|multi"]', '["amenity"="gym"]'],
   "yoga-pilates": ['["leisure"="fitness_centre"]["sport"~"yoga|pilates"]'],
   "plomeria": ['["craft"="plumber"]'],
   "electricista": ['["craft"="electrician"]'],
   "cerrajeria": ['["craft"="locksmith"]', '["shop"="locksmith"]'],
   "reformas": ['["craft"="builder"]'],
   "limpieza": ['["shop"="dry_cleaning"]', '["shop"="laundry"]'],
-  "taller": ['["shop"="car_repair"]'],
+  "taller": ['["shop"="car_repair"]', '["shop"="car_parts"]["service:vehicle:repair"="yes"]', '["craft"="car_repair"]'],
   "escuela-manejo": ['["amenity"="driving_school"]'],
   "estudio-juridico": ['["office"="lawyer"]'],
   "estudio-contable": ['["office"="accountant"]'],
-  "inmobiliaria": ['["office"="estate_agent"]'],
+  "inmobiliaria": ['["office"="estate_agent"]', '["shop"="estate_agent"]'],
   "instituto": ['["amenity"="language_school"]', '["office"="educational_institution"]'],
   "fotografo": ['["shop"="photo"]', '["craft"="photographer"]'],
   "agencia-viajes": ['["shop"="travel_agency"]'],
   "guarderia-canina": ['["amenity"="animal_boarding"]'],
   "peluqueria-canina": ['["shop"="pet_grooming"]'],
-  "petshop": ['["shop"="pet"]'],
+  "petshop": ['["shop"="pet"]', '["shop"="pet_grooming"]', '["shop"="agrarian"]["agrarian"~"feed"]'],
   "adiestrador": ['["amenity"="animal_training"]'],
   // Sin equivalente en OSM: son oficios sin local, no se mapean
   "paseador": null,
@@ -1692,7 +1700,12 @@ async function fetchOSM(nichoKey, ciudad) {
     if (!name || vistos.has(name.toLowerCase())) return;
     vistos.add(name.toLowerCase());
 
-    const phone = t.phone || t["contact:phone"] || t["contact:mobile"] || t.mobile || "";
+    // OSM guarda el teléfono en muchas claves distintas según quién lo
+    // cargó: se prueban todas, empezando por la de WhatsApp.
+    const phone = t["contact:whatsapp"] || t.whatsapp ||
+      t.phone || t["contact:phone"] || t["contact:mobile"] || t.mobile ||
+      t["phone:mobile"] || t["contact:phone:mobile"] || t["phone:AR"] ||
+      t["operator:phone"] || "";
     const webUri = t.website || t["contact:website"] || "";
     const horario = t.opening_hours || "";
     const calle = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
@@ -1827,9 +1840,13 @@ function waLink(phone, texto) {
   return base + encodeURIComponent(texto);
 }
 
-/* Teléfonos argentinos a formato wa.me: 549 + área + número */
+/* Teléfonos argentinos a formato wa.me: 549 + área + número.
+   OSM suele traer varios separados por ; o por barra: se toma el primero. */
 function waDigits(phone) {
-  let d = String(phone || "").replace(/[^\d]/g, "");
+  const primero = String(phone || "").split(/[;/]/)[0];
+  let d = primero.replace(/[^\d]/g, "");
+  // Sin suficientes dígitos no es un teléfono utilizable
+  if (d.length < 8) return "";
   if (!d) return "";
   if (d.startsWith("0")) d = "54" + d.slice(1);
   if (!d.startsWith("54") && d.length <= 11) d = "54" + d;
@@ -2139,9 +2156,10 @@ function buildMessageDogStay(b, cfg, v, varNum, firma, rubro) {
 
 /* Motivos del tono consulta. Si hay universidad cargada, algunas
    variantes la mencionan y otras no: así la tanda no sale toda igual. */
+/* Devuelve los motivos separados: los que mencionan la institución y los
+   neutros. El armador elige de cuál tomar, así la proporción es
+   predecible en lugar de depender del azar. */
 function motivosConsulta(ctx, uni, rubro) {
-  // La universidad va siempre entre paréntesis: así funciona con
-  // cualquier nombre, sin tener que adivinar el artículo.
   const neutros = [
     `Estoy investigando cómo las ${rubro} manejan las consultas por WhatsApp`,
     `Estoy relevando cómo funciona la atención por WhatsApp en ${rubro}`,
@@ -2149,23 +2167,23 @@ function motivosConsulta(ctx, uni, rubro) {
     `Estoy juntando información sobre cómo atienden las ${rubro} de la zona`,
     `Estoy estudiando cómo resuelven la atención al cliente las ${rubro}`,
   ];
-  if (ctx && uni) {
-    return [ctx, `${ctx} (es para un proyecto de la facultad, ${uni})`, ctx, neutros[0]];
+  if (ctx) {
+    return {
+      conUni: uni ? [ctx, `${ctx} (es para un proyecto de la facultad, ${uni})`] : [],
+      neutros: [ctx],
+    };
   }
-  if (ctx) return [ctx, ctx, ctx];
-  if (uni) {
-    return [
-      `Estoy haciendo un proyecto de la facultad (${uni}) sobre cómo las ${rubro} atienden por WhatsApp`,
-      `Estoy con un trabajo para la facultad (${uni}) sobre atención al cliente en ${rubro}`,
-      neutros[0],
-      `Estoy relevando para un proyecto de la facultad (${uni}) cómo las ${rubro} manejan los mensajes`,
-      neutros[1],
-      `Estoy haciendo una investigación en ${uni} sobre atención al cliente en comercios de barrio`,
-      neutros[3],
-      `Estamos con unos compañeros de ${uni} armando un relevamiento sobre cómo atienden las ${rubro}`,
-    ];
-  }
-  return neutros;
+  // La institución va entre paréntesis o precedida de «de»: así encaja
+  // con cualquier nombre sin depender del artículo.
+  const conUni = uni ? [
+    `Estoy haciendo un proyecto de la facultad (${uni}) sobre cómo las ${rubro} atienden por WhatsApp`,
+    `Estoy con un trabajo para la facultad (${uni}) sobre atención al cliente en ${rubro}`,
+    `Estoy relevando, para un proyecto de la facultad (${uni}), cómo las ${rubro} manejan los mensajes`,
+    `Estoy haciendo una investigación en ${uni} sobre atención al cliente en comercios de barrio`,
+    `Estamos con unos compañeros de ${uni} armando un relevamiento sobre cómo atienden las ${rubro}`,
+    `Estoy cursando en ${uni} y estoy haciendo un trabajo sobre cómo atienden las ${rubro}`,
+  ] : [];
+  return { conUni, neutros };
 }
 
 /* Armador del tono consulta. Cada variante cambia la estructura entera
@@ -2174,9 +2192,17 @@ function motivosConsulta(ctx, uni, rubro) {
 function armarConsulta(b, v, varNum, firma, rubro, pregunta) {
   const ctx = settings.contexto.trim();
   const uni = (settings.uni || "").trim();
-  const motivos = motivosConsulta(ctx, uni, rubro);
   const q = capPregunta(pregunta.replace(/^Una consulta: /, ""));
   const inst = uni ? `de ${uni}` : "de la facultad";
+
+  // Un solo motivo por mensaje, para que no se contradiga entre líneas.
+  // Con universidad cargada, dos de cada tres mensajes la mencionan.
+  const semilla = (b.msgSeed ?? 0) + varNum;
+  const { conUni, neutros } = motivosConsulta(ctx, uni, rubro);
+  const usaUni = conUni.length && semilla % 3 !== 2;
+  const lista = usaUni ? conUni : neutros;
+  const motivo = lista[semilla % lista.length];
+  const motivos = [motivo, motivo, motivo, motivo, motivo];
 
   const desarmes = [
     `Es pura curiosidad, no les vendo nada.`,
@@ -3032,12 +3058,20 @@ function buildCampaign() {
   }
   campQueue = pool.map(b => ({ biz: b, msg: buildMessage(b), state: "pend" }));
   campIdx = 0;
+  // Si se cayeron muchos, decir por qué en vez de dejarlo a la imaginación
+  const fuenteSel = document.getElementById("campFuente").value;
+  const base = fuenteSel === "leads" ? leads.filter(l => l.state === "Nuevo") : results;
+  const sinTel = base.filter(b => !waDigits(b.phone)).length;
+  if (sinTel > pool.length) {
+    ultimoAvisoZona = `De ${base.length} negocios, ${sinTel} no tienen teléfono publicado en el mapa y quedaron afuera.`;
+  }
   empty.style.display = "none";
   run.style.display = "block";
   document.getElementById("campDone").style.display = "none";
   document.getElementById("campCurrent").style.display = "block";
   renderCampaign();
-  toast(`Cola lista: ${campQueue.length} mensajes personalizados`);
+  if (ultimoAvisoZona) { toast(ultimoAvisoZona); ultimoAvisoZona = ""; }
+  else toast(`Cola lista: ${campQueue.length} mensajes personalizados`);
 }
 
 /* Los datos de demo son inventados: los teléfonos podrían ser de
@@ -3184,7 +3218,11 @@ document.getElementById("campBuild").addEventListener("click", buildCampaign);
 document.getElementById("goCampaign").addEventListener("click", () => {
   if (!results.length) { toast("Primero hacé una búsqueda"); return; }
   goToView("campana");
+  // «Escribirles a todos» significa todos: se abren los filtros, sin
+  // arrastrar lo que hubiera quedado seleccionado de una tanda anterior.
   document.getElementById("campFuente").value = "results";
+  document.getElementById("campMin").value = "0";
+  document.getElementById("campMax").value = "999";
   buildCampaign();
 });
 ["campFuente", "campMin", "campMax"].forEach(id =>
@@ -3374,6 +3412,7 @@ document.getElementById("saveSettings").addEventListener("click", () => {
     tono: document.getElementById("myTono").value,
     contexto: document.getElementById("myContexto").value.trim(),
     uni: document.getElementById("myUni").value.trim(),
+    uniInit: true,
     source: document.getElementById("mySource").value,
     gkey: document.getElementById("myGkey").value.trim(),
   };
