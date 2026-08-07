@@ -901,7 +901,19 @@
               <input id="myContexto" type="text" placeholder="Dejalo vacío y la app usa uno neutro">
               <div id="motivoChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
             </div>
+            <div class="field full">
+              <label for="myUni">Universidad o institución (opcional)</label>
+              <input id="myUni" type="text" placeholder="p. ej. ITBA" list="uniSugerencias">
+              <datalist id="uniSugerencias">
+                <option value="ITBA"></option>
+                <option value="UBA"></option>
+                <option value="UTN"></option>
+                <option value="Universidad Austral"></option>
+                <option value="UADE"></option>
+              </datalist>
+            </div>
           </div>
+          <p class="hint" style="margin-top:6px">Si la completás, algunas variantes del mensaje van a mencionar que es un proyecto de la facultad y otras no. Así los mensajes no salen todos iguales y podés ver cuál funciona mejor.</p>
           <p class="hint" style="margin-top:10px">
             Con <strong>Consulta</strong> el mensaje no menciona lo que vendés: es una pregunta sobre cómo atienden por WhatsApp, con una salida cómoda. Sirve para entender el problema antes de proponer nada, y es lo que menos rechazo genera.
             Escribí el motivo con tus palabras — y que sea cierto: si te contestan creyendo que es para un trabajo y les caés con una venta, perdés el contacto y la referencia.
@@ -1109,7 +1121,7 @@ let leads = load(LS.leads, []);
 let searchesUsed = load(LS.searches, 0);
 let history = load(LS.history, []);
 let settings = Object.assign(
-  { name: "", product: "", demo: "", price: 49, pd: "", source: "osm", gkey: "", perfil: "nexa", tono: "consulta", contexto: "" },
+  { name: "", product: "", demo: "", price: 49, pd: "", source: "osm", gkey: "", perfil: "nexa", tono: "consulta", contexto: "", uni: "" },
   load(LS.settings, {})
 );
 let wa = Object.assign(
@@ -2009,13 +2021,8 @@ function buildMessage(b, seed) {
   // antes de tener algo que vender, y es lo que menos rechazo genera.
   if (settings.tono === "consulta") {
     const ctx = settings.contexto.trim();
-    const motivos = ctx
-      ? [ctx, ctx, ctx]
-      : [
-          `Estoy investigando cómo ${rubro} manejan las consultas por WhatsApp`,
-          `Estoy relevando cómo trabaja la atención por WhatsApp en ${rubro}`,
-          `Estoy haciendo un relevamiento sobre atención al cliente en ${rubro}`,
-        ];
+    const uni = (settings.uni || "").trim();
+    const motivos = motivosConsulta(ctx, uni, rubro);
     const desarmes = [
       `Es pura curiosidad, no les vendo nada.`,
       `No les quiero vender nada, es solo para entender cómo lo resuelven.`,
@@ -2120,11 +2127,8 @@ function buildMessageDogStay(b, cfg, v, varNum, firma, rubro) {
   // Tono «consulta»: se pregunta, no se propone nada
   if (settings.tono === "consulta") {
     const ctx = settings.contexto.trim();
-    const motivos = ctx ? [ctx, ctx, ctx] : [
-      `Estoy investigando cómo trabajan ${rubro} en la zona`,
-      `Estoy relevando cómo funciona el rubro de ${rubro}`,
-      `Estoy haciendo un relevamiento sobre ${rubro}`,
-    ];
+    const uni = (settings.uni || "").trim();
+    const motivos = motivosConsulta(ctx, uni, rubro);
     const desarmes = [
       `Es pura curiosidad, no les vendo nada.`,
       `No les quiero vender nada, es solo para entender cómo lo resuelven.`,
@@ -2156,6 +2160,32 @@ function buildMessageDogStay(b, cfg, v, varNum, firma, rubro) {
   if (settings.pd) partes.push(settings.pd);
   partes.push(v(firmas, 2));
   return partes.join("\n\n");
+}
+
+/* Motivos del tono consulta. Si hay universidad cargada, algunas
+   variantes la mencionan y otras no: así la tanda no sale toda igual. */
+function motivosConsulta(ctx, uni, rubro) {
+  // La universidad va siempre entre paréntesis: así funciona con
+  // cualquier nombre, sin tener que adivinar el artículo.
+  const neutros = [
+    `Estoy investigando cómo las ${rubro} manejan las consultas por WhatsApp`,
+    `Estoy relevando cómo funciona la atención por WhatsApp en ${rubro}`,
+    `Estoy haciendo un relevamiento sobre atención al cliente en ${rubro}`,
+  ];
+  if (ctx && uni) {
+    return [ctx, `${ctx} (es para un proyecto de la facultad, ${uni})`, ctx, neutros[0]];
+  }
+  if (ctx) return [ctx, ctx, ctx];
+  if (uni) {
+    return [
+      `Estoy haciendo un proyecto de la facultad (${uni}) sobre cómo las ${rubro} atienden por WhatsApp`,
+      `Estoy con un trabajo para la facultad (${uni}) sobre atención al cliente en ${rubro}`,
+      neutros[0],
+      `Estoy relevando para un proyecto de la facultad (${uni}) cómo las ${rubro} manejan los mensajes`,
+      neutros[1],
+    ];
+  }
+  return neutros;
 }
 
 function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
@@ -3128,7 +3158,9 @@ document.getElementById("campSend").addEventListener("click", () => {
   const text = document.getElementById("campMsg").value;
   const url = waLink(cur.biz.phone, text);
   if (!url) { toast("Este negocio no tiene teléfono válido: lo salteo"); cur.state = "skip"; campAdvance(); return; }
-  window.open(url, "_blank", "noopener");
+  // Nombre fijo de ventana: reusa la misma pestaña en lugar de abrir
+  // una nueva por cada mensaje y llenar el navegador.
+  window.open(url, "huntlyWhatsApp");
   cur.msg = text;
   cur.state = "sent";
   markContacted(cur.biz);
@@ -3282,6 +3314,7 @@ document.getElementById("myPrice").value = settings.price;
 document.getElementById("myPd").value = settings.pd;
 document.getElementById("myTono").value = settings.tono || "consulta";
 document.getElementById("myContexto").value = settings.contexto || "";
+document.getElementById("myUni").value = settings.uni || "";
 document.getElementById("mySource").value = settings.source || "demo";
 document.getElementById("myGkey").value = settings.gkey || "";
 
@@ -3301,6 +3334,7 @@ document.getElementById("saveSettings").addEventListener("click", () => {
     pd: document.getElementById("myPd").value.trim(),
     tono: document.getElementById("myTono").value,
     contexto: document.getElementById("myContexto").value.trim(),
+    uni: document.getElementById("myUni").value.trim(),
     source: document.getElementById("mySource").value,
     gkey: document.getElementById("myGkey").value.trim(),
   };
