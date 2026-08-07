@@ -366,12 +366,75 @@
   .view { display: none; }
   .view.on { display: block; }
 
-  @media (max-width: 960px) {
-    .sidebar { display: none; }
-    .main { padding: 18px; }
+  /* ── Tablet y teléfono ──
+     La barra lateral pasa a ser una fila de pestañas arriba: ocultarla
+     dejaba la app sin navegación. Los controles crecen a 44 px, que es
+     el mínimo cómodo para el dedo, y los campos usan 16 px porque por
+     debajo de eso iOS hace zoom solo al tocarlos. */
+  @media (max-width: 1024px) {
+    .layout { display: block; }
+    .sidebar {
+      position: static; width: auto; height: auto;
+      flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px;
+      border-right: none; border-bottom: 1px solid var(--hairline);
+      padding: 12px 14px; overflow: hidden;
+    }
+    .nav { flex-direction: row; }
+    .brand { margin-bottom: 10px; }
+    .nav-label { display: none; }
+    .nav {
+      display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      /* Sin esto la fila de pestañas empuja el ancho de toda la página */
+      min-width: 0; max-width: 100%; flex: 1 1 100%;
+    }
+    .nav::-webkit-scrollbar { display: none; }
+    .nav-item {
+      /* El ancho completo del menú vertical dejaba una sola pestaña
+         visible por fila: acá cada una ocupa lo que necesita. */
+      width: auto; flex: 0 0 auto;
+      min-height: 44px; padding: 10px 14px;
+      border-radius: 10px; font-size: 14px; white-space: nowrap;
+    }
+    .plan-card { display: none; }
+
+    .main { padding: 16px; }
+    .topbar { flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { font-size: 22px; }
+    .perfil-sel { max-width: 100%; flex: 1 1 200px; min-height: 44px; }
+
     .search-form { grid-template-columns: 1fr; }
-    .charts { grid-template-columns: 1fr; }
-    .modal-stats { grid-template-columns: 1fr 1fr; }
+    .charts, .settings-grid, .camp-setup { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .modal-stats { grid-template-columns: 1fr; }
+
+    /* 16 px evita el zoom automático de iOS al enfocar un campo */
+    .field input, .field select, .perfil-sel,
+    #mMsg, #campMsg, #impText {
+      font-size: 16px; min-height: 44px;
+    }
+    .field select { padding-right: 34px; }
+    button, .btn-ghost, .btn-primary, .icon-btn, .camp-send { min-height: 44px; }
+    .icon-btn { min-width: 44px; }
+    .actions { gap: 6px; }
+
+    /* Las tablas se desplazan en su propio contenedor */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 620px; }
+
+    .modal { width: 100%; max-height: 92vh; }
+    .results-head, .filters { flex-wrap: wrap; gap: 10px; }
+  }
+
+  @media (max-width: 560px) {
+    .main { padding: 12px; }
+    /* El selector de campaña más el tema y el avatar no entran en una
+       fila de teléfono: el selector pasa a ocupar su propio renglón. */
+    .topbar-right { flex-wrap: wrap; width: 100%; }
+    .perfil-sel { flex: 1 1 100%; order: 2; }
+    .tiles { grid-template-columns: 1fr 1fr; }
+    .modal-actions { flex-direction: column; align-items: stretch; }
+    .modal-actions button { width: 100%; }
   }
 </style>
 </head>
