@@ -452,10 +452,19 @@ function stepPhysics(car: CarState, spec: CarSpec, input: Input, dt: number) {
 
   // ─── 7. INTEGRACIÓN ─────────────────────────────────────────────────────
   const FyTotalLocal = FyFront * Math.cos(steer) + FyRear;
-  const accelLong = FxTotal / spec.mass;
-  const accelLat  = FyTotalLocal / spec.mass - car.yawRate * vLong; // término centrípeto
 
-  car._prevAccelLong = accelLong;
+  // Ecuaciones en el marco del cuerpo, que ROTA con el auto:
+  //    v̇_long = Fx/m + ψ̇·v_lat
+  //    v̇_lat  = Fy/m − ψ̇·v_long
+  // Los dos términos con ψ̇ vienen de derivar los versores del marco. Van los
+  // DOS o ninguno (ver la nota de abajo).
+  const specificLong = FxTotal / spec.mass;          // lo que mediría un acelerómetro
+  const accelLong = specificLong + car.yawRate * vLat;
+  const accelLat  = FyTotalLocal / spec.mass - car.yawRate * vLong;
+
+  // La transferencia de peso usa la fuerza real sobre el chasis, no el término
+  // del marco rotante.
+  car._prevAccelLong = specificLong;
 
   const newVLong = vLong + accelLong * dt;
   const newVLat  = vLat  + accelLat  * dt;
@@ -496,10 +505,18 @@ function stepPhysics(car: CarState, spec: CarSpec, input: Input, dt: number) {
 }
 ```
 
-**Nota sobre el término `- car.yawRate * vLong` en `accelLat`:** ese es el término de
-aceleración centrípeta que hace que el auto "gire de verdad" en vez de deslizarse de
-costado. Si lo olvidás, el auto camina en línea recta mientras rota. Es el bug #1 de todo
-modelo de bicicleta escrito de cero.
+**Nota sobre los dos términos con `yawRate` (los dos bugs #1 del modelo de bicicleta):**
+
+- Si te olvidás de `- car.yawRate * vLong` en `accelLat`, el auto camina en línea recta
+  mientras rota: nunca dobla de verdad. Es el error que todo el mundo comete primero.
+- Si te olvidás de `+ car.yawRate * vLat` en `accelLong`, el modelo **inventa energía**:
+  el auto acelera solo mientras derrapa. Es más difícil de ver porque a primera vista se
+  siente "rápido y divertido", hasta que notás que un drift sostenido sin acelerador te
+  lleva de 80 a 200 km/h. Este error pasó desapercibido en la primera implementación de
+  este mismo documento y solo apareció con el test de "no inventa energía" (§20.3).
+
+La forma de detectarlo: derrapá sin acelerador y mirá la velocidad. Tiene que bajar
+siempre. Un test automatizado que lo verifique vale más que diez horas de tuneo a ojo.
 
 ## 5.6 Motor y caja de cambios
 
@@ -561,10 +578,23 @@ Puntos clave:
 
 ### 5.7.2 Anti-trompo
 
-Si `driftAngle > 100°` y `speed > 10 m/s`, se aplica un torque de guiñada correctivo
-proporcional a `(driftAngle - 100°)`, capado a `0.35 * inertiaYaw` N·m. Esto hace que el
-trompo completo requiera una cagada bastante grande. En preset Pro, el umbral sube a 125°
-y el cap baja a 0.15.
+Dos mecanismos, porque **uno solo no alcanza**:
+
+1. **Torque correctivo:** si `driftAngle > 100°` y `speed > 2.5 m/s`, un torque de guiñada
+   proporcional a `(driftAngle - 100°)`, capado a `3.2 * inertiaYaw` N·m.
+2. **Amortiguación progresiva de guiñada:** a partir de `100° - 25°` la amortiguación se
+   multiplica hasta ×4.4, con `smoothstep`.
+
+Los números importan: el torque de guiñada de la goma trasera en pleno derrape ronda los
+**8.000 N·m**. Un cap "conservador" de `0.35 * inertiaYaw` (≈550 N·m) es el 7% de eso y no
+frena absolutamente nada — el auto trompea igual y el jugador siente que la asistencia no
+existe. Calculá siempre el torque de la goma antes de elegir el cap.
+
+Presets: Casual `cap 4.5 / damp ×5 / umbral 95°`, Estándar `3.2 / ×3.4 / 100°`,
+Pro `1.4 / ×1.3 / 125°`.
+
+**Qué pasa si igual trompeás:** el auto termina rodando marcha atrás y eso está bien —
+es una penalidad justa, se pierde el combo, y se sale acelerando. No hay que "arreglarlo".
 
 ### 5.7.3 Asistencia de acelerador (solo Casual)
 
@@ -1971,6 +2001,9 @@ src/
 | Qué | Cómo |
 |---|---|
 | Física determinista | Grabar 600 frames de input, correr 2 veces, comparar hashes del estado |
+| **No inventa energía** | **Derrapar sin acelerador 2 s: la velocidad tiene que bajar siempre** |
+| Anti-trompo | Aguantar handbrake + full lock 0.75 s: el ángulo no pasa de ~115° |
+| Auto-enderezado | Drift normal + soltar todo: vuelve a < 5° en menos de 2 s |
 | Curva de neumático | Monótona hasta el pico, sin NaN en el rango completo |
 | Sin NaN | Fuzzing: 10.000 ticks con inputs random extremos, assert `isFinite` en todo el estado |
 | Economía | Simular 100 estados de progresión, assert que siempre hay compras a <30s/<5m/<30m |

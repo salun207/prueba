@@ -1,0 +1,522 @@
+import { DEG } from '../lib/math';
+import type { CarSpec } from '../sim/types';
+
+export type Tier = 'D' | 'C' | 'B' | 'A' | 'S';
+
+export interface BodyParams {
+  length: number;
+  width: number;
+  height: number;
+  /** 0..1 sobre el largo, dónde arranca y termina la cabina. */
+  cabinStart: number;
+  cabinEnd: number;
+  cabinHeight: number;
+  noseDrop: number;
+  wedge: number;
+  spoiler: 'none' | 'lip' | 'ducktail' | 'wing' | 'bigwing';
+  wheelRadius: number;
+  wheelWidth: number;
+  fenderFlare: number;
+}
+
+export interface CarDefinition {
+  id: string;
+  displayName: string;
+  tier: Tier;
+  price: number;
+  unlock: { type: 'start' | 'cash' | 'rep' | 'sponsor' | 'prestige'; amount?: number; key?: string };
+  blurb: string;
+  spec: CarSpec;
+  body: BodyParams;
+  defaultPaint: string;
+  audio: { cylinders: number; turbo: boolean; character: 'inline4' | 'inline6' | 'v8' | 'rotary' | 'v12' | 'electric' };
+}
+
+const BASE: CarSpec = {
+  mass: 1240,
+  inertiaYaw: 1580,
+  lengthFront: 1.22,
+  lengthRear: 1.38,
+  trackWidth: 1.52,
+  cgHeight: 0.5,
+  bodyLength: 4.35,
+  bodyWidth: 1.8,
+
+  tireStiffnessFront: 11.5,
+  tireStiffnessRear: 9.2,
+  peakGripFront: 1.58,
+  peakGripRear: 1.34,
+  tireFalloff: 0.34,
+
+  torqueCurve: [
+    [900, 150],
+    [2000, 240],
+    [3200, 295],
+    [4800, 310],
+    [6000, 300],
+    [7200, 250],
+  ],
+  redline: 7200,
+  idleRpm: 900,
+  gearRatios: [3.32, 2.05, 1.44, 1.0, 0.82, 0.68],
+  finalDrive: 3.9,
+  drivetrainEfficiency: 0.88,
+  wheelRadius: 0.325,
+  engineBrakeTorque: 85,
+  shiftTime: 0.22,
+
+  maxSteerAngle: DEG(36),
+  steerSpeed: 4.6,
+  steerReturnSpeed: 6.8,
+  steerSpeedFalloff: 0.55,
+
+  brakeTorqueFront: 2400,
+  brakeTorqueRear: 1350,
+  handbrakeGripMultiplier: 0.3,
+  brakeBias: 0.62,
+  diffLock: 0.5,
+
+  dragCoefficient: 0.42,
+  rollingResistance: 12.0,
+  downforceCoefficient: 0.05,
+};
+
+const BODY: BodyParams = {
+  length: 4.35,
+  width: 1.8,
+  height: 1.28,
+  cabinStart: 0.3,
+  cabinEnd: 0.72,
+  cabinHeight: 0.42,
+  noseDrop: 0.1,
+  wedge: 0.06,
+  spoiler: 'lip',
+  wheelRadius: 0.33,
+  wheelWidth: 0.24,
+  fenderFlare: 0.02,
+};
+
+function spec(over: Partial<CarSpec>): CarSpec {
+  return { ...BASE, ...over };
+}
+function body(over: Partial<BodyParams>): BodyParams {
+  return { ...BODY, ...over };
+}
+
+export const CARS: CarDefinition[] = [
+  {
+    id: 'kite_240',
+    displayName: 'Kite 240',
+    tier: 'D',
+    price: 0,
+    unlock: { type: 'start' },
+    blurb: 'Liviano, lento y perdona todo. La escuela.',
+    defaultPaint: '#e8ecf5',
+    audio: { cylinders: 4, turbo: false, character: 'inline4' },
+    spec: spec({
+      mass: 1020,
+      inertiaYaw: 1280,
+      bodyLength: 4.2,
+      bodyWidth: 1.72,
+      tireFalloff: 0.28,
+      peakGripRear: 1.28,
+      torqueCurve: [
+        [900, 95],
+        [2500, 150],
+        [4200, 175],
+        [6000, 165],
+        [7000, 135],
+      ],
+      redline: 7000,
+      gearRatios: [3.5, 2.1, 1.45, 1.0, 0.79],
+      maxSteerAngle: DEG(38),
+      dragCoefficient: 0.4,
+    }),
+    body: body({ length: 4.2, width: 1.72, height: 1.24, spoiler: 'none', cabinEnd: 0.7 }),
+  },
+  {
+    id: 'barrow_wedge',
+    displayName: 'Barrow Wedge',
+    tier: 'D',
+    price: 12_000,
+    unlock: { type: 'cash' },
+    blurb: 'Chiquito y ágil. Entra en todos lados.',
+    defaultPaint: '#39ff88',
+    audio: { cylinders: 4, turbo: false, character: 'inline4' },
+    spec: spec({
+      mass: 940,
+      inertiaYaw: 1080,
+      lengthFront: 1.1,
+      lengthRear: 1.24,
+      bodyLength: 3.9,
+      bodyWidth: 1.68,
+      tireFalloff: 0.3,
+      peakGripRear: 1.3,
+      torqueCurve: [
+        [900, 90],
+        [2600, 140],
+        [4400, 160],
+        [6200, 150],
+        [7100, 120],
+      ],
+      redline: 7100,
+      gearRatios: [3.6, 2.15, 1.5, 1.05, 0.83],
+      maxSteerAngle: DEG(40),
+    }),
+    body: body({
+      length: 3.9, width: 1.68, height: 1.34, cabinStart: 0.26, cabinEnd: 0.78,
+      wedge: 0.1, spoiler: 'ducktail', wheelRadius: 0.31,
+    }),
+  },
+  {
+    id: 'kite_300zt',
+    displayName: 'Kite 300ZT',
+    tier: 'C',
+    price: 85_000,
+    unlock: { type: 'cash' },
+    blurb: 'El caballito de batalla. Equilibrado y confiable.',
+    defaultPaint: '#22e1ff',
+    audio: { cylinders: 6, turbo: true, character: 'inline6' },
+    spec: spec({}),
+    body: body({}),
+  },
+  {
+    id: 'ferro_corsa',
+    displayName: 'Ferro Corsa',
+    tier: 'C',
+    price: 140_000,
+    unlock: { type: 'cash' },
+    blurb: 'Sedán deportivo. Largo, noble, drifts amplios.',
+    defaultPaint: '#ff2e88',
+    audio: { cylinders: 6, turbo: false, character: 'inline6' },
+    spec: spec({
+      mass: 1310,
+      inertiaYaw: 1780,
+      lengthFront: 1.32,
+      lengthRear: 1.46,
+      bodyLength: 4.7,
+      bodyWidth: 1.82,
+      tireFalloff: 0.36,
+      torqueCurve: [
+        [900, 160],
+        [2400, 250],
+        [3800, 292],
+        [5400, 288],
+        [6800, 240],
+      ],
+      redline: 6900,
+    }),
+    body: body({ length: 4.7, width: 1.82, cabinStart: 0.28, cabinEnd: 0.68, spoiler: 'lip' }),
+  },
+  {
+    id: 'sable_rxzero',
+    displayName: 'Sable RX-Zero',
+    tier: 'B',
+    price: 520_000,
+    unlock: { type: 'cash' },
+    blurb: 'Rotativo. Vive arriba de 6000 rpm y suena distinto a todo.',
+    defaultPaint: '#ffa332',
+    audio: { cylinders: 2, turbo: true, character: 'rotary' },
+    spec: spec({
+      mass: 1180,
+      inertiaYaw: 1420,
+      bodyLength: 4.28,
+      tireFalloff: 0.4,
+      peakGripRear: 1.32,
+      torqueCurve: [
+        [1200, 120],
+        [3500, 210],
+        [5500, 268],
+        [7200, 280],
+        [8600, 245],
+      ],
+      redline: 8600,
+      gearRatios: [3.48, 2.02, 1.39, 1.0, 0.8, 0.66],
+      maxSteerAngle: DEG(40),
+    }),
+    body: body({ length: 4.28, height: 1.22, cabinStart: 0.32, cabinEnd: 0.7, spoiler: 'ducktail' }),
+  },
+  {
+    id: 'kestrel_gt',
+    displayName: 'Kestrel GT',
+    tier: 'B',
+    price: 780_000,
+    unlock: { type: 'cash' },
+    blurb: 'Bruto. Torque desde abajo, pesado, glorioso.',
+    defaultPaint: '#ff3b30',
+    audio: { cylinders: 8, turbo: false, character: 'v8' },
+    spec: spec({
+      mass: 1620,
+      inertiaYaw: 2150,
+      lengthFront: 1.36,
+      lengthRear: 1.44,
+      bodyLength: 4.85,
+      bodyWidth: 1.94,
+      tireFalloff: 0.38,
+      peakGripRear: 1.3,
+      torqueCurve: [
+        [900, 380],
+        [2200, 560],
+        [3600, 620],
+        [5000, 580],
+        [6200, 470],
+      ],
+      redline: 6300,
+      gearRatios: [2.97, 1.78, 1.3, 1.0, 0.74],
+      dragCoefficient: 0.5,
+    }),
+    body: body({
+      length: 4.85, width: 1.94, height: 1.32, cabinStart: 0.34, cabinEnd: 0.68,
+      spoiler: 'ducktail', wheelRadius: 0.35, wheelWidth: 0.3, fenderFlare: 0.04,
+    }),
+  },
+  {
+    id: 'vanta_s8',
+    displayName: 'Vanta S8',
+    tier: 'B',
+    price: 1_100_000,
+    unlock: { type: 'cash' },
+    blurb: 'Preciso y rápido. Exige manos limpias.',
+    defaultPaint: '#9aa3b5',
+    audio: { cylinders: 8, turbo: true, character: 'v8' },
+    spec: spec({
+      mass: 1480,
+      inertiaYaw: 1920,
+      bodyLength: 4.68,
+      bodyWidth: 1.88,
+      tireFalloff: 0.42,
+      peakGripFront: 1.66,
+      peakGripRear: 1.4,
+      torqueCurve: [
+        [1000, 260],
+        [2600, 430],
+        [4200, 480],
+        [5800, 450],
+        [7000, 380],
+      ],
+      redline: 7000,
+      maxSteerAngle: DEG(38),
+      downforceCoefficient: 0.09,
+    }),
+    body: body({ length: 4.68, width: 1.88, height: 1.26, spoiler: 'lip', wheelRadius: 0.34 }),
+  },
+  {
+    id: 'ronin_typer',
+    displayName: 'Ronin Type-R',
+    tier: 'A',
+    price: 4_500_000,
+    unlock: { type: 'cash' },
+    blurb: 'Filoso y rapidísimo. No perdona el acelerador sucio.',
+    defaultPaint: '#22e1ff',
+    audio: { cylinders: 6, turbo: true, character: 'inline6' },
+    spec: spec({
+      mass: 1350,
+      inertiaYaw: 1660,
+      bodyLength: 4.52,
+      bodyWidth: 1.9,
+      tireFalloff: 0.45,
+      peakGripFront: 1.7,
+      peakGripRear: 1.42,
+      torqueCurve: [
+        [1200, 280],
+        [3000, 500],
+        [4600, 550],
+        [6200, 520],
+        [7600, 430],
+      ],
+      redline: 7600,
+      maxSteerAngle: DEG(44),
+      downforceCoefficient: 0.11,
+    }),
+    body: body({
+      length: 4.52, width: 1.9, height: 1.22, cabinStart: 0.32, cabinEnd: 0.7,
+      spoiler: 'wing', fenderFlare: 0.05, wheelRadius: 0.34, wheelWidth: 0.28,
+    }),
+  },
+  {
+    id: 'kestrel_wide',
+    displayName: 'Kestrel Widebody',
+    tier: 'A',
+    price: 7_000_000,
+    unlock: { type: 'cash' },
+    blurb: 'Monstruo de humo. Ancho, ruidoso, incontenible.',
+    defaultPaint: '#ff2e88',
+    audio: { cylinders: 8, turbo: true, character: 'v8' },
+    spec: spec({
+      mass: 1550,
+      inertiaYaw: 2020,
+      trackWidth: 1.72,
+      bodyLength: 4.9,
+      bodyWidth: 2.08,
+      tireFalloff: 0.44,
+      peakGripRear: 1.36,
+      torqueCurve: [
+        [900, 480],
+        [2400, 780],
+        [3800, 850],
+        [5200, 800],
+        [6400, 660],
+      ],
+      redline: 6500,
+      gearRatios: [2.9, 1.75, 1.28, 1.0, 0.76],
+      maxSteerAngle: DEG(48),
+    }),
+    body: body({
+      length: 4.9, width: 2.08, height: 1.3, cabinStart: 0.34, cabinEnd: 0.66,
+      spoiler: 'bigwing', fenderFlare: 0.09, wheelRadius: 0.36, wheelWidth: 0.34,
+    }),
+  },
+  {
+    id: 'aurora_v12',
+    displayName: 'Aurora V12',
+    tier: 'A',
+    price: 12_000_000,
+    unlock: { type: 'cash' },
+    blurb: 'GT de lujo. Larguísimo: los drifts salen anchos y elegantes.',
+    defaultPaint: '#141826',
+    audio: { cylinders: 12, turbo: false, character: 'v12' },
+    spec: spec({
+      mass: 1700,
+      inertiaYaw: 2480,
+      lengthFront: 1.42,
+      lengthRear: 1.52,
+      bodyLength: 5.1,
+      bodyWidth: 1.98,
+      tireFalloff: 0.46,
+      peakGripFront: 1.68,
+      peakGripRear: 1.4,
+      torqueCurve: [
+        [1000, 360],
+        [3000, 640],
+        [4800, 780],
+        [6400, 740],
+        [7800, 600],
+      ],
+      redline: 7800,
+      gearRatios: [3.1, 1.92, 1.38, 1.0, 0.8, 0.66],
+      downforceCoefficient: 0.1,
+    }),
+    body: body({
+      length: 5.1, width: 1.98, height: 1.24, cabinStart: 0.38, cabinEnd: 0.74,
+      noseDrop: 0.14, spoiler: 'lip', wheelRadius: 0.36,
+    }),
+  },
+  {
+    id: 'sable_formula',
+    displayName: 'Sable Formula D',
+    tier: 'S',
+    price: 45_000_000,
+    unlock: { type: 'cash' },
+    blurb: 'Auto de competición. 70° de ángulo de dirección.',
+    defaultPaint: '#39ff88',
+    audio: { cylinders: 8, turbo: true, character: 'v8' },
+    spec: spec({
+      mass: 1150,
+      inertiaYaw: 1420,
+      trackWidth: 1.74,
+      bodyLength: 4.6,
+      bodyWidth: 2.02,
+      tireFalloff: 0.52,
+      peakGripFront: 1.82,
+      peakGripRear: 1.44,
+      torqueCurve: [
+        [1500, 420],
+        [3400, 820],
+        [5000, 900],
+        [6800, 860],
+        [8000, 700],
+      ],
+      redline: 8000,
+      maxSteerAngle: DEG(70),
+      steerSpeed: 6.2,
+      diffLock: 0.9,
+      downforceCoefficient: 0.16,
+      shiftTime: 0.12,
+    }),
+    body: body({
+      length: 4.6, width: 2.02, height: 1.16, cabinStart: 0.34, cabinEnd: 0.66,
+      wedge: 0.1, spoiler: 'bigwing', fenderFlare: 0.1, wheelRadius: 0.35, wheelWidth: 0.34,
+    }),
+  },
+  {
+    id: 'meridian_zenith',
+    displayName: 'Meridian Zenith',
+    tier: 'S',
+    price: 0,
+    unlock: { type: 'sponsor', key: 'meridian' },
+    blurb: 'Hipercar absurdo. Recompensa del sponsor Meridian Motors.',
+    defaultPaint: '#ffa332',
+    audio: { cylinders: 12, turbo: true, character: 'v12' },
+    spec: spec({
+      mass: 1280,
+      inertiaYaw: 1520,
+      trackWidth: 1.7,
+      bodyLength: 4.72,
+      bodyWidth: 2.0,
+      tireFalloff: 0.55,
+      peakGripFront: 1.85,
+      peakGripRear: 1.5,
+      torqueCurve: [
+        [1500, 620],
+        [3600, 1020],
+        [5400, 1100],
+        [7200, 1040],
+        [8600, 860],
+      ],
+      redline: 8600,
+      maxSteerAngle: DEG(52),
+      diffLock: 0.8,
+      downforceCoefficient: 0.2,
+      shiftTime: 0.1,
+    }),
+    body: body({
+      length: 4.72, width: 2.0, height: 1.14, cabinStart: 0.36, cabinEnd: 0.72,
+      noseDrop: 0.16, wedge: 0.12, spoiler: 'wing', fenderFlare: 0.08, wheelRadius: 0.35,
+    }),
+  },
+  {
+    id: 'phantom_01',
+    displayName: 'Phantom 01',
+    tier: 'S',
+    price: 0,
+    unlock: { type: 'prestige', amount: 100 },
+    blurb: 'Prototipo eléctrico. Torque instantáneo y un zumbido de otro planeta.',
+    defaultPaint: '#e8ecf5',
+    audio: { cylinders: 0, turbo: false, character: 'electric' },
+    spec: spec({
+      mass: 1400,
+      inertiaYaw: 1620,
+      trackWidth: 1.68,
+      bodyLength: 4.66,
+      bodyWidth: 1.98,
+      tireFalloff: 0.5,
+      peakGripFront: 1.8,
+      peakGripRear: 1.46,
+      torqueCurve: [
+        [0, 1400],
+        [4000, 1400],
+        [9000, 900],
+        [14000, 480],
+      ],
+      redline: 14000,
+      idleRpm: 0,
+      gearRatios: [1.0],
+      finalDrive: 8.6,
+      engineBrakeTorque: 160,
+      maxSteerAngle: DEG(50),
+      diffLock: 0.85,
+      downforceCoefficient: 0.14,
+      shiftTime: 0,
+    }),
+    body: body({
+      length: 4.66, width: 1.98, height: 1.18, cabinStart: 0.3, cabinEnd: 0.76,
+      noseDrop: 0.18, wedge: 0.14, spoiler: 'wing', fenderFlare: 0.06, wheelRadius: 0.35,
+    }),
+  },
+];
+
+export const CARS_BY_ID = new Map(CARS.map((c) => [c.id, c]));
+
+export function getCar(id: string): CarDefinition {
+  return CARS_BY_ID.get(id) ?? CARS[0];
+}
