@@ -3,12 +3,15 @@
 Juego de drift arcade con cámara aérea, mapa de ciudad nocturna y capa tycoon de garage.
 Corre en el navegador, sin instalación y sin conexión.
 
+**Jugar ya:** https://claude.ai/code/artifact/1424160b-aec9-439c-94e0-8a0d310ca62d
+
 ```bash
 npm install
 npm run dev        # http://localhost:5173
 npm test           # 34 tests de física, economía y contratos
 npm run build      # typecheck + bundle
 npm run smoke      # prueba en Chromium headless (requiere playwright)
+npm run build:single  # todo en un solo HTML autocontenido (dist-single/)
 ```
 
 ## Controles

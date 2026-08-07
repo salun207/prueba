@@ -24,6 +24,7 @@ await page.waitForTimeout(3000);
 
 // Arrancar un run
 const started = await page.evaluate(() => {
+  document.getElementById('boot-go')?.click();
   const btn = document.querySelector('[data-act="drive"], [data-act="claim"]');
   if (btn) { btn.click(); return btn.dataset.act; }
   return null;
