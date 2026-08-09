@@ -310,3 +310,30 @@ small.hint { display: block; margin-top: 6px; }
   display: block; font-size: 13px; letter-spacing: 0.06em;
   color: var(--sun); margin-top: 6px;
 }
+
+/* ─────────── fotos de autos y fichas de circuito ─────────── */
+
+.carshot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 9px;
+  margin-bottom: 10px;
+  background: radial-gradient(70% 70% at 50% 60%, #3a2f26, #221b16);
+  display: block;
+}
+
+button.drive small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+  margin-top: 2px;
+}
+
+.card.map.active { border-color: var(--c1); }
+.card.map.locked { opacity: 0.62; }
+.card.map .diff { color: var(--c1); font-size: 12px; letter-spacing: 0.12em; }
+.card.map .blurb { min-height: 56px; }

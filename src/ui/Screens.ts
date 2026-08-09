@@ -5,6 +5,7 @@ import { clamp, degrees } from '../lib/math';
 import * as A from '../meta/Actions';
 import { buildCar, carValue } from '../meta/CarBuild';
 import { ASSIST_PAYOUT, carXpForLevel, computeBonuses, xpForLevel, type RunRewards } from '../meta/Economy';
+import { getMap, isMapUnlocked, MAPS } from '../data/maps';
 import type { ChallengeSave, SaveGame } from '../save/types';
 import type { RunStats } from '../sim/ScoreSystem';
 import { fmt, fmtCash, fmtInt } from './format';
@@ -12,6 +13,9 @@ import { fmt, fmtCash, fmtInt } from './format';
 export interface UiHost {
   save: SaveGame;
   startRun(): void;
+  onMapChanged(): void;
+  /** Foto renderizada del auto, o null si todavía no está lista. */
+  carPreview(carId: string, paint?: string): string | null;
   resumeRun(): void;
   endRun(): void;
   onCarChanged(): void;
@@ -31,7 +35,7 @@ export class GameUI {
   private root: HTMLElement;
   private host: UiHost;
   private screen: Screen = 'hidden';
-  private tab = 'cars';
+  private tab = 'maps';
   private results: {
     rewards: RunRewards;
     stats: RunStats;
@@ -121,12 +125,15 @@ export class GameUI {
             <i style="--p:${clamp(s.playerXp / need, 0, 1) * 100}%"></i>
           </span>
         </div>
-        <button class="drive" data-act="drive">MANEJAR</button>
+        <button class="drive" data-act="drive">
+          MANEJAR<small>${getMap(this.save.selectedMap).name}</small>
+        </button>
       </header>`;
   }
 
   private tabs(): string {
     const list: [string, string][] = [
+      ['maps', 'Circuitos'],
       ['cars', 'Autos'],
       ['upgrades', 'Mejoras'],
       ['setup', 'Setup'],
@@ -143,6 +150,7 @@ export class GameUI {
   private garageHtml(): string {
     let body = '';
     switch (this.tab) {
+      case 'maps': body = this.tabMaps(); break;
       case 'cars': body = this.tabCars(); break;
       case 'upgrades': body = this.tabUpgrades(); break;
       case 'setup': body = this.tabSetup(); break;
@@ -163,7 +171,7 @@ export class GameUI {
       const need = carXpForLevel(c.level);
       return `
         <div class="card car ${active ? 'active' : ''}" style="--paint:${c.cosmetics.paintColor}">
-          <div class="carchip"></div>
+          ${this.shot(c.id, c.cosmetics.paintColor)}
           <h3>${def.displayName} <span class="tier t${def.tier}">${def.tier}</span></h3>
           <p class="blurb">${def.blurb}</p>
           <div class="bar"><i style="width:${clamp(c.xp / need, 0, 1) * 100}%"></i></div>
@@ -180,7 +188,7 @@ export class GameUI {
       const torque = Math.round(Math.max(...d.spec.torqueCurve.map((t) => t[1])));
       return `
         <div class="card car shop" style="--paint:${d.defaultPaint}">
-          <div class="carchip"></div>
+          ${this.shot(d.id)}
           <h3>${d.displayName} <span class="tier t${d.tier}">${d.tier}</span></h3>
           <p class="blurb">${d.blurb}</p>
           <small>${Math.round(d.spec.mass)} kg · ${torque} N·m · ${degrees(d.spec.maxSteerAngle).toFixed(0)}° de ángulo</small>
@@ -196,6 +204,42 @@ export class GameUI {
             <h2>Concesionaria</h2>
             <p class="hint">Los dos autos de arriba de todo se abren con reputación (★), que solo se gana drifteando bien.</p>
             <div class="grid">${shop}</div>`;
+  }
+
+  /** Foto del auto; si todavía no se renderizó, cae en la barrita de color. */
+  private shot(carId: string, paint?: string): string {
+    const url = this.host.carPreview(carId, paint);
+    return url
+      ? `<img class="carshot" src="${url}" alt="" width="320" height="200">`
+      : '<div class="carchip"></div>';
+  }
+
+  // ── Circuitos ──
+  private tabMaps(): string {
+    const s = this.save;
+    const cards = MAPS.map((m) => {
+      const unlocked = isMapUnlocked(m, s.rep);
+      const active = s.selectedMap === m.id;
+      const rec = s.mapRecords[m.id];
+      const stars = '●'.repeat(m.difficulty) + '○'.repeat(3 - m.difficulty);
+      return `
+        <div class="card map ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}">
+          <div class="bar"><i style="width:${unlocked ? 100 : Math.min(100, (s.rep / m.repRequired) * 100)}%"></i></div>
+          <h3>${m.name} <span class="diff">${stars}</span></h3>
+          <p class="blurb">${m.blurb}</p>
+          <small>${rec ? `Mejor: ${fmtInt(rec.bestScore)} pts · ${fmtCash(rec.bestCash)} · ${rec.runs} runs` : 'Sin correr todavía'}</small>
+          <div class="actions">
+            ${unlocked
+              ? active
+                ? '<button disabled>ELEGIDO</button>'
+                : `<button data-act="selectmap" data-id="${m.id}">ELEGIR</button>`
+              : `<button disabled>🔒 ${m.repRequired} ★ — te faltan ${m.repRequired - s.rep}</button>`}
+          </div>
+        </div>`;
+    }).join('');
+    return `<h2>Circuitos</h2>
+            <p class="hint">Se abren con reputación (★), que se gana drifteando. Tenés ${fmt(s.rep)} ★.</p>
+            <div class="grid">${cards}</div>`;
   }
 
   // ── Mejoras ──
@@ -494,6 +538,16 @@ export class GameUI {
         break;
       case 'sell': ok = A.sellCar(s, id); if (ok) this.host.onCarChanged(); break;
       case 'select': ok = A.selectCar(s, id); if (ok) this.host.onCarChanged(); break;
+      case 'selectmap': {
+        const entry = getMap(id);
+        ok = isMapUnlocked(entry, s.rep);
+        if (ok) {
+          s.selectedMap = id;
+          this.host.onMapChanged();
+          this.toast(`Circuito: ${entry.name}`);
+        }
+        break;
+      }
 
       case 'setup-rec': {
         const car = s.cars.find((c) => c.instanceId === s.activeCarInstanceId)!;

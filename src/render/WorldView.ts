@@ -1,25 +1,22 @@
 import * as THREE from 'three';
 import { Rng } from '../core/Rng';
-import { Surface, type MapDefinition } from '../sim/World';
-import { asphaltTexture, radialTexture } from './Textures';
+import { Surface, type MapDefinition, type Obstacle } from '../sim/World';
+import {
+  asphaltTexture, concreteTexture, dirtTexture, facadeTexture, grassTexture,
+  radialTexture, ribbedTexture, stripeTexture,
+} from './Textures';
 
 const COL = {
   // Separación por TONO, no solo por brillo: la calle es gris frío y todo lo
   // que la rodea es tierra cálida. Así el asfalto se lee aunque el sol rasante
   // deje media cuadra en sombra.
-  ground: 0xb3a084,
-  asphalt: 0x8b8d90,
-  wet: 0x7f8894,
-  concrete: 0xa8a49c,
-  dirt: 0xa87a45,
-  grass: 0x7f8a4e,
-  water: 0xd4783f,
-  curb: 0xc9bda6,
+  asphalt: 0x93989f,
+  wet: 0x8b939c,
+  concrete: 0xb4aca0,
   buildings: [0xa89880, 0x9c6b52, 0x8a8f92, 0xb5a48c, 0x7d6a58, 0xc0a882],
-  roof: 0x6f6558,
-  container: [0x2f6f7a, 0xa8452f, 0xc08a2a, 0x3f7a4a, 0x7a4a8a],
-  // Ventanas encendidas al atardecer, no neón: el sol todavía está.
-  neon: [0xffd98a, 0xffb35c, 0xffe9c0, 0x9fd8ff],
+  roof: 0x8d8579,
+  container: [0x3f8896, 0xc0553a, 0xd8a13a, 0x4f9159, 0x8f5aa0],
+  parked: [0xb0503c, 0x4a6f9a, 0x8a857e, 0xc9c2b4, 0x3f7a68, 0xc9a33a],
 };
 
 interface QuadSink {
@@ -63,6 +60,27 @@ function buildGeometry(s: QuadSink): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * Escala las UV de un material instanciado según el tamaño real de cada
+ * instancia. Sin esto, una fachada de 40 m y una de 12 m muestran la misma
+ * cantidad de ventanas y las ventanas quedan de tamaños distintos.
+ */
+function instanceScaledUv(material: THREE.Material, metersPerTile: number): void {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <uv_vertex>',
+      `#include <uv_vertex>
+      #if defined( USE_MAP ) && defined( USE_INSTANCING )
+        vec3 iScale = vec3(
+          length(instanceMatrix[0].xyz),
+          length(instanceMatrix[1].xyz),
+          length(instanceMatrix[2].xyz));
+        vMapUv = uv * vec2(max(iScale.x, iScale.z), iScale.y) / ${metersPerTile.toFixed(1)};
+      #endif`,
+    );
+  };
+}
+
 export class WorldView {
   readonly group = new THREE.Group();
   private destructibleMeshes = new Map<string, { mesh: THREE.InstancedMesh; slots: number[] }>();
@@ -71,7 +89,6 @@ export class WorldView {
 
   constructor(def: MapDefinition) {
     const rng = new Rng(4242);
-
     this.buildGround(def);
     this.buildRoads(def);
     this.buildBuildings(def, rng);
@@ -80,55 +97,66 @@ export class WorldView {
     this.buildLightPools(def);
   }
 
+  /** Libera todo: se llama al cambiar de mapa. */
+  dispose(): void {
+    this.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+    });
+    this.group.clear();
+    this.destructibleMeshes.clear();
+    this.destructibleIndex.clear();
+  }
+
   // ─────────────────────────── suelo y zonas ───────────────────────────
 
+  private terrainTexture(def: MapDefinition): THREE.Texture {
+    if (def.terrain === 'grass') return grassTexture();
+    if (def.terrain === 'dirt') return dirtTexture();
+    return concreteTexture();
+  }
+
   private buildGround(def: MapDefinition): void {
-    const tex = asphaltTexture().clone();
+    const tex = this.terrainTexture(def).clone();
     tex.needsUpdate = true;
-    tex.repeat.set(60, 60);
+    tex.repeat.set((def.half * 2 + 200) / 12, (def.half * 2 + 200) / 12);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(def.half * 2 + 200, def.half * 2 + 200),
-      new THREE.MeshLambertMaterial({ color: COL.ground, map: tex }),
+      new THREE.MeshLambertMaterial({ map: tex }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.group.add(ground);
 
-    // Agua alrededor del mapa
-    const water = new THREE.Mesh(
-      new THREE.PlaneGeometry(3000, 3000),
-      new THREE.MeshBasicMaterial({ color: COL.water }),
-    );
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = -1.5;
-    this.group.add(water);
-
-    // Parches de zona
-    const s = sink();
-    const c = new THREE.Color();
+    // Parches de zona, uno por material
+    const groups: Record<string, { s: QuadSink; tex: THREE.Texture }> = {};
+    const c = new THREE.Color(0xffffff);
     let layer = 0;
     for (const zone of def.zones) {
-      let color: number | null = null;
-      if (zone.name === 'Plaza') color = COL.grass;
-      else if (zone.name === 'Obra') color = COL.dirt;
-      else if (zone.name === 'Puerto') color = COL.concrete;
-      if (color === null) continue;
-      c.setHex(color);
+      let key: string | null = null;
+      if (zone.name === 'Plaza') key = 'grass';
+      else if (zone.name === 'Obra') key = 'dirt';
+      else if (zone.name === 'Puerto') key = 'concrete';
+      if (!key) continue;
+      const g = (groups[key] ??= {
+        s: sink(),
+        tex: key === 'grass' ? grassTexture() : key === 'dirt' ? dirtTexture() : concreteTexture(),
+      });
       layer++;
       pushQuad(
-        s,
+        g.s,
         zone.x - zone.hw, zone.z - zone.hd,
         zone.x + zone.hw, zone.z - zone.hd,
         zone.x + zone.hw, zone.z + zone.hd,
         zone.x - zone.hw, zone.z + zone.hd,
-        0.005 + layer * 0.001, c, zone.hw / 6, zone.hd / 6,
+        0.005 + layer * 0.001, c, (zone.hw * 2) / 12, (zone.hd * 2) / 12,
       );
     }
-    if (s.pos.length > 0) {
+    for (const g of Object.values(groups)) {
       const mesh = new THREE.Mesh(
-        buildGeometry(s),
-        new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }),
+        buildGeometry(g.s),
+        new THREE.MeshLambertMaterial({ vertexColors: true, map: g.tex }),
       );
       mesh.receiveShadow = true;
       this.group.add(mesh);
@@ -138,10 +166,19 @@ export class WorldView {
   // ─────────────────────────── calles ───────────────────────────
 
   private buildRoads(def: MapDefinition): void {
+    // Los segmentos se extienden y se pisan entre sí para cerrar las juntas, y
+    // cada uno va a una altura distinta para no hacer z-fighting. Por eso las
+    // líneas tienen que ir por ENCIMA de todos: si no, el segmento siguiente
+    // tapa las marcas del anterior.
+    const topY = 0.02 + def.roads.length * 0.0007;
+    // Los cordones son de circuito; en ciudad ya están las veredas.
+    const wantKerbs = def.lanes.length === 0;
     const s = sink();
     const dashes = sink();
+    const kerbs = sink();
     const c = new THREE.Color();
-    const white = new THREE.Color(0xf0e6d2);
+    const white = new THREE.Color(0xf4ecdc);
+    const kerbColor = new THREE.Color(0xd8cdb8);
 
     def.roads.forEach((r, i) => {
       const dx = r.bx - r.ax;
@@ -152,7 +189,6 @@ export class WorldView {
       const uz = dz / len;
       const px = -uz * r.width * 0.5;
       const pz = ux * r.width * 0.5;
-      // Se extienden medio ancho a cada punta para cerrar las intersecciones.
       const ex = ux * r.width * 0.5;
       const ez = uz * r.width * 0.5;
       const ax = r.ax - ex;
@@ -166,20 +202,33 @@ export class WorldView {
         : COL.asphalt,
       );
       // Cada segmento a una altura levemente distinta: evita z-fighting en los cruces.
-      const y = 0.02 + i * 0.0008;
+      const y = 0.02 + i * 0.0007;
       pushQuad(
         s,
         ax + px, az + pz, bx + px, bz + pz,
         bx - px, bz - pz, ax - px, az - pz,
-        y, c, 1, (len + r.width) / 8,
+        y, c, r.width / 4, (len + r.width) / 4,
       );
 
+      // Cordón claro al borde: marca dónde termina la pista
+      if (wantKerbs) for (const side of [1, -1]) {
+        const ox = px * side;
+        const oz = pz * side;
+        const kx = (-uz * 0.55) * side;
+        const kz = (ux * 0.55) * side;
+        pushQuad(
+          kerbs,
+          ax + ox, az + oz, bx + ox, bz + oz,
+          bx + ox + kx, bz + oz + kz, ax + ox + kx, az + oz + kz,
+          topY + 0.01, kerbColor, 1, len / 4,
+        );
+      }
+
       // Línea central discontinua
-      if (r.width >= 14 && len > 40) {
-        const step = 9;
-        for (let d = 6; d < len - 6; d += step) {
+      if (r.width >= 13 && len > 9) {
+        for (let d = 2; d < len - 2; d += 9) {
           const t0 = d / len;
-          const t1 = Math.min(1, (d + 3.5) / len);
+          const t1 = Math.min(1, (d + 4.5) / len);
           const hx = -uz * 0.16;
           const hz = ux * 0.16;
           const p0x = r.ax + dx * t0;
@@ -190,25 +239,28 @@ export class WorldView {
             dashes,
             p0x + hx, p0z + hz, p1x + hx, p1z + hz,
             p1x - hx, p1z - hz, p0x - hx, p0z - hz,
-            y + 0.004, white, 1, 1,
+            topY + 0.02, white, 1, 1,
           );
         }
       }
     });
 
-    const tex = asphaltTexture();
     const roadMesh = new THREE.Mesh(
       buildGeometry(s),
-      new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }),
+      new THREE.MeshLambertMaterial({ vertexColors: true, map: asphaltTexture() }),
     );
     roadMesh.receiveShadow = true;
     this.group.add(roadMesh);
 
-    const dashMesh = new THREE.Mesh(
+    this.group.add(new THREE.Mesh(
+      buildGeometry(kerbs),
+      new THREE.MeshLambertMaterial({ vertexColors: true, map: concreteTexture() }),
+    ));
+
+    this.group.add(new THREE.Mesh(
       buildGeometry(dashes),
-      new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.75 }),
-    );
-    this.group.add(dashMesh);
+      new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8 }),
+    ));
   }
 
   // ─────────────────────────── edificios ───────────────────────────
@@ -218,33 +270,29 @@ export class WorldView {
     if (buildings.length === 0) return;
 
     const box = new THREE.BoxGeometry(1, 1, 1);
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    const bodies = new THREE.InstancedMesh(box, bodyMat, buildings.length);
+    const facadeMat = new THREE.MeshLambertMaterial({ map: facadeTexture() });
+    instanceScaledUv(facadeMat, 14);
+
+    const bodies = new THREE.InstancedMesh(box, facadeMat, buildings.length);
     bodies.castShadow = true;
     bodies.receiveShadow = true;
 
     const roofs = new THREE.InstancedMesh(
       box,
-      new THREE.MeshLambertMaterial({ color: 0xffffff }),
+      new THREE.MeshLambertMaterial({ map: concreteTexture() }),
       buildings.length,
     );
-
-    const neonCount = Math.max(1, Math.floor(buildings.length * 0.4));
-    const neons = new THREE.InstancedMesh(
-      box,
-      new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }),
-      neonCount,
-    );
+    roofs.receiveShadow = true;
 
     const unitCount = Math.max(1, Math.floor(buildings.length * 0.8));
     const units = new THREE.InstancedMesh(
       box,
-      new THREE.MeshLambertMaterial({ color: 0x2a3040 }),
+      new THREE.MeshLambertMaterial({ color: 0x8a8074, map: concreteTexture() }),
       unitCount,
     );
+    units.castShadow = true;
 
     const color = new THREE.Color();
-    let ni = 0;
     let ui = 0;
 
     buildings.forEach((b, i) => {
@@ -258,33 +306,19 @@ export class WorldView {
       color.offsetHSL(0, 0, (b.colorSeed - 0.5) * 0.06);
       bodies.setColorAt(i, color);
 
-      // Losa de techo: es lo que más se ve desde arriba
-      this.dummy.position.set(b.x, h + 0.06, b.z);
-      this.dummy.scale.set(b.hw * 2 + 0.5, 0.35, b.hd * 2 + 0.5);
+      this.dummy.position.set(b.x, h + 0.1, b.z);
+      this.dummy.scale.set(b.hw * 2 + 0.6, 0.4, b.hd * 2 + 0.6);
       this.dummy.updateMatrix();
       roofs.setMatrixAt(i, this.dummy.matrix);
       color.setHex(COL.roof);
-      color.offsetHSL(0, 0, (b.colorSeed - 0.5) * 0.08);
+      color.offsetHSL(0, 0, (b.colorSeed - 0.5) * 0.1);
       roofs.setColorAt(i, color);
 
-      // Banda de neón en la fachada
-      if (ni < neonCount && rng.chance(0.42)) {
-        const bandY = h * rng.range(0.45, 0.9);
-        this.dummy.position.set(b.x, bandY, b.z);
-        this.dummy.scale.set(b.hw * 2 + 0.35, 0.5, b.hd * 2 + 0.35);
-        this.dummy.updateMatrix();
-        neons.setMatrixAt(ni, this.dummy.matrix);
-        color.setHex(rng.pick(COL.neon));
-        neons.setColorAt(ni, color);
-        ni++;
-      }
-
-      // Equipamiento de techo
       if (ui < unitCount && rng.chance(0.7)) {
         const sw = Math.min(b.hw, b.hd) * rng.range(0.25, 0.5);
         this.dummy.position.set(
           b.x + rng.range(-b.hw * 0.4, b.hw * 0.4),
-          h + rng.range(1, 2.4),
+          h + rng.range(1.2, 2.6),
           b.z + rng.range(-b.hd * 0.4, b.hd * 0.4),
         );
         this.dummy.rotation.set(0, rng.next() * Math.PI, 0);
@@ -295,16 +329,15 @@ export class WorldView {
       }
     });
 
-    neons.count = ni;
     units.count = ui;
     this.dummy.rotation.set(0, 0, 0);
-    this.group.add(bodies, roofs, neons, units);
+    this.group.add(bodies, roofs, units);
   }
 
   // ─────────────────────────── props ───────────────────────────
 
   private buildProps(def: MapDefinition, rng: Rng): void {
-    const groups: Record<string, typeof def.obstacles> = {};
+    const groups: Record<string, Obstacle[]> = {};
     for (const o of def.obstacles) {
       if (o.kind === 'building') continue;
       (groups[o.kind] ??= []).push(o);
@@ -317,7 +350,6 @@ export class WorldView {
       geo: THREE.BufferGeometry,
       mat: THREE.Material,
       colorFor: (seed: number) => number,
-      yOffset = 0.5,
     ): void => {
       const list = groups[kind];
       if (!list || list.length === 0) return;
@@ -326,7 +358,7 @@ export class WorldView {
       mesh.receiveShadow = true;
       const c = new THREE.Color();
       list.forEach((o, i) => {
-        this.dummy.position.set(o.x, o.height * yOffset, o.z);
+        this.dummy.position.set(o.x, o.height * 0.5, o.z);
         this.dummy.rotation.set(0, -o.rot, 0);
         this.dummy.scale.set(o.hw * 2, o.height, o.hd * 2);
         this.dummy.updateMatrix();
@@ -338,44 +370,48 @@ export class WorldView {
       this.group.add(mesh);
     };
 
-    add('container', box, new THREE.MeshLambertMaterial({ color: 0xffffff }), (s) =>
-      COL.container[Math.floor(s * COL.container.length) % COL.container.length],
-    );
-    add('barrier', box, new THREE.MeshLambertMaterial({ color: 0xffffff }), (s) =>
-      s > 0.5 ? 0xd9a441 : 0x9aa3b5,
-    );
-    add('planter', box, new THREE.MeshLambertMaterial({ color: 0xffffff }), () => 0x24303a);
-    add('wall', box, new THREE.MeshLambertMaterial({ color: 0xffffff }), () => 0x1c2130);
+    const containerMat = new THREE.MeshLambertMaterial({ map: ribbedTexture() });
+    instanceScaledUv(containerMat, 6);
+    add('container', box, containerMat, (s) =>
+      COL.container[Math.floor(s * COL.container.length) % COL.container.length]);
+
+    const barrierMat = new THREE.MeshLambertMaterial({ map: stripeTexture() });
+    instanceScaledUv(barrierMat, 3);
+    add('barrier', box, barrierMat, () => 0xffffff);
+
+    add('planter', box, new THREE.MeshLambertMaterial({ map: concreteTexture() }), () => 0x9a8f7d);
+    add('wall', box, new THREE.MeshLambertMaterial({ map: concreteTexture() }), () => 0x8a8074);
     add(
       'pole',
       new THREE.CylinderGeometry(0.5, 0.5, 1, 6),
-      new THREE.MeshLambertMaterial({ color: 0xffffff }),
-      () => 0x3a4150,
+      new THREE.MeshStandardMaterial({ color: 0x4a4640, metalness: 0.6, roughness: 0.6 }),
+      () => 0x4a4640,
     );
 
-    // Autos estacionados: dos cajas para que la silueta se lea desde arriba
+    // Autos estacionados
     const parked = groups['parked'];
     if (parked && parked.length > 0) {
       const bodyGeo = new THREE.BoxGeometry(1, 1, 1);
       const mesh = new THREE.InstancedMesh(
         bodyGeo,
-        new THREE.MeshLambertMaterial({ color: 0xffffff }),
+        new THREE.MeshStandardMaterial({ metalness: 0.35, roughness: 0.45 }),
         parked.length,
       );
       const cabins = new THREE.InstancedMesh(
         bodyGeo,
-        new THREE.MeshLambertMaterial({ color: 0x0e1118 }),
+        new THREE.MeshStandardMaterial({ color: 0x1c1a18, metalness: 0.6, roughness: 0.2 }),
         parked.length,
       );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       const c = new THREE.Color();
-      const palette = [0xb0503c, 0x4a6f9a, 0x8a857e, 0xc9c2b4, 0x3f7a68, 0xc9a33a];
       parked.forEach((o, i) => {
         this.dummy.position.set(o.x, o.height * 0.5, o.z);
         this.dummy.rotation.set(0, -o.rot, 0);
         this.dummy.scale.set(o.hw * 2, o.height, o.hd * 2);
         this.dummy.updateMatrix();
         mesh.setMatrixAt(i, this.dummy.matrix);
-        c.setHex(palette[Math.floor(o.colorSeed * palette.length) % palette.length]);
+        c.setHex(COL.parked[Math.floor(o.colorSeed * COL.parked.length) % COL.parked.length]);
         mesh.setColorAt(i, c);
 
         this.dummy.position.set(o.x, o.height * 1.05, o.z);
@@ -417,13 +453,13 @@ export class WorldView {
 
     const specs: Record<string, { geo: THREE.BufferGeometry; mat: THREE.Material; y: number }> = {
       cone: {
-        geo: new THREE.ConeGeometry(0.32, 0.75, 6),
+        geo: new THREE.ConeGeometry(0.32, 0.78, 8),
         mat: new THREE.MeshLambertMaterial({ color: 0xff6a2a }),
-        y: 0.38,
+        y: 0.39,
       },
       bin: {
-        geo: new THREE.CylinderGeometry(0.42, 0.36, 1.05, 8),
-        mat: new THREE.MeshLambertMaterial({ color: 0x2f4a3a }),
+        geo: new THREE.CylinderGeometry(0.42, 0.36, 1.05, 10),
+        mat: new THREE.MeshLambertMaterial({ color: 0x3f5a45 }),
         y: 0.52,
       },
       sign: {
@@ -432,8 +468,8 @@ export class WorldView {
         y: 2.4,
       },
       hydrant: {
-        geo: new THREE.CylinderGeometry(0.22, 0.26, 0.8, 6),
-        mat: new THREE.MeshLambertMaterial({ color: 0xff3b30 }),
+        geo: new THREE.CylinderGeometry(0.22, 0.26, 0.8, 8),
+        mat: new THREE.MeshLambertMaterial({ color: 0xd2453a }),
         y: 0.4,
       },
     };
@@ -441,6 +477,7 @@ export class WorldView {
     for (const [kind, indices] of Object.entries(byKind)) {
       const s = specs[kind] ?? specs.cone;
       const mesh = new THREE.InstancedMesh(s.geo, s.mat, indices.length);
+      mesh.castShadow = true;
       indices.forEach((globalIndex, slot) => {
         const d = def.destructibles[globalIndex];
         this.dummy.position.set(d.x, s.y, d.z);
@@ -464,8 +501,8 @@ export class WorldView {
     if (!group) return;
     const d = def.destructibles[globalIndex];
     if (visible) {
-      const specY = entry.kind === 'sign' ? 3.2 : entry.kind === 'bin' ? 0.52 : 0.38;
-      this.dummy.position.set(d.x, specY, d.z);
+      const y = entry.kind === 'sign' ? 2.4 : entry.kind === 'bin' ? 0.52 : 0.39;
+      this.dummy.position.set(d.x, y, d.z);
       this.dummy.rotation.set(0, (d.x + d.z) % Math.PI, 0);
       this.dummy.scale.set(1, 1, 1);
     } else {
@@ -483,15 +520,17 @@ export class WorldView {
 
   private buildLightPools(def: MapDefinition): void {
     if (def.lights.length === 0) return;
-    const geo = new THREE.PlaneGeometry(1, 1);
-    const mat = new THREE.MeshBasicMaterial({
-      map: radialTexture(),
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
-    });
-    const mesh = new THREE.InstancedMesh(geo, mat, def.lights.length);
+    const mesh = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({
+        map: radialTexture(),
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+      def.lights.length,
+    );
     mesh.renderOrder = 2;
     const c = new THREE.Color();
     def.lights.forEach((l, i) => {

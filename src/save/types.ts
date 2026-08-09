@@ -1,4 +1,4 @@
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface CarCosmetics {
   paintColor: string;
@@ -53,6 +53,10 @@ export interface SaveGame {
   challenges: ChallengeSave[];
   dailyStreak: number;
   lastDailyClaim: number;
+
+  /** Mapa elegido y récords por mapa. Se desbloquean con reputación. */
+  selectedMap: string;
+  mapRecords: Record<string, { bestScore: number; bestCash: number; runs: number }>;
 
   records: {
     bestScore: number;

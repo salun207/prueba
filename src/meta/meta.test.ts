@@ -244,7 +244,7 @@ describe('migración de saves', () => {
     const { SaveManager } = await import('../save/SaveManager');
     const s = new SaveManager().data as SaveGame & Record<string, unknown>;
 
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(3);
     expect(s.hypeTotal).toBeUndefined();
     expect(s.sponsors).toBeUndefined();
     expect(s.bays).toBeUndefined();
@@ -254,7 +254,48 @@ describe('migración de saves', () => {
     expect(s.cars[0].level).toBe(3);
     expect(s.cars[0].upgrades.engine).toBe(2);
     expect(s.challenges).toHaveLength(1);
+    // v3: aparecen los mapas, y un save viejo arranca en el circuito
+    expect(s.selectedMap).toBe('apex');
+    expect(s.mapRecords).toEqual({});
     localStorage.clear();
+  });
+});
+
+describe('circuitos', () => {
+  it('el primero está abierto y los otros piden reputación creciente', async () => {
+    const { MAPS, isMapUnlocked } = await import('../data/maps');
+    expect(MAPS[0].repRequired).toBe(0);
+    for (let i = 1; i < MAPS.length; i++) {
+      expect(MAPS[i].repRequired).toBeGreaterThan(MAPS[i - 1].repRequired);
+    }
+    expect(isMapUnlocked(MAPS[0], 0)).toBe(true);
+    expect(isMapUnlocked(MAPS[1], 0)).toBe(false);
+    expect(isMapUnlocked(MAPS[1], MAPS[1].repRequired)).toBe(true);
+  });
+
+  it('cada circuito es jugable: pista cerrada y largada sobre asfalto', async () => {
+    const { MAPS } = await import('../data/maps');
+    const { SimWorld } = await import('../sim/World');
+    for (const entry of MAPS) {
+      const def = entry.build();
+      const world = new SimWorld(def);
+      expect(def.roads.length, entry.id).toBeGreaterThan(20);
+      // La largada tiene que estar sobre pista y sin nada encima
+      expect(world.gripAt(def.spawn.x, def.spawn.z), entry.id).toBeGreaterThan(0.9);
+      expect(world.nearestWallDistance(def.spawn.x, def.spawn.z), entry.id).toBeGreaterThan(2.5);
+      // Y dentro de los límites
+      expect(Math.abs(def.spawn.x)).toBeLessThan(def.half);
+      expect(Math.abs(def.spawn.z)).toBeLessThan(def.half);
+    }
+  });
+
+  it('el circuito de la escuela es más ancho que el cañón', async () => {
+    const { getMap } = await import('../data/maps');
+    const avg = (id: string): number => {
+      const def = getMap(id).build();
+      return def.roads.reduce((a, r) => a + r.width, 0) / def.roads.length;
+    };
+    expect(avg('apex')).toBeGreaterThan(avg('kaida') * 1.4);
   });
 });
 

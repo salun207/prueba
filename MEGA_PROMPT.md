@@ -24,7 +24,21 @@
 > - **§10 Estética nocturna de neón → atardecer.** Cielo ámbar a violeta, sombras largas,
 >   separación de superficies por tono.
 >
-> El resto del documento (física, scoring, mapa, arquitectura) sigue vigente.
+> **Revisión 3.** Además:
+>
+> - **§9 pasa a ser el mapa 2.** El primero es ahora un circuito cerrado de drift
+>   ("Escuela Apex"), generado con `r(θ) = R0 + A1·sin(2θ) + A2·sin(3θ)`: una pista
+>   cerrada y suave por construcción, con curvatura variable, muros de goma al borde y
+>   nada que te choque de frente. Los circuitos se desbloquean con reputación. Ver
+>   `src/data/maps/circuit.ts` y `src/data/maps/index.ts`.
+> - **§5.7 aflojó.** El contravolante asistido subió a 0.6 (estándar), el `falloff` de
+>   todo el roster bajó ~0.08 y la ventana que puntúa se abrió a 10°–105° con 1.6 s de
+>   gracia. Driftear tenía que enganchar antes.
+> - **§10 texturas.** Todo procedural en canvas: asfalto con árido y fisuras, hormigón
+>   con juntas, pasto, tierra, fachadas con grilla de ventanas y UV escaladas por el
+>   tamaño real de cada instancia. Ver `src/render/Textures.ts`.
+>
+> El resto del documento (física, scoring, arquitectura) sigue vigente.
 >
 > **Regla legal innegociable:** el juego se inspira en el *feel* y en las ideas de diseño
 > de Drift Legends y CarX Drift Racing. **No se usa ni un solo asset, modelo, textura,

@@ -348,6 +348,7 @@ export function buildHarborMap(): MapDefinition {
   return {
     name: 'Harbor District',
     half: HALF,
+    terrain: 'urban',
     roads,
     obstacles,
     destructibles,

@@ -15,7 +15,7 @@ export const TIERS: { at: number; mult: number; label: string }[] = [
 ];
 
 export const SCORE_BASE_RATE = 120;
-export const CHAIN_GRACE = 1.2;
+export const CHAIN_GRACE = 1.6;
 
 export interface RunStats {
   score: number;
@@ -108,10 +108,10 @@ export class ScoreSystem {
 
   private isValidDrift(car: CarState, world: SimWorld): boolean {
     return (
-      car.driftAngle > DEG(12) &&
-      car.driftAngle < DEG(100) &&
-      car.speed > 8 &&
-      car.rearSlipVelocity > 2.0 &&
+      car.driftAngle > DEG(10) &&
+      car.driftAngle < DEG(110) &&
+      car.speed > 6.5 &&
+      car.rearSlipVelocity > 1.4 &&
       world.scorableAt(car.posX, car.posZ)
     );
   }
@@ -234,7 +234,7 @@ export class ScoreSystem {
     const fSpeed = clamp(speedKmh / 100, 0.3, 2.2);
 
     const a = degrees(car.driftAngle);
-    const fAngle = a < 12 || a > 95 ? 0 : Math.pow(Math.sin((Math.PI * (a - 12)) / 83), 0.7);
+    const fAngle = a < 10 || a > 105 ? 0 : Math.pow(Math.sin((Math.PI * (a - 10)) / 95), 0.6);
 
     const d = world.nearestWallDistance(car.posX, car.posZ);
     const fProx = d < 2.5 ? 1 + 0.9 * (1 - d / 2.5) : 1.0;

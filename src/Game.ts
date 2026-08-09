@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { audio } from './audio/AudioEngine';
 import { bus } from './core/EventBus';
-import { buildHarborMap } from './data/maps/harbor';
+import { getMap, isMapUnlocked, MAPS } from './data/maps';
 import { InputManager } from './input/InputManager';
 import { clamp, DEG } from './lib/math';
 import { buildCar, type BuiltCar } from './meta/CarBuild';
@@ -12,6 +12,7 @@ import {
 } from './meta/Economy';
 import { CAMERAS } from './render/CameraRig';
 import { CarView } from './render/CarView';
+import { renderCarPreview, warmCarPreviews } from './render/CarPreview';
 import { QUALITY, Renderer } from './render/Renderer';
 import { smokeTexture, radialTexture } from './render/Textures';
 import { FloatingText } from './render/vfx/FloatingText';
@@ -69,7 +70,8 @@ export class Game implements UiHost {
     this.bonuses = computeBonuses(this.saves.data);
 
     this.renderer = new Renderer(gameCanvas);
-    const mapDef = buildHarborMap();
+    const entry = getMap(this.saves.data.selectedMap);
+    const mapDef = entry.build();
     this.world = new SimWorld(mapDef);
     this.worldView = new WorldView(mapDef);
     this.renderer.scene.add(this.worldView.group);
@@ -77,7 +79,7 @@ export class Game implements UiHost {
     // La cámara consulta el mundo para no meterse en las paredes.
     this.renderer.rig.probe = (x, z) => this.world.nearestWallDistance(x, z, 6);
 
-    this.traffic = new Traffic(mapDef.lanes, this.saves.data.settings.traffic);
+    this.traffic = new Traffic(mapDef.lanes, entry.traffic ? this.saves.data.settings.traffic : 'off');
     this.buildTrafficView();
 
     const q = QUALITY[this.saves.data.settings.quality];
@@ -109,6 +111,8 @@ export class Game implements UiHost {
 
     window.addEventListener('resize', () => this.resize());
     this.resize();
+    // Las fotos de los autos se renderizan una vez, con el renderer ya listo.
+    warmCarPreviews(this.renderer.renderer);
     this.ui.showGarage();
 
     this.lastFrame = performance.now();
@@ -314,6 +318,17 @@ export class Game implements UiHost {
     save.records.totalDriftDistance += stats.driftDistance;
     save.tutorialDone = true;
 
+    const mapId = save.selectedMap;
+    const rec = (save.mapRecords[mapId] ??= { bestScore: 0, bestCash: 0, runs: 0 });
+    rec.bestScore = Math.max(rec.bestScore, stats.score);
+    rec.bestCash = Math.max(rec.bestCash, rewards.cash);
+    rec.runs++;
+
+    // ¿Se abrió un circuito nuevo con esta reputación?
+    const justUnlocked = MAPS.filter(
+      (m) => m.repRequired > 0 && save.rep >= m.repRequired && save.rep - rewards.rep < m.repRequired,
+    );
+
     const levelUps = applyXp(save, rewards.xp);
 
     const car = this.saves.activeCar;
@@ -331,6 +346,7 @@ export class Game implements UiHost {
     this.saves.flush();
     this.setCoach('');
     this.ui.showResults(rewards, stats, done, levelUps);
+    for (const m of justUnlocked) this.ui.toast(`¡Circuito nuevo: ${m.name}!`);
   }
 
   onCarChanged(): void {
@@ -338,10 +354,43 @@ export class Game implements UiHost {
     this.saves.markDirty();
   }
 
+  carPreview(carId: string, paint?: string): string | null {
+    try {
+      return renderCarPreview(this.renderer.renderer, carId, paint);
+    } catch {
+      return null;
+    }
+  }
+
+  /** Cambiar de circuito reconstruye el mundo entero. */
+  onMapChanged(): void {
+    const entry = getMap(this.saves.data.selectedMap);
+    if (!isMapUnlocked(entry, this.saves.data.rep)) return;
+
+    const def = entry.build();
+    this.renderer.scene.remove(this.worldView.group);
+    this.worldView.dispose();
+
+    this.world = new SimWorld(def);
+    this.worldView = new WorldView(def);
+    this.renderer.scene.add(this.worldView.group);
+    this.renderer.rig.probe = (x, z) => this.world.nearestWallDistance(x, z, 6);
+
+    this.traffic = new Traffic(def.lanes, entry.traffic ? this.saves.data.settings.traffic : 'off');
+    this.buildTrafficView();
+    this.hud.setMap(def);
+    this.marks.clear();
+    this.smoke.clear();
+    this.saves.markDirty();
+  }
+
   onSettingsChanged(): void {
     this.applySettings();
-    const st = this.saves.data.settings;
-    this.traffic = new Traffic(this.world.def.lanes, st.traffic);
+    const entry = getMap(this.saves.data.selectedMap);
+    this.traffic = new Traffic(
+      this.world.def.lanes,
+      entry.traffic ? this.saves.data.settings.traffic : 'off',
+    );
     this.buildTrafficView();
     this.saves.markDirty();
   }
@@ -614,6 +663,7 @@ export class Game implements UiHost {
       speed: this.carState.speed * 3.6,
       driftAngle: this.carState.driftAngle / DEG(1),
       camera: this.renderer.rig.config.name,
+      map: this.world.def.name,
       camHeight: this.renderer.rig.camera.position.y,
       quality: this.renderer.quality,
     };

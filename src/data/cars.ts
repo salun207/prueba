@@ -45,8 +45,8 @@ const BASE: CarSpec = {
   tireStiffnessFront: 11.5,
   tireStiffnessRear: 9.2,
   peakGripFront: 1.58,
-  peakGripRear: 1.34,
-  tireFalloff: 0.34,
+  peakGripRear: 1.24,
+  tireFalloff: 0.26,
 
   torqueCurve: [
     [900, 150],
@@ -72,7 +72,7 @@ const BASE: CarSpec = {
 
   brakeTorqueFront: 2400,
   brakeTorqueRear: 1350,
-  handbrakeGripMultiplier: 0.3,
+  handbrakeGripMultiplier: 0.24,
   brakeBias: 0.62,
   diffLock: 0.5,
 
@@ -118,7 +118,7 @@ export const CARS: CarDefinition[] = [
       inertiaYaw: 1280,
       bodyLength: 4.2,
       bodyWidth: 1.72,
-      tireFalloff: 0.28,
+      tireFalloff: 0.2,
       peakGripRear: 1.28,
       torqueCurve: [
         [900, 95],
@@ -150,7 +150,7 @@ export const CARS: CarDefinition[] = [
       lengthRear: 1.24,
       bodyLength: 3.9,
       bodyWidth: 1.68,
-      tireFalloff: 0.3,
+      tireFalloff: 0.22,
       peakGripRear: 1.3,
       torqueCurve: [
         [900, 90],
@@ -196,7 +196,7 @@ export const CARS: CarDefinition[] = [
       lengthRear: 1.46,
       bodyLength: 4.7,
       bodyWidth: 1.82,
-      tireFalloff: 0.36,
+      tireFalloff: 0.28,
       torqueCurve: [
         [900, 160],
         [2400, 250],
@@ -221,7 +221,7 @@ export const CARS: CarDefinition[] = [
       mass: 1180,
       inertiaYaw: 1420,
       bodyLength: 4.28,
-      tireFalloff: 0.4,
+      tireFalloff: 0.32,
       peakGripRear: 1.32,
       torqueCurve: [
         [1200, 120],
@@ -252,7 +252,7 @@ export const CARS: CarDefinition[] = [
       lengthRear: 1.44,
       bodyLength: 4.85,
       bodyWidth: 1.94,
-      tireFalloff: 0.38,
+      tireFalloff: 0.3,
       peakGripRear: 1.3,
       torqueCurve: [
         [900, 380],
@@ -284,7 +284,7 @@ export const CARS: CarDefinition[] = [
       inertiaYaw: 1920,
       bodyLength: 4.68,
       bodyWidth: 1.88,
-      tireFalloff: 0.42,
+      tireFalloff: 0.34,
       peakGripFront: 1.66,
       peakGripRear: 1.4,
       torqueCurve: [
@@ -314,7 +314,7 @@ export const CARS: CarDefinition[] = [
       inertiaYaw: 1660,
       bodyLength: 4.52,
       bodyWidth: 1.9,
-      tireFalloff: 0.45,
+      tireFalloff: 0.37,
       peakGripFront: 1.7,
       peakGripRear: 1.42,
       torqueCurve: [
@@ -348,7 +348,7 @@ export const CARS: CarDefinition[] = [
       trackWidth: 1.72,
       bodyLength: 4.9,
       bodyWidth: 2.08,
-      tireFalloff: 0.44,
+      tireFalloff: 0.36,
       peakGripRear: 1.36,
       torqueCurve: [
         [900, 480],
@@ -382,7 +382,7 @@ export const CARS: CarDefinition[] = [
       lengthRear: 1.52,
       bodyLength: 5.1,
       bodyWidth: 1.98,
-      tireFalloff: 0.46,
+      tireFalloff: 0.38,
       peakGripFront: 1.68,
       peakGripRear: 1.4,
       torqueCurve: [
@@ -416,7 +416,7 @@ export const CARS: CarDefinition[] = [
       trackWidth: 1.74,
       bodyLength: 4.6,
       bodyWidth: 2.02,
-      tireFalloff: 0.52,
+      tireFalloff: 0.44,
       peakGripFront: 1.82,
       peakGripRear: 1.44,
       torqueCurve: [
@@ -453,7 +453,7 @@ export const CARS: CarDefinition[] = [
       trackWidth: 1.7,
       bodyLength: 4.72,
       bodyWidth: 2.0,
-      tireFalloff: 0.55,
+      tireFalloff: 0.47,
       peakGripFront: 1.85,
       peakGripRear: 1.5,
       torqueCurve: [
@@ -489,7 +489,7 @@ export const CARS: CarDefinition[] = [
       trackWidth: 1.68,
       bodyLength: 4.66,
       bodyWidth: 1.98,
-      tireFalloff: 0.5,
+      tireFalloff: 0.42,
       peakGripFront: 1.8,
       peakGripRear: 1.46,
       torqueCurve: [

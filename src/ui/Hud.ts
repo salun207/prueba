@@ -229,7 +229,7 @@ export class Hud {
       frac = next.at > cur.at ? (score.driftDuration - cur.at) / (next.at - cur.at) : 1;
       barColor = color;
     } else {
-      frac = clamp(score.graceTimer / 1.2, 0, 1);
+      frac = clamp(score.graceTimer / 1.6, 0, 1);
       barColor = '#ff8a3d';
     }
     ctx.fillStyle = barColor;

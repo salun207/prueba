@@ -47,6 +47,8 @@ export function newSave(): SaveGame {
     challenges: [],
     dailyStreak: 0,
     lastDailyClaim: 0,
+    selectedMap: 'apex',
+    mapRecords: {},
     records: {
       bestScore: 0,
       bestCombo: 0,
@@ -74,6 +76,14 @@ type LegacySave = SaveGame & Record<string, unknown>;
  * progresión.
  */
 const MIGRATIONS: Record<number, (s: LegacySave) => LegacySave> = {
+  // 2 → 3: aparecen los mapas. Los saves viejos jugaban solo en la ciudad, así
+  // que arrancan en el circuito nuevo y conservan la ciudad si ya tienen la
+  // reputación para tenerla abierta.
+  2: (s) => {
+    s.selectedMap = 'apex';
+    s.mapRecords = {};
+    return s;
+  },
   1: (s) => {
     const legacy = s as LegacySave;
     s.cash = Math.min(Number(legacy.cash) || 0, 250_000);
@@ -142,6 +152,8 @@ function sanitize(s: SaveGame): SaveGame {
     if (!Number.isFinite(c.level) || c.level < 1) c.level = 1;
   }
   if (!Array.isArray(s.challenges)) s.challenges = [];
+  if (typeof s.selectedMap !== 'string') s.selectedMap = 'apex';
+  if (!s.mapRecords || typeof s.mapRecords !== 'object') s.mapRecords = {};
   s.settings = { ...defaultSettings(), ...s.settings };
   s.records = { ...newSave().records, ...s.records };
   return s;

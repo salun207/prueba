@@ -1,8 +1,8 @@
 import { clamp, normalizeAngle, smoothstep, DEG } from '../lib/math';
 import type { AssistLevel, CarSpec, CarState, InputState } from './types';
 
-const COUNTER_GAIN: Record<AssistLevel, number> = { casual: 0.75, standard: 0.42, pro: 0.18 };
-const SPIN_THRESHOLD: Record<AssistLevel, number> = { casual: DEG(95), standard: DEG(100), pro: DEG(125) };
+const COUNTER_GAIN: Record<AssistLevel, number> = { casual: 0.88, standard: 0.6, pro: 0.3 };
+const SPIN_THRESHOLD: Record<AssistLevel, number> = { casual: DEG(100), standard: DEG(105), pro: DEG(125) };
 // El torque de guiñada de la goma trasera en pleno derrape ronda los
 // 8.000 N·m: un cap de 0.35·I (≈550 N·m) no frenaba nada. Estos valores
 // sí compiten con la goma sin volver imposible el trompo.
@@ -61,7 +61,7 @@ export function antiSpinTorque(car: CarState, spec: CarSpec, level: AssistLevel)
  * solo no alcanza contra los ~8.000 N·m de la goma trasera; matar la rotación
  * directamente sí. Es lo que hace que el trompo requiera una cagada grande.
  */
-const SPIN_DAMP: Record<AssistLevel, number> = { casual: 5, standard: 3.4, pro: 1.3 };
+const SPIN_DAMP: Record<AssistLevel, number> = { casual: 5.5, standard: 4.3, pro: 1.6 };
 
 export function spinDampingMultiplier(car: CarState, level: AssistLevel): number {
   const threshold = SPIN_THRESHOLD[level];
@@ -74,7 +74,7 @@ export function spinDampingMultiplier(car: CarState, level: AssistLevel): number
  * auto se enderece rápido. Nada peor que quedarse patinando en el lugar.
  */
 export function rescueGripMultiplier(car: CarState, dt: number): number {
-  if (car.speed < 4 && car.driftAngle > DEG(40)) {
+  if (car.speed < 5 && car.driftAngle > DEG(35)) {
     car.rescueTimer = 0.5;
   } else if (car.rescueTimer > 0) {
     car.rescueTimer -= dt;

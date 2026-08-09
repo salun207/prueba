@@ -12,6 +12,9 @@ page.on('console', (m) => { if (m.type() === 'error') logs.push('CONSOLE ' + m.t
 await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
 await page.waitForTimeout(1800);
 await page.screenshot({ path: dir + 's_garage.png' });
+await page.evaluate(() => document.querySelector('[data-act="tab"][data-id="cars"]')?.click());
+await page.waitForTimeout(700);
+await page.screenshot({ path: dir + 's_cars.png' });
 
 await page.evaluate(() => document.querySelector('[data-act="drive"]')?.click());
 await page.waitForTimeout(1200);
@@ -20,12 +23,12 @@ await page.waitForTimeout(1200);
 // El spawn mira a la rotonda, 200 m al norte: llegamos y drifteamos ahí,
 // que es el único lugar abierto y sin paredes cerca.
 await page.keyboard.down('w');
-await page.waitForTimeout(7000);
+await page.waitForTimeout(12000);
 await page.keyboard.down(' ');
 await page.keyboard.down('d');
 await page.waitForTimeout(400);
 await page.keyboard.up(' ');
-await page.waitForTimeout(4000);
+await page.waitForTimeout(12000);
 await page.screenshot({ path: dir + 's_drift.png' });
 const mid = await page.evaluate(() => window.game.debug());
 await page.keyboard.up('d');

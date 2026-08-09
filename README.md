@@ -1,15 +1,14 @@
 # NEON APEX
 
-Juego de drift arcade en tercera persona. Ciudad portuaria al atardecer, cámara de
-persecución, y toda la plata sale de driftear. Corre en el navegador, sin instalación y
-sin conexión.
+Juego de drift arcade en tercera persona. Circuitos al atardecer, cámara de persecución,
+y toda la plata sale de driftear. Corre en el navegador, sin instalación y sin conexión.
 
 **Jugar ya:** https://claude.ai/code/artifact/1424160b-aec9-439c-94e0-8a0d310ca62d
 
 ```bash
 npm install
 npm run dev           # http://localhost:5173
-npm test              # 38 tests de física, economía y saves
+npm test              # 41 tests de física, economía, circuitos y saves
 npm run build         # typecheck + bundle
 npm run build:single  # todo en un solo HTML autocontenido (dist-single/)
 npm run smoke         # prueba en Chromium headless (requiere playwright)
@@ -28,6 +27,20 @@ npm run smoke         # prueba en Chromium headless (requiere playwright)
 
 Táctil: mitad inferior de la pantalla — izquierda freno de mano, centro volante
 (arrastrar), derecha freno y acelerador.
+
+## Circuitos
+
+Tres, y se abren con **reputación (★)**, que se gana drifteando:
+
+| Circuito | Se abre con | Qué es |
+|---|---|---|
+| **Escuela Apex** | desde el arranque | Circuito de drift: pista de 21 m, curvas largas y muros de goma cerca para raspar. No hay nada que te choque de frente — es donde se aprende a encadenar. |
+| **Harbor District** | 150 ★ | La ciudad portuaria abierta: grilla, avenida diagonal, rotonda, contenedores y tráfico. |
+| **Cañón Kaida** | 600 ★ | 13 m de ancho y horquillas encadenadas entre paredes de roca. Un error y perdés el combo. |
+
+Los dos circuitos cerrados se generan con un radio que varía con el ángulo
+(`r(θ) = R0 + A1·sin(2θ) + A2·sin(3θ)`): sale una pista cerrada y suave por
+construcción, con curvones largos y horquillas cerradas, sin dibujar nada a mano.
 
 ## Cómo se gana plata
 
@@ -72,6 +85,21 @@ Tres cámaras con `C`: Persecución (default), Corta y Cinemática. El FOV se ab
 velocidad, la cámara retrocede con el combo, y hace un sondeo contra el mundo para
 meterse cerca del auto cuando hay una pared atrás.
 
+## Qué tan fácil es driftear
+
+Ajustado para que enganche antes:
+
+- El contravolante asistido pasó de 0.42 a **0.6** en estándar, y al soltar el volante
+  el auto se autocentra al doble de fuerza.
+- Los neumáticos pierden grip antes (`falloff` bajó ~0.08 en todo el roster) y el freno
+  de mano suelta más el tren trasero.
+- La ventana que puntúa se abrió: de 12°–95° a **10°–105°**, desde 23 km/h en vez de 29, y
+  la ventana para encadenar curvas pasó de 1.2 s a **1.6 s**.
+- El anti-trompo actúa antes y amortigua más fuerte.
+
+Si querés que sea más difícil, en Opciones está el preset **pro**: menos ayuda y +35% de
+pago.
+
 ## Audio
 
 La primera versión sonaba chillona. Se rehízo con dos reglas:
@@ -86,9 +114,21 @@ La primera versión sonaba chillona. Se rehízo con dos reglas:
 
 Todo sigue siendo sintetizado en runtime: cero archivos de audio.
 
+## Texturas y autos
+
+Todo procedural, generado en canvas al iniciar: asfalto con árido, fisuras y parches de
+reparación; hormigón con juntas; pasto y tierra con matas y piedras; fachadas con grilla
+de ventanas (algunas encendidas); rayas de obra en las barreras; chapa corrugada con
+óxido en los contenedores. Las fachadas usan un shader que escala las UV según el tamaño
+real de cada edificio, para que las ventanas midan lo mismo en uno de 12 m y en uno de 40.
+
+Las **fotos de los autos** del garage son el mismo modelo 3D que manejás, renderizado en
+3/4 con luz de estudio a un render target y guardado como imagen. No hay fotos externas:
+la foto ES el auto, con tu color de pintura.
+
 ## Estética
 
-Atardecer en el puerto industrial, no noche de neón. Cielo de degradado ámbar → violeta
+Atardecer, no noche de neón. Cielo de degradado ámbar → violeta
 con el sol dibujado en el shader, sombras largas, y separación por **tono**: la calle es
 gris frío y todo lo que la rodea es tierra cálida, para que el asfalto se lea aunque
 media cuadra esté en sombra.
@@ -100,7 +140,7 @@ curva de neumático de `falloff` ajustable, transferencia de peso, círculo de f
 wheelspin y asistencias siempre activas. Timestep fijo de 1/120 s, determinista.
 
 **Score.** Banking: los puntos se acumulan derrapando y se cobran al salir limpio.
-8 tiers de combo hasta ×12, ventana de gracia de 1.2 s para encadenar curvas, bonus de
+8 tiers de combo hasta ×12, ventana de gracia de 1.6 s para encadenar curvas, bonus de
 transición, wall ride, threading, full lock, donut, near miss, y anti-farming por heat map.
 
 **Ciudad.** "Harbor District", 900 × 900 m procedurales: grilla, avenida diagonal a 30°,
@@ -116,9 +156,9 @@ rendimiento. Pagan plata extra; si no los hacés, no perdés nada.
 
 - **Modos**: solo el run cronometrado de 2 minutos. Faltan Time Attack, Gymkhana,
   persecución y tandem.
-- **Verticalidad**: la simulación es plana, así que no están la autopista elevada ni el
-  estacionamiento en espiral.
-- **Mapas 2 y 3**, replays y fotomodo.
+- **Verticalidad**: la simulación es plana, así que no hay peraltes, saltos ni la
+  autopista elevada de la ciudad.
+- **Replays y fotomodo.**
 - **Performance real**: el smoke test corre sobre SwiftShader (software), así que no mide
   FPS representativos. Los presets de calidad y el auto-ajuste están implementados, pero
   el objetivo de 60 FPS todavía no se verificó sobre una GPU real.

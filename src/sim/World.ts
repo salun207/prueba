@@ -87,6 +87,8 @@ export interface TrafficLane {
 export interface MapDefinition {
   name: string;
   half: number; // semi-lado del mapa en metros
+  /** Terreno de fondo, define la textura del suelo fuera de pista. */
+  terrain: 'grass' | 'dirt' | 'urban';
   roads: RoadSegment[];
   obstacles: Obstacle[];
   destructibles: Destructible[];
