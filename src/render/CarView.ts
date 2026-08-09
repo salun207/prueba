@@ -16,7 +16,6 @@ export class CarView {
   private wheelMeshes: THREE.Mesh[] = [];
   private brakeLights: THREE.Mesh[] = [];
   private headlightPool: THREE.Mesh;
-  private neon: THREE.Mesh;
   private shadow: THREE.Mesh;
   private paintMat: THREE.MeshStandardMaterial;
   private wheelMat: THREE.MeshStandardMaterial;
@@ -96,6 +95,32 @@ export class CarView {
       }
     }
 
+    // Zócalos laterales y difusor: en tercera persona el auto ocupa media
+    // pantalla, así que la silueta necesita más de tres cajas.
+    for (const sx of [-1, 1]) {
+      const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.16, L * 0.42), darkMat);
+      skirt.position.set(sx * (W / 2 - 0.02), wheelY - 0.06, 0);
+      this.group.add(skirt);
+    }
+    const diffuser = new THREE.Mesh(new THREE.BoxGeometry(W * 0.8, 0.16, 0.3), darkMat);
+    diffuser.position.set(0, wheelY - 0.06, -L * 0.46);
+    this.group.add(diffuser);
+
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(W * 0.96, 0.2, 0.22), darkMat);
+    bumper.position.set(0, bodyY + 0.06, L * 0.49);
+    this.group.add(bumper);
+
+    // Escapes
+    for (const sx of [-1, 1]) {
+      const pipe = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.06, 0.16, 8),
+        new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.9, roughness: 0.35 }),
+      );
+      pipe.rotation.x = Math.PI / 2;
+      pipe.position.set(sx * W * 0.22, wheelY - 0.02, -L * 0.5);
+      this.group.add(pipe);
+    }
+
     // Alerón
     this.buildSpoiler(body, L, W, bodyY, bodyH, darkMat);
 
@@ -162,32 +187,13 @@ export class CarView {
     this.headlightPool.renderOrder = 3;
     this.group.add(this.headlightPool);
 
-    // Neón bajo el auto
-    this.neon = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({
-        map: radialTexture(),
-        color: 0x22e1ff,
-        transparent: true,
-        opacity: 0,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    );
-    this.neon.rotation.x = -Math.PI / 2;
-    this.neon.position.y = 0.05;
-    this.neon.scale.set(W * 2.6, L * 1.9, 1);
-    this.neon.renderOrder = 3;
-    this.group.add(this.neon);
-
     // Sombra dura tipo blob: se lee mejor que una sombra real desde arriba
     this.shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({
         map: shadowTexture(),
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.45,
         depthWrite: false,
       }),
     );
@@ -245,13 +251,6 @@ export class CarView {
     }
     this.wheelMat.color.set(c.wheelColor);
     this.caliperMat.color.set(c.caliperColor);
-    const neonMat = this.neon.material as THREE.MeshBasicMaterial;
-    if (c.neonColor) {
-      neonMat.color.set(c.neonColor);
-      neonMat.opacity = 0.55;
-    } else {
-      neonMat.opacity = 0;
-    }
   }
 
   update(car: CarState, steerAngle: number, braking: boolean, dt: number): void {

@@ -4,14 +4,15 @@ import type { MapDefinition } from '../sim/World';
 import type { CarState } from '../sim/types';
 import { fmt, fmtInt, fmtTime } from './format';
 
-const TIER_COLORS = ['#e8ecf5', '#22e1ff', '#22e1ff', '#39ff88', '#ffa332', '#ff2e88', '#ff5ea8', '#ffffff'];
+const TIER_COLORS = ['#ffe9c0', '#ffb03a', '#ffb03a', '#7fd4c1', '#ff8a3d', '#ff4d3a', '#ff6f91', '#ffffff'];
 
 export interface HudModel {
   score: number;
   timeLeft: number;
   freeRoam: boolean;
-  hype: number;
   cash: number;
+  /** Plata estimada que ya te ganaste en este run. */
+  cashLive: number;
   speedKmh: number;
   rpmNorm: number;
   gear: number;
@@ -52,7 +53,7 @@ export class Hud {
     const toX = (x: number): number => (x + def.half) * k;
     const toY = (z: number): number => size - (z + def.half) * k;
 
-    g.fillStyle = '#0d1018';
+    g.fillStyle = '#2b2620';
     g.fillRect(0, 0, size, size);
 
     for (const zone of def.zones) {
@@ -66,7 +67,7 @@ export class Hud {
       g.globalAlpha = 1;
     }
 
-    g.strokeStyle = '#39404f';
+    g.strokeStyle = '#7a7168';
     g.lineCap = 'round';
     for (const r of def.roads) {
       g.lineWidth = Math.max(1, r.width * k);
@@ -94,6 +95,10 @@ export class Hud {
     this.bankFlash = 1;
   }
 
+  clear(): void {
+    this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+  }
+
   draw(model: HudModel, score: ScoreSystem, car: CarState, dt: number): void {
     const ctx = this.ctx;
     const w = this.canvas.clientWidth;
@@ -112,7 +117,7 @@ export class Hud {
     const scoreY = 44 * s;
     ctx.font = `900 ${44 * s}px system-ui, sans-serif`;
     if (this.bankFlash > 0) {
-      ctx.shadowColor = '#22e1ff';
+      ctx.shadowColor = '#ffb03a';
       ctx.shadowBlur = 26 * s * this.bankFlash;
     }
     ctx.fillStyle = '#ffffff';
@@ -124,7 +129,7 @@ export class Hud {
 
     if (!model.freeRoam) {
       ctx.font = `800 ${26 * s}px system-ui, sans-serif`;
-      ctx.fillStyle = model.timeLeft < 10 ? '#ff3b30' : '#e8ecf5';
+      ctx.fillStyle = model.timeLeft < 10 ? '#ff4d3a' : '#ffe9c0';
       ctx.textAlign = 'left';
       ctx.fillText(fmtTime(model.timeLeft), 24 * s, 36 * s);
     } else {
@@ -134,13 +139,15 @@ export class Hud {
       ctx.fillText('LIBRE', 24 * s, 36 * s);
     }
 
-    // Monedas
-    ctx.font = `700 ${15 * s}px system-ui, sans-serif`;
+    // Plata: la del garage y, más grande, la que estás ganando ahora mismo.
+    // Es el recordatorio permanente de que driftear ES la fuente de plata.
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffa332';
-    ctx.fillText(`⚡ ${fmt(model.hype)}`, 24 * s, h - 34 * s);
-    ctx.fillStyle = '#39ff88';
-    ctx.fillText(`$ ${fmt(model.cash)}`, 24 * s, h - 14 * s);
+    ctx.font = `700 ${14 * s}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillText(`$ ${fmt(model.cash)}`, 24 * s, h - 44 * s);
+    ctx.font = `900 ${26 * s}px system-ui, sans-serif`;
+    ctx.fillStyle = '#ffd98a';
+    ctx.fillText(`+$${fmt(model.cashLive)}`, 24 * s, h - 18 * s);
 
     // ── Combo ──
     this.drawCombo(score, car, w, h, s);
@@ -155,7 +162,7 @@ export class Hud {
     if (model.zone && model.zone !== 'Centro') {
       ctx.textAlign = 'right';
       ctx.font = `800 ${15 * s}px system-ui, sans-serif`;
-      ctx.fillStyle = '#22e1ff';
+      ctx.fillStyle = '#ffb03a';
       ctx.fillText(model.zone.toUpperCase(), w - 24 * s, 150 * s);
     }
 
@@ -168,7 +175,7 @@ export class Hud {
       const bw = 180 * s;
       ctx.fillStyle = 'rgba(255,255,255,0.12)';
       ctx.fillRect(24 * s, 80 * s, bw, 4 * s);
-      ctx.fillStyle = '#39ff88';
+      ctx.fillStyle = '#7fd4c1';
       ctx.fillRect(24 * s, 80 * s, bw * clamp(model.contractProgress, 0, 1), 4 * s);
     }
   }
@@ -223,7 +230,7 @@ export class Hud {
       barColor = color;
     } else {
       frac = clamp(score.graceTimer / 1.2, 0, 1);
-      barColor = '#ffa332';
+      barColor = '#ff8a3d';
     }
     ctx.fillStyle = barColor;
     ctx.fillRect(-bw / 2, by, bw * clamp(frac, 0, 1), bh);
@@ -241,12 +248,12 @@ export class Hud {
       ctx.beginPath();
       ctx.arc(0, 0, 30 * s, Math.PI, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = good ? '#39ff88' : warn ? '#ffa332' : '#ff3b30';
+      ctx.strokeStyle = good ? '#7fd4c1' : warn ? '#ffb03a' : '#ff4d3a';
       ctx.beginPath();
       ctx.arc(0, 0, 30 * s, Math.PI, Math.PI + Math.PI * clamp(a / 100, 0, 1));
       ctx.stroke();
       ctx.font = `700 ${13 * s}px system-ui, sans-serif`;
-      ctx.fillStyle = '#e8ecf5';
+      ctx.fillStyle = '#ffe9c0';
       ctx.textAlign = 'center';
       ctx.fillText(`${a.toFixed(0)}°`, 0, -10 * s);
       ctx.restore();
@@ -274,12 +281,12 @@ export class Hud {
     for (let i = 0; i < bars; i++) {
       const on = model.rpmNorm > i / bars;
       const t = i / bars;
-      ctx.fillStyle = on ? (t > 0.85 ? '#ff3b30' : t > 0.65 ? '#ffa332' : '#22e1ff') : 'rgba(255,255,255,0.1)';
+      ctx.fillStyle = on ? (t > 0.85 ? '#ff4d3a' : t > 0.65 ? '#ffb03a' : '#7fd4c1') : 'rgba(255,255,255,0.12)';
       ctx.fillRect(x + 90 * s - total + i * (bw + gap), y + 34 * s, bw, 12 * s);
     }
 
     ctx.font = `800 ${20 * s}px system-ui, sans-serif`;
-    ctx.fillStyle = '#e8ecf5';
+    ctx.fillStyle = '#ffe9c0';
     ctx.fillText(model.gear < 0 ? 'R' : model.gear === 0 ? 'N' : `${model.gear}ª`, x + 90 * s, y + 66 * s);
   }
 
@@ -308,7 +315,7 @@ export class Hud {
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(-car.yaw);
-    ctx.fillStyle = '#22e1ff';
+    ctx.fillStyle = '#ffd98a';
     ctx.beginPath();
     ctx.moveTo(0, -6 * s);
     ctx.lineTo(4 * s, 5 * s);

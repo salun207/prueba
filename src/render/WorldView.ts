@@ -4,19 +4,22 @@ import { Surface, type MapDefinition } from '../sim/World';
 import { asphaltTexture, radialTexture } from './Textures';
 
 const COL = {
-  ground: 0x363c49,
-  asphalt: 0x4d5464,
-  wet: 0x46586b,
-  concrete: 0x565d6b,
-  dirt: 0x5c4a34,
-  grass: 0x2e5540,
-  water: 0x101f30,
-  curb: 0x2e3440,
-  buildingLow: 0x272c39,
-  buildingHigh: 0x2f3546,
-  roof: 0x343b4b,
-  container: [0x2a5f7a, 0x7a3a4a, 0x6a5a2a, 0x3a6a4a, 0x5a3a6a],
-  neon: [0x22e1ff, 0xff2e88, 0xffa332, 0x39ff88],
+  // Separación por TONO, no solo por brillo: la calle es gris frío y todo lo
+  // que la rodea es tierra cálida. Así el asfalto se lee aunque el sol rasante
+  // deje media cuadra en sombra.
+  ground: 0xb3a084,
+  asphalt: 0x8b8d90,
+  wet: 0x7f8894,
+  concrete: 0xa8a49c,
+  dirt: 0xa87a45,
+  grass: 0x7f8a4e,
+  water: 0xd4783f,
+  curb: 0xc9bda6,
+  buildings: [0xa89880, 0x9c6b52, 0x8a8f92, 0xb5a48c, 0x7d6a58, 0xc0a882],
+  roof: 0x6f6558,
+  container: [0x2f6f7a, 0xa8452f, 0xc08a2a, 0x3f7a4a, 0x7a4a8a],
+  // Ventanas encendidas al atardecer, no neón: el sol todavía está.
+  neon: [0xffd98a, 0xffb35c, 0xffe9c0, 0x9fd8ff],
 };
 
 interface QuadSink {
@@ -138,7 +141,7 @@ export class WorldView {
     const s = sink();
     const dashes = sink();
     const c = new THREE.Color();
-    const white = new THREE.Color(0x8e97a8);
+    const white = new THREE.Color(0xf0e6d2);
 
     def.roads.forEach((r, i) => {
       const dx = r.bx - r.ax;
@@ -203,7 +206,7 @@ export class WorldView {
 
     const dashMesh = new THREE.Mesh(
       buildGeometry(dashes),
-      new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55 }),
+      new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.75 }),
     );
     this.group.add(dashMesh);
   }
@@ -217,6 +220,7 @@ export class WorldView {
     const box = new THREE.BoxGeometry(1, 1, 1);
     const bodyMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     const bodies = new THREE.InstancedMesh(box, bodyMat, buildings.length);
+    bodies.castShadow = true;
     bodies.receiveShadow = true;
 
     const roofs = new THREE.InstancedMesh(
@@ -250,9 +254,8 @@ export class WorldView {
       this.dummy.scale.set(b.hw * 2, h, b.hd * 2);
       this.dummy.updateMatrix();
       bodies.setMatrixAt(i, this.dummy.matrix);
-      const t = Math.min(1, h / 55);
-      color.setHex(t > 0.5 ? COL.buildingHigh : COL.buildingLow);
-      color.offsetHSL(0, 0, (b.colorSeed - 0.5) * 0.05);
+      color.setHex(COL.buildings[Math.floor(b.colorSeed * COL.buildings.length) % COL.buildings.length]);
+      color.offsetHSL(0, 0, (b.colorSeed - 0.5) * 0.06);
       bodies.setColorAt(i, color);
 
       // Losa de techo: es lo que más se ve desde arriba
@@ -319,6 +322,8 @@ export class WorldView {
       const list = groups[kind];
       if (!list || list.length === 0) return;
       const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+      mesh.castShadow = kind !== 'wall';
+      mesh.receiveShadow = true;
       const c = new THREE.Color();
       list.forEach((o, i) => {
         this.dummy.position.set(o.x, o.height * yOffset, o.z);
@@ -363,7 +368,7 @@ export class WorldView {
         parked.length,
       );
       const c = new THREE.Color();
-      const palette = [0x8a3a3a, 0x3a5a8a, 0x4a4a52, 0x6a6a72, 0x2a6a5a, 0x8a7a3a];
+      const palette = [0xb0503c, 0x4a6f9a, 0x8a857e, 0xc9c2b4, 0x3f7a68, 0xc9a33a];
       parked.forEach((o, i) => {
         this.dummy.position.set(o.x, o.height * 0.5, o.z);
         this.dummy.rotation.set(0, -o.rot, 0);
@@ -422,9 +427,9 @@ export class WorldView {
         y: 0.52,
       },
       sign: {
-        geo: new THREE.BoxGeometry(0.25, 2.4, 1.6),
-        mat: new THREE.MeshBasicMaterial({ color: 0xff2e88, toneMapped: false }),
-        y: 3.2,
+        geo: new THREE.BoxGeometry(0.18, 1.5, 1.1),
+        mat: new THREE.MeshLambertMaterial({ color: 0xd8b45a, emissive: 0x3a2a10 }),
+        y: 2.4,
       },
       hydrant: {
         geo: new THREE.CylinderGeometry(0.22, 0.26, 0.8, 6),
@@ -492,12 +497,12 @@ export class WorldView {
     def.lights.forEach((l, i) => {
       this.dummy.position.set(l.x, 0.12, l.z);
       this.dummy.rotation.set(-Math.PI / 2, 0, 0);
-      const s = 11 + ((l.x * 7 + l.z * 13) % 7);
+      const s = 9 + ((l.x * 7 + l.z * 13) % 6);
       this.dummy.scale.set(s, s, 1);
       this.dummy.updateMatrix();
       mesh.setMatrixAt(i, this.dummy.matrix);
       c.setHex(l.color);
-      c.multiplyScalar(0.3);
+      c.multiplyScalar(0.16);
       mesh.setColorAt(i, c);
     });
     this.dummy.rotation.set(0, 0, 0);

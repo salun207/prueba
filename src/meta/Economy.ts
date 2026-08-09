@@ -1,136 +1,117 @@
-import { getCar } from '../data/cars';
-import { LEGACY_BY_ID } from '../data/legacy';
-import { ROOMS_BY_ID } from '../data/rooms';
-import { SPONSORS_BY_ID, sponsorMultiplier } from '../data/sponsors';
-import { STAFF_BY_ID } from '../data/staff';
 import type { SaveGame } from '../save/types';
 import type { RunStats } from '../sim/ScoreSystem';
 
+/**
+ * Economía: la plata sale de driftear y de nada más.
+ *
+ * No hay ingreso pasivo, ni sponsors, ni staff, ni ganancias offline, ni
+ * prestige. Si el juego está cerrado, no pasa nada. Lo único que mueve la aguja
+ * es un run bueno, y por eso el pago escala DIRECTO con lo bien que manejaste:
+ * el score entra lineal (no con exponente < 1 como cuando había idle que
+ * compensaba) y encima se multiplica por el estilo del run.
+ */
+
+/** Pesos por punto de score. La perilla principal del balance. */
+export const CASH_RATE = 0.045;
+export const REP_RATE = 1 / 6000;
+
 export interface Bonuses {
-  upgradeDiscount: number; // 0..0.8
-  hypeBonus: number; // multiplicador total
   cashBonus: number;
   repBonus: number;
-  incomeMultiplier: number;
-  flatIncome: number;
   torqueBonus: number;
   gripBonus: number;
-  offlineCapSeconds: number;
-  offlineEfficiency: number;
-  crashShield: boolean;
   extraMultiplier: number;
   tierSpeed: number;
+  crashShield: boolean;
+  upgradeDiscount: number;
 }
 
-const lvl = (map: Record<string, number>, id: string): number => map[id] ?? 0;
+/**
+ * Lo único que modifica los pagos es el nivel de asistencias: manejar con menos
+ * ayuda paga más. Es el incentivo honesto para que el jugador vaya subiendo la
+ * dificultad en vez de que le regalen plata por esperar.
+ */
+export const ASSIST_PAYOUT: Record<string, { cash: number; rep: number; label: string }> = {
+  casual: { cash: 0.8, rep: 0.7, label: '−20% de pago' },
+  standard: { cash: 1.0, rep: 1.0, label: 'pago normal' },
+  pro: { cash: 1.35, rep: 1.5, label: '+35% de pago' },
+};
 
 export function computeBonuses(save: SaveGame): Bonuses {
-  const staffAmp = 1 + lvl(save.staff, 'manager') * (STAFF_BY_ID.get('manager')!.perLevel);
-
-  const staffEffect = (id: string): number => {
-    const def = STAFF_BY_ID.get(id)!;
-    return lvl(save.staff, id) * def.perLevel * staffAmp;
-  };
-  const roomEffect = (id: string): number => {
-    const def = ROOMS_BY_ID.get(id)!;
-    return lvl(save.rooms, id) * def.perLevel;
-  };
-  const legacyEffect = (id: string): number => {
-    const def = LEGACY_BY_ID.get(id)!;
-    return lvl(save.legacyNodes, id) * def.perLevel;
-  };
-
-  // ── Sponsors ──
-  let sponsorMult = 1;
-  let sponsorHype = 0;
-  let sponsorCash = 0;
-  let sponsorCrash = 0;
-  let sponsorTorque = 0;
-  let sponsorTier = 0;
-  for (const [id, level] of Object.entries(save.sponsors)) {
-    if (level <= 0) continue;
-    const def = SPONSORS_BY_ID.get(id);
-    if (!def) continue;
-    sponsorMult *= sponsorMultiplier(def, level);
-    if (id === 'nightowl') sponsorHype += 0.1;
-    if (id === 'aurora') sponsorHype += 0.25;
-    if (id === 'static') sponsorCash += 0.15;
-    if (id === 'chassis9') sponsorCrash += 0.08;
-    if (id === 'vertex') sponsorTorque += 0.03;
-    if (id === 'torque') sponsorTier += 1;
-  }
-
-  const empireLevels = lvl(save.legacyNodes, 'empire');
-  const prestigeMult =
-    (1 + save.prestigeCount * 0.1) * (1 + legacyEffect('income')) * Math.pow(2, empireLevels);
-
-  const instructorBoost = 1 + lvl(save.staff, 'instructor') * 0.15;
-  const flatIncome =
-    roomEffect('merch') + roomEffect('school') * instructorBoost + bayIncome(save);
-
+  const payout = ASSIST_PAYOUT[save.settings.assistLevel] ?? ASSIST_PAYOUT.standard;
   return {
-    upgradeDiscount: Math.min(
-      0.8,
-      staffEffect('mechanic') + roomEffect('workshop') + legacyEffect('discount'),
-    ),
-    hypeBonus: 1 + staffEffect('marketing') + roomEffect('trophies') + sponsorHype + legacyEffect('hype'),
-    cashBonus: 1 + sponsorCash,
-    repBonus: 1 + staffEffect('scout'),
-    incomeMultiplier: sponsorMult * (1 + staffEffect('accountant') + roomEffect('office')) * prestigeMult,
-    flatIncome,
-    torqueBonus: 1 + staffEffect('engineer') + roomEffect('dyno') + sponsorTorque,
-    gripBonus: 1 + staffEffect('engineer') * 0.5,
-    offlineCapSeconds: 2 * 3600 + lvl(save.staff, 'community') * 1800,
-    offlineEfficiency: Math.min(0.85, 0.4 + roomEffect('lounge')),
-    crashShield: lvl(save.legacyNodes, 'shield') > 0,
-    extraMultiplier: legacyEffect('veteran') + sponsorTier * 0.5,
-    tierSpeed: 1 + legacyEffect('adrenaline'),
+    cashBonus: payout.cash,
+    repBonus: payout.rep,
+    torqueBonus: 1,
+    gripBonus: 1,
+    extraMultiplier: 0,
+    tierSpeed: 1,
+    crashShield: false,
+    upgradeDiscount: 0,
   };
-}
-
-/** Los autos guardados en bahías se alquilan para eventos. */
-export function bayIncome(save: SaveGame): number {
-  let total = 0;
-  for (const car of save.cars) {
-    if (car.inBay === null || car.inBay >= save.bays) continue;
-    const def = getCar(car.id);
-    const value = Math.max(10_000, def.price);
-    total += Math.pow(value, 0.55) * (1 + car.level * 0.12) * 0.4;
-  }
-  return total;
-}
-
-export function baseIncomePerSecond(hypeTotal: number): number {
-  return 0.9 * Math.pow(Math.max(0, hypeTotal), 0.62);
-}
-
-export function incomePerSecond(save: SaveGame, b: Bonuses = computeBonuses(save)): number {
-  return baseIncomePerSecond(save.hypeTotal) * b.incomeMultiplier + b.flatIncome;
 }
 
 // ─────────────────────────── recompensas de run ───────────────────────────
 
 export interface RunRewards {
   score: number;
-  hype: number;
   cash: number;
-  xp: number;
   rep: number;
+  xp: number;
+  style: number;
+  styleParts: { label: string; value: number }[];
+}
+
+/**
+ * Multiplicador de estilo: premia manejar bien, no manejar mucho. Un run largo
+ * y prolijo con combos altos paga muchísimo más que uno largo y sucio.
+ */
+export function styleMultiplier(stats: RunStats): {
+  total: number;
+  parts: { label: string; value: number }[];
+} {
+  const parts: { label: string; value: number }[] = [];
+
+  const combo = (stats.bestMultiplier - 1) * 0.1;
+  if (combo > 0.005) parts.push({ label: `Combo ×${stats.bestMultiplier.toFixed(1)}`, value: combo });
+
+  const chain = Math.min(stats.bestChainedCorners, 12) * 0.03;
+  if (chain > 0.005) parts.push({ label: `${stats.bestChainedCorners} curvas encadenadas`, value: chain });
+
+  const trans = Math.min(stats.transitions, 15) * 0.02;
+  if (trans > 0.005) parts.push({ label: `${stats.transitions} transiciones`, value: trans });
+
+  const wall = Math.min(stats.wallRides, 10) * 0.03;
+  if (wall > 0.005) parts.push({ label: `${stats.wallRides} wall rides`, value: wall });
+
+  if (stats.cleanRun && stats.score > 0) parts.push({ label: 'Sin chocar', value: 0.35 });
+  else if (stats.crashes > 0) {
+    const penalty = -Math.min(0.3, stats.crashes * 0.05);
+    parts.push({ label: `${stats.crashes} choques`, value: penalty });
+  }
+
+  const total = Math.max(0.4, 1 + parts.reduce((a, p) => a + p.value, 0));
+  return { total, parts };
 }
 
 export function runRewards(stats: RunStats, b: Bonuses): RunRewards {
-  const score = stats.score;
-  const hype = Math.floor((score / 100) * b.hypeBonus);
-  // Exponente < 1: los runs enormes rinden mucho pero con retornos decrecientes,
-  // así el ingreso pasivo sigue siendo relevante para los jugadores buenos.
-  const cash = Math.floor(Math.pow(score, 0.78) * 0.55 * b.cashBonus);
-  const xp = Math.floor(score / 250);
-  const rep = Math.floor((score / 5000) * b.repBonus);
-  return { score, hype, cash, xp, rep };
+  const style = styleMultiplier(stats);
+  const cash = Math.floor(stats.score * CASH_RATE * style.total * b.cashBonus);
+  const rep = Math.floor(stats.score * REP_RATE * style.total * b.repBonus);
+  return {
+    score: stats.score,
+    cash,
+    rep,
+    xp: Math.floor(stats.score / 200),
+    style: style.total,
+    styleParts: style.parts,
+  };
 }
 
+// ─────────────────────────── niveles ───────────────────────────
+
 export function xpForLevel(level: number): number {
-  return Math.floor(500 * Math.pow(level, 1.65));
+  return Math.floor(600 * Math.pow(level, 1.55));
 }
 
 export function applyXp(save: SaveGame, xp: number): number {
@@ -145,21 +126,5 @@ export function applyXp(save: SaveGame, xp: number): number {
 }
 
 export function carXpForLevel(level: number): number {
-  return Math.floor(300 * Math.pow(level, 1.5));
-}
-
-// ─────────────────────────── offline ───────────────────────────
-
-export interface OfflineResult {
-  seconds: number;
-  cash: number;
-  capped: boolean;
-}
-
-export function computeOffline(save: SaveGame, now = Date.now()): OfflineResult {
-  const b = computeBonuses(save);
-  const elapsedRaw = Math.max(0, (now - save.lastSeenAt) / 1000);
-  const elapsed = Math.min(elapsedRaw, b.offlineCapSeconds);
-  const cash = Math.floor(incomePerSecond(save, b) * elapsed * b.offlineEfficiency);
-  return { seconds: elapsedRaw, cash, capped: elapsedRaw > b.offlineCapSeconds };
+  return Math.floor(350 * Math.pow(level, 1.45));
 }

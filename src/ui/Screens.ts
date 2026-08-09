@@ -1,24 +1,17 @@
 import { audio } from '../audio/AudioEngine';
 import { CARS, getCar } from '../data/cars';
-import { LEGACY_NODES, legacyCost, legacyPointsFor, PRESTIGE_MIN_HYPE } from '../data/legacy';
-import { bayCost, MAX_BAYS, ROOMS } from '../data/rooms';
-import { SPONSORS, sponsorCost, sponsorMultiplier } from '../data/sponsors';
-import { STAFF, staffCost } from '../data/staff';
 import { SETUP_PARAMS, SETUP_RECOMMENDED, UPGRADES } from '../data/upgrades';
 import { clamp, degrees } from '../lib/math';
 import * as A from '../meta/Actions';
-import { buildCar } from '../meta/CarBuild';
-import {
-  carXpForLevel, computeBonuses, incomePerSecond, xpForLevel,
-  type Bonuses, type RunRewards,
-} from '../meta/Economy';
-import type { ContractSave, SaveGame } from '../save/types';
+import { buildCar, carValue } from '../meta/CarBuild';
+import { ASSIST_PAYOUT, carXpForLevel, computeBonuses, xpForLevel, type RunRewards } from '../meta/Economy';
+import type { ChallengeSave, SaveGame } from '../save/types';
 import type { RunStats } from '../sim/ScoreSystem';
-import { fmt, fmtCash, fmtDuration, fmtInt } from './format';
+import { fmt, fmtCash, fmtInt } from './format';
 
 export interface UiHost {
   save: SaveGame;
-  startRun(mode: 'timed' | 'free'): void;
+  startRun(): void;
   resumeRun(): void;
   endRun(): void;
   onCarChanged(): void;
@@ -26,20 +19,25 @@ export interface UiHost {
   markDirty(): void;
 }
 
-type Screen = 'hidden' | 'garage' | 'results' | 'offline' | 'pause';
+type Screen = 'hidden' | 'garage' | 'results' | 'pause';
 
 const PALETTE = [
-  '#22e1ff', '#ff2e88', '#39ff88', '#ffa332', '#ff3b30', '#e8ecf5',
-  '#9aa3b5', '#141826', '#6a3aff', '#00c2a8', '#ffd83a', '#ff6a2a',
+  '#ff4d3a', '#ffb03a', '#ffe9c0', '#7fd4c1',
+  '#3f7ea8', '#2b2f38', '#c9c2b4', '#8a4fa8',
+  '#4f8a3a', '#d8456f', '#e8e4d8', '#5a5f6b',
 ];
 
 export class GameUI {
   private root: HTMLElement;
   private host: UiHost;
   private screen: Screen = 'hidden';
-  private tab = 'garage';
-  private lastResults: { rewards: RunRewards; stats: RunStats; contracts: string[]; levelUps: number } | null = null;
-  private offlineData: { seconds: number; cash: number } | null = null;
+  private tab = 'cars';
+  private results: {
+    rewards: RunRewards;
+    stats: RunStats;
+    challenges: string[];
+    levelUps: number;
+  } | null = null;
   private toastTimer = 0;
 
   constructor(root: HTMLElement, host: UiHost) {
@@ -47,7 +45,6 @@ export class GameUI {
     this.host = host;
     root.addEventListener('click', (e) => this.onClick(e));
     root.addEventListener('input', (e) => this.onInput(e));
-    root.addEventListener('change', (e) => this.onInput(e));
   }
 
   get save(): SaveGame {
@@ -70,15 +67,9 @@ export class GameUI {
     this.render();
   }
 
-  showResults(rewards: RunRewards, stats: RunStats, contracts: string[], levelUps: number): void {
-    this.lastResults = { rewards, stats, contracts, levelUps };
+  showResults(rewards: RunRewards, stats: RunStats, challenges: string[], levelUps: number): void {
+    this.results = { rewards, stats, challenges, levelUps };
     this.screen = 'results';
-    this.render();
-  }
-
-  showOffline(seconds: number, cash: number): void {
-    this.offlineData = { seconds, cash };
-    this.screen = 'offline';
     this.render();
   }
 
@@ -102,14 +93,7 @@ export class GameUI {
   update(dt: number): void {
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;
-      if (this.toastTimer <= 0) {
-        this.root.querySelector('.toast')?.classList.remove('show');
-      }
-    }
-    // El ingreso pasivo se ve subir en vivo
-    if (this.screen === 'garage') {
-      const el = this.root.querySelector('[data-live="cash"]');
-      if (el) el.textContent = fmtCash(this.save.cash);
+      if (this.toastTimer <= 0) this.root.querySelector('.toast')?.classList.remove('show');
     }
   }
 
@@ -120,7 +104,6 @@ export class GameUI {
     switch (this.screen) {
       case 'garage': this.root.innerHTML = this.garageHtml(); break;
       case 'results': this.root.innerHTML = this.resultsHtml(); break;
-      case 'offline': this.root.innerHTML = this.offlineHtml(); break;
       case 'pause': this.root.innerHTML = this.pauseHtml(); break;
       default: this.root.innerHTML = '';
     }
@@ -128,17 +111,15 @@ export class GameUI {
 
   private topBar(): string {
     const s = this.save;
-    const b = computeBonuses(s);
-    const ips = incomePerSecond(s, b);
+    const need = xpForLevel(s.playerLevel);
     return `
       <header class="topbar">
         <div class="currencies">
-          <span class="cur cash" data-live="cash">${fmtCash(s.cash)}</span>
-          <span class="cur hype">⚡ ${fmt(s.hypeTotal)}</span>
+          <span class="cur cash">${fmtCash(s.cash)}</span>
           <span class="cur rep">★ ${fmt(s.rep)}</span>
-          <span class="cur parts">⚙ ${fmt(s.parts)}</span>
-          ${s.legacy > 0 ? `<span class="cur legacy">◆ ${fmt(s.legacy)}</span>` : ''}
-          <span class="cur ips">+${fmtCash(ips)}/s</span>
+          <span class="cur lvl">Nv.${s.playerLevel}
+            <i style="--p:${clamp(s.playerXp / need, 0, 1) * 100}%"></i>
+          </span>
         </div>
         <button class="drive" data-act="drive">MANEJAR</button>
       </header>`;
@@ -146,15 +127,12 @@ export class GameUI {
 
   private tabs(): string {
     const list: [string, string][] = [
-      ['garage', 'Garage'],
       ['cars', 'Autos'],
-      ['upgrades', 'Upgrades'],
+      ['upgrades', 'Mejoras'],
       ['setup', 'Setup'],
       ['paint', 'Pintura'],
-      ['sponsors', 'Sponsors'],
-      ['staff', 'Staff'],
-      ['contracts', 'Contratos'],
-      ['legacy', 'Legacy'],
+      ['challenges', 'Desafíos'],
+      ['records', 'Récords'],
       ['options', 'Opciones'],
     ];
     return `<nav class="tabs">${list
@@ -165,74 +143,15 @@ export class GameUI {
   private garageHtml(): string {
     let body = '';
     switch (this.tab) {
-      case 'garage': body = this.tabGarage(); break;
       case 'cars': body = this.tabCars(); break;
       case 'upgrades': body = this.tabUpgrades(); break;
       case 'setup': body = this.tabSetup(); break;
       case 'paint': body = this.tabPaint(); break;
-      case 'sponsors': body = this.tabSponsors(); break;
-      case 'staff': body = this.tabStaff(); break;
-      case 'contracts': body = this.tabContracts(); break;
-      case 'legacy': body = this.tabLegacy(); break;
+      case 'challenges': body = this.tabChallenges(); break;
+      case 'records': body = this.tabRecords(); break;
       case 'options': body = this.tabOptions(); break;
     }
-    return `
-      <div class="screen garage">
-        ${this.topBar()}
-        ${this.tabs()}
-        <div class="content">${body}</div>
-      </div>`;
-  }
-
-  // ── Garage: bahías y salas ──
-  private tabGarage(): string {
-    const s = this.save;
-    const b = computeBonuses(s);
-    const bays: string[] = [];
-    for (let i = 0; i < MAX_BAYS; i++) {
-      if (i < s.bays) {
-        const car = s.cars.find((c) => c.inBay === i);
-        const def = car ? getCar(car.id) : null;
-        bays.push(`
-          <div class="bay ${car ? 'full' : 'empty'}">
-            <div class="bay-num">BAHÍA ${i + 1}</div>
-            ${def ? `<div class="bay-car" style="--paint:${car!.cosmetics.paintColor}">
-                <div class="carchip"></div>
-                <b>${def.displayName}</b><span>Nv.${car!.level}</span>
-              </div>` : '<div class="bay-empty">Vacía</div>'}
-          </div>`);
-      } else if (i === s.bays) {
-        const cost = bayCost(i + 1);
-        bays.push(`
-          <div class="bay locked">
-            <div class="bay-num">BAHÍA ${i + 1}</div>
-            <button data-act="buybay" ${s.cash >= cost ? '' : 'disabled'}>${fmtCash(cost)}</button>
-          </div>`);
-      } else {
-        bays.push(`<div class="bay locked dim"><div class="bay-num">BAHÍA ${i + 1}</div><span>—</span></div>`);
-      }
-    }
-
-    const rooms = ROOMS.map((r) => {
-      const level = s.rooms[r.id] ?? 0;
-      const cost = level >= r.maxLevel ? null : Math.floor(r.baseCost * Math.pow(r.growth, level));
-      return this.card(
-        r.name,
-        `${r.desc}<br><b>Nivel ${level}/${r.maxLevel}</b>`,
-        cost === null ? 'MAX' : fmtCash(cost),
-        cost !== null && s.cash >= cost,
-        'buyroom',
-        r.id,
-        level / r.maxLevel,
-      );
-    }).join('');
-
-    return `
-      <h2>Tu garage</h2>
-      <p class="hint">Los autos guardados en bahías se alquilan para eventos y generan plata sola. Ingreso pasivo actual: <b>${fmtCash(incomePerSecond(s, b))}/s</b></p>
-      <div class="bays">${bays.join('')}</div>
-      <h2>Salas</h2>
-      <div class="grid">${rooms}</div>`;
+    return `<div class="screen garage">${this.topBar()}${this.tabs()}<div class="content">${body}</div></div>`;
   }
 
   // ── Autos ──
@@ -241,14 +160,14 @@ export class GameUI {
     const owned = s.cars.map((c) => {
       const def = getCar(c.id);
       const active = c.instanceId === s.activeCarInstanceId;
-      const xpNeed = carXpForLevel(c.level);
+      const need = carXpForLevel(c.level);
       return `
         <div class="card car ${active ? 'active' : ''}" style="--paint:${c.cosmetics.paintColor}">
-          <div class="carchip big"></div>
+          <div class="carchip"></div>
           <h3>${def.displayName} <span class="tier t${def.tier}">${def.tier}</span></h3>
           <p class="blurb">${def.blurb}</p>
-          <div class="bar"><i style="width:${clamp(c.xp / xpNeed, 0, 1) * 100}%"></i></div>
-          <small>Nv.${c.level} · ${fmtInt(c.xp)}/${fmtInt(xpNeed)} XP</small>
+          <div class="bar"><i style="width:${clamp(c.xp / need, 0, 1) * 100}%"></i></div>
+          <small>Nv.${c.level} · ${fmtInt(c.xp)}/${fmtInt(need)} XP · vale ${fmtCash(carValue(c))}</small>
           <div class="actions">
             ${active ? '<button disabled>EN USO</button>' : `<button data-act="select" data-id="${c.instanceId}">USAR</button>`}
             ${s.cars.length > 1 ? `<button class="ghost" data-act="sell" data-id="${c.instanceId}">VENDER</button>` : ''}
@@ -257,30 +176,29 @@ export class GameUI {
     }).join('');
 
     const shop = CARS.filter((d) => !s.cars.some((c) => c.id === d.id)).map((d) => {
-      const check = A.canBuyCar(s, d.id);
-      const price =
-        d.unlock.type === 'cash' ? fmtCash(d.price)
-        : d.unlock.type === 'prestige' ? `${d.unlock.amount} ◆`
-        : d.unlock.type === 'sponsor' ? 'Sponsor'
-        : d.unlock.type === 'rep' ? `${d.unlock.amount} ★`
-        : '—';
+      const check = A.carUnlock(s, d.id);
+      const torque = Math.round(Math.max(...d.spec.torqueCurve.map((t) => t[1])));
       return `
         <div class="card car shop" style="--paint:${d.defaultPaint}">
-          <div class="carchip big"></div>
+          <div class="carchip"></div>
           <h3>${d.displayName} <span class="tier t${d.tier}">${d.tier}</span></h3>
           <p class="blurb">${d.blurb}</p>
-          <small>${Math.round(d.spec.mass)} kg · ${Math.round(Math.max(...d.spec.torqueCurve.map((t) => t[1])))} N·m · ${degrees(d.spec.maxSteerAngle).toFixed(0)}°</small>
+          <small>${Math.round(d.spec.mass)} kg · ${torque} N·m · ${degrees(d.spec.maxSteerAngle).toFixed(0)}° de ángulo</small>
           <div class="actions">
-            <button data-act="buycar" data-id="${d.id}" ${check.ok ? '' : 'disabled'}>${check.ok ? price : `${price} · ${check.reason}`}</button>
+            <button data-act="buycar" data-id="${d.id}" ${check.ok ? '' : 'disabled'}>
+              ${check.ok ? check.price : `${check.price} · ${check.reason}`}
+            </button>
           </div>
         </div>`;
     }).join('');
 
     return `<h2>Tus autos</h2><div class="grid">${owned}</div>
-            <h2>Concesionaria</h2><div class="grid">${shop}</div>`;
+            <h2>Concesionaria</h2>
+            <p class="hint">Los dos autos de arriba de todo se abren con reputación (★), que solo se gana drifteando bien.</p>
+            <div class="grid">${shop}</div>`;
   }
 
-  // ── Upgrades ──
+  // ── Mejoras ──
   private tabUpgrades(): string {
     const s = this.save;
     const idx = s.cars.findIndex((c) => c.instanceId === s.activeCarInstanceId);
@@ -289,22 +207,22 @@ export class GameUI {
     const items = UPGRADES.map((u) => {
       const level = car.upgrades[u.id] ?? 0;
       const price = A.upgradePrice(s, idx, u.id);
-      const label = price === null
-        ? 'MAX'
-        : `${fmtCash(price.cash)}${price.parts > 0 ? ` + ${price.parts}⚙` : ''}`;
-      const afford = price !== null && s.cash >= price.cash && s.parts >= price.parts;
-      const next = level < u.maxLevel ? `${u.readout(level)} → <b>${u.readout(level + 1)}</b>` : u.readout(level);
-      return this.card(
-        `${u.name} <small>${level}/${u.maxLevel}</small>`,
-        `${u.desc}<br>${next}`,
-        label,
-        afford,
-        'buyupgrade',
-        u.id,
-        level / u.maxLevel,
-      );
+      const label = price === null ? 'MAX' : fmtCash(price);
+      const afford = price !== null && s.cash >= price;
+      const next = level < u.maxLevel
+        ? `${u.readout(level)} → <b>${u.readout(level + 1)}</b>`
+        : u.readout(level);
+      return `
+        <div class="card">
+          <div class="bar"><i style="width:${(level / u.maxLevel) * 100}%"></i></div>
+          <h3>${u.name} <small>${level}/${u.maxLevel}</small></h3>
+          <p>${u.desc}<br>${next}</p>
+          <div class="actions">
+            <button data-act="buyupgrade" data-id="${u.id}" ${afford ? '' : 'disabled'}>${label}</button>
+          </div>
+        </div>`;
     }).join('');
-    return `<h2>Upgrades — ${def.displayName}</h2>
+    return `<h2>Mejoras — ${def.displayName}</h2>
             <p class="hint">Todo esto cambia la física de verdad, no son stats de adorno.</p>
             <div class="grid">${items}</div>`;
   }
@@ -340,9 +258,9 @@ export class GameUI {
       <h2>Setup</h2>
       <p class="hint">Gratis y ajustable siempre. Si no querés entender nada, tocá "Setup recomendado".</p>
       <div class="summary">
-        ${this.meter('ESTABILIDAD', stability, '#22e1ff')}
-        ${this.meter('ÁNGULO', angle, '#ff2e88')}
-        ${this.meter('ACELERACIÓN', accel, '#39ff88')}
+        ${this.meter('ESTABILIDAD', stability, 'var(--c1)')}
+        ${this.meter('ÁNGULO', angle, 'var(--c2)')}
+        ${this.meter('ACELERACIÓN', accel, 'var(--c3)')}
       </div>
       <div class="actions">
         <button data-act="setup-rec">SETUP RECOMENDADO</button>
@@ -357,35 +275,25 @@ export class GameUI {
 
   // ── Pintura ──
   private tabPaint(): string {
-    const s = this.save;
-    const car = s.cars.find((c) => c.instanceId === s.activeCarInstanceId)!;
+    const car = this.save.cars.find((c) => c.instanceId === this.save.activeCarInstanceId)!;
     const c = car.cosmetics;
-    const neonUnlocked = (s.sponsors['halo'] ?? 0) > 0;
-
     const swatches = (act: string, current: string): string =>
       PALETTE.map((p) => `<button class="swatch ${p === current ? 'on' : ''}" style="background:${p}" data-act="${act}" data-id="${p}"></button>`).join('');
-
     const types = ['gloss', 'matte', 'metallic', 'pearl', 'chrome']
       .map((t) => `<button class="pill ${c.paintType === t ? 'on' : ''}" data-act="painttype" data-id="${t}">${t}</button>`)
       .join('');
-
     const kits = ['Stock', 'Street', 'Widebody']
       .map((k, i) => `<button class="pill ${c.bodyKit === i ? 'on' : ''}" data-act="kit" data-id="${i}">${k}</button>`)
       .join('');
 
     return `
-      <h2>Pintura y cosméticos</h2>
+      <h2>Pintura</h2>
       <div class="paintrow"><h3>Color</h3><div class="swatches">${swatches('paint', c.paintColor)}</div></div>
       <div class="paintrow"><h3>Acabado</h3><div class="pills">${types}</div></div>
       <div class="paintrow"><h3>Llantas</h3><div class="swatches">${swatches('wheel', c.wheelColor)}</div></div>
       <div class="paintrow"><h3>Pinzas de freno</h3><div class="swatches">${swatches('caliper', c.caliperColor)}</div></div>
       <div class="paintrow"><h3>Kit de carrocería</h3><div class="pills">${kits}</div>
         <small class="hint">El widebody ensancha la vía de verdad: +0.12 m, más estable.</small></div>
-      <div class="paintrow"><h3>Neón bajo el auto ${neonUnlocked ? '' : '<small>(requiere Halo Optics)</small>'}</h3>
-        <div class="swatches ${neonUnlocked ? '' : 'disabled'}">
-          <button class="swatch off ${c.neonColor ? '' : 'on'}" data-act="neon" data-id="none">✕</button>
-          ${neonUnlocked ? swatches('neon', c.neonColor ?? '') : ''}
-        </div></div>
       <div class="paintrow"><h3>Humo de color</h3>
         <div class="swatches">
           <button class="swatch off ${c.smokeColor ? '' : 'on'}" data-act="smoke" data-id="none">✕</button>
@@ -393,99 +301,38 @@ export class GameUI {
         </div></div>`;
   }
 
-  // ── Sponsors ──
-  private tabSponsors(): string {
+  // ── Desafíos ──
+  private tabChallenges(): string {
     const s = this.save;
-    const items = SPONSORS.map((sp) => {
-      const level = s.sponsors[sp.id] ?? 0;
-      const locked = s.hypeTotal < sp.hypeRequired;
-      const cost = sponsorCost(sp, level);
-      const mult = sponsorMultiplier(sp, level);
-      const body = locked
-        ? `Se desbloquea con <b>${fmt(sp.hypeRequired)} ⚡</b>`
-        : `${sp.perk}<br>Multiplicador actual: <b>×${mult.toFixed(2)}</b>`;
-      return this.card(
-        `${sp.name} <small>${level}/${sp.maxLevel}</small>`,
-        body,
-        locked ? '🔒' : level >= sp.maxLevel ? 'MAX' : fmtCash(cost),
-        !locked && level < sp.maxLevel && s.cash >= cost,
-        'buysponsor',
-        sp.id,
-        level / sp.maxLevel,
-      );
-    }).join('');
-    return `<h2>Sponsors</h2>
-            <p class="hint">El Hype que generás drifteando atrae sponsors. Los sponsors pagan por segundo, jugues o no.</p>
-            <div class="grid">${items}</div>`;
-  }
-
-  // ── Staff ──
-  private tabStaff(): string {
-    const s = this.save;
-    const items = STAFF.map((st) => {
-      const level = s.staff[st.id] ?? 0;
-      const cost = staffCost(st, level);
-      return `
-        <div class="card">
-          <div class="bar"><i style="width:${(level / st.maxLevel) * 100}%"></i></div>
-          <h3>${st.name} <small>${level}/${st.maxLevel}</small></h3>
-          <p>${st.desc}</p>
-          <div class="actions">
-            <button data-act="hire" data-id="${st.id}" ${level < st.maxLevel && s.cash >= cost ? '' : 'disabled'}>
-              ${level >= st.maxLevel ? 'MAX' : fmtCash(cost)}
-            </button>
-            ${level > 0 ? `<button class="ghost" data-act="fire" data-id="${st.id}">DESPEDIR</button>` : ''}
-          </div>
-        </div>`;
-    }).join('');
-    return `<h2>Staff</h2><div class="grid">${items}</div>`;
-  }
-
-  // ── Contratos ──
-  private tabContracts(): string {
-    const s = this.save;
-    const render = (c: ContractSave): string => `
-      <div class="card contract ${c.daily ? 'daily' : ''}">
+    const render = (c: ChallengeSave): string => `
+      <div class="card challenge ${c.daily ? 'daily' : ''}">
         <div class="bar"><i style="width:${clamp(c.progress / c.target, 0, 1) * 100}%"></i></div>
         <h3>${c.daily ? '★ DIARIO — ' : ''}${c.text}</h3>
         <small>Mejor: ${fmtInt(c.progress)} / ${fmtInt(c.target)}</small>
-        <p class="reward">${fmtCash(c.reward.cash)} ${c.reward.parts ? `· ${c.reward.parts}⚙` : ''} ${c.reward.rep ? `· ${c.reward.rep}★` : ''}</p>
+        <p class="reward">${fmtCash(c.reward.cash)}${c.reward.rep ? ` · ${c.reward.rep} ★` : ''}</p>
       </div>`;
-    const list = s.contracts.filter((c) => !c.done).map(render).join('');
-    return `<h2>Contratos</h2>
-            <p class="hint">Racha diaria: <b>${s.dailyStreak}</b> día(s) — la recompensa del diario crece hasta ×3 en 7 días.</p>
-            <div class="grid">${list || '<p class="hint">No hay contratos activos.</p>'}</div>`;
+    const list = s.challenges.filter((c) => !c.done).map(render).join('');
+    return `<h2>Desafíos</h2>
+            <p class="hint">Pagan plata extra. Si no los hacés no perdés nada: no hay castigo por no entrar.</p>
+            <div class="grid">${list || '<p class="hint">No hay desafíos activos.</p>'}</div>`;
   }
 
-  // ── Legacy ──
-  private tabLegacy(): string {
-    const s = this.save;
-    const points = legacyPointsFor(s.hypeTotal);
-    const can = A.canPrestige(s);
-    const nodes = LEGACY_NODES.map((n) => {
-      const level = s.legacyNodes[n.id] ?? 0;
-      const cost = legacyCost(n, level);
-      return this.card(
-        `${n.name} <small>${level}/${n.maxLevel}</small>`,
-        n.desc,
-        level >= n.maxLevel ? 'MAX' : `${cost} ◆`,
-        level < n.maxLevel && s.legacy >= cost,
-        'buylegacy',
-        n.id,
-        level / n.maxLevel,
-      );
-    }).join('');
-
-    return `
-      <h2>Legacy</h2>
-      <div class="prestige">
-        <p>Vender el imperio reinicia cash, sponsors, staff, salas y todos los autos menos el activo.
-           Te quedás con los Legacy Points, los cosméticos y los récords.</p>
-        <p>Hype acumulado: <b>${fmt(s.hypeTotal)}</b> / ${fmt(PRESTIGE_MIN_HYPE)}</p>
-        <p>Ganarías: <b>${points} ◆</b> · Prestiges: ${s.prestigeCount}</p>
-        <button data-act="prestige" ${can ? '' : 'disabled'}>${can ? 'VENDER EL IMPERIO' : 'TODAVÍA NO'}</button>
-      </div>
-      <div class="grid">${nodes}</div>`;
+  // ── Récords ──
+  private tabRecords(): string {
+    const r = this.save.records;
+    const rows: [string, string][] = [
+      ['Mejor score', fmtInt(r.bestScore)],
+      ['Mejor combo', `×${r.bestCombo.toFixed(2)}`],
+      ['Drift más largo', `${r.longestDrift.toFixed(1)} s`],
+      ['Mejor run pagado', fmtCash(r.bestCashRun)],
+      ['Plata total ganada', fmtCash(r.totalCashEarned)],
+      ['Distancia driftada', `${fmtInt(r.totalDriftDistance)} m`],
+      ['Runs jugados', fmtInt(r.totalRuns)],
+      ['Choques', fmtInt(r.totalCrashes)],
+    ];
+    return `<h2>Récords</h2><table class="records">${rows
+      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
+      .join('')}</table>`;
   }
 
   // ── Opciones ──
@@ -493,22 +340,24 @@ export class GameUI {
     const st = this.save.settings;
     const opt = (act: string, values: string[], current: string): string =>
       values.map((v) => `<button class="pill ${current === v ? 'on' : ''}" data-act="${act}" data-id="${v}">${v}</button>`).join('');
+    const payout = ASSIST_PAYOUT[st.assistLevel];
     return `
       <h2>Opciones</h2>
       <div class="paintrow"><h3>Asistencias</h3><div class="pills">${opt('assist', ['casual', 'standard', 'pro'], st.assistLevel)}</div>
-        <small class="hint">Nunca son cero: el contravolante asistido siempre está activo.</small></div>
+        <small class="hint">Manejar con menos ayuda paga más: ahora estás en <b>${payout.label}</b>.
+        Nunca son cero — el contravolante asistido siempre está activo.</small></div>
       <div class="paintrow"><h3>Calidad</h3><div class="pills">${opt('quality', ['low', 'medium', 'high', 'ultra'], st.quality)}</div></div>
       <div class="paintrow"><h3>Tráfico</h3><div class="pills">${opt('traffic', ['off', 'low', 'medium', 'high'], st.traffic)}</div></div>
       <div class="paintrow"><h3>Accesibilidad</h3><div class="pills">
-        <button class="pill ${st.screenShake ? 'on' : ''}" data-act="shake">Screenshake</button>
-        <button class="pill ${st.showAngleArc ? 'on' : ''}" data-act="arc">Arco de ángulo</button>
+        <button class="pill ${st.screenShake ? 'on' : ''}" data-act="shake">Sacudida de cámara</button>
+        <button class="pill ${st.showAngleArc ? 'on' : ''}" data-act="arc">Medidor de ángulo</button>
       </div></div>
       <div class="paintrow"><h3>Volumen</h3>
-        <div class="slider"><label>Master<b>${Math.round(st.masterVolume * 100)}%</b></label>
+        <div class="slider"><label>General<b>${Math.round(st.masterVolume * 100)}%</b></label>
           <input type="range" min="0" max="1" step="0.05" value="${st.masterVolume}" data-act="vol" data-id="master"></div>
         <div class="slider"><label>Música<b>${Math.round(st.musicVolume * 100)}%</b></label>
           <input type="range" min="0" max="1" step="0.05" value="${st.musicVolume}" data-act="vol" data-id="music"></div>
-        <div class="slider"><label>Efectos<b>${Math.round(st.sfxVolume * 100)}%</b></label>
+        <div class="slider"><label>Motor y efectos<b>${Math.round(st.sfxVolume * 100)}%</b></label>
           <input type="range" min="0" max="1" step="0.05" value="${st.sfxVolume}" data-act="vol" data-id="sfx"></div>
       </div>
       <div class="paintrow"><h3>Guardado</h3>
@@ -521,68 +370,58 @@ export class GameUI {
       </div>`;
   }
 
-  private card(
-    title: string, body: string, price: string, afford: boolean,
-    act: string, id: string, progress: number,
-  ): string {
-    return `
-      <div class="card">
-        <div class="bar"><i style="width:${clamp(progress, 0, 1) * 100}%"></i></div>
-        <h3>${title}</h3>
-        <p>${body}</p>
-        <div class="actions">
-          <button data-act="${act}" data-id="${id}" ${afford ? '' : 'disabled'}>${price}</button>
-        </div>
-      </div>`;
-  }
-
   // ── Resultados ──
   private resultsHtml(): string {
-    const r = this.lastResults;
+    const r = this.results;
     if (!r) return '';
-    const { rewards, stats, contracts, levelUps } = r;
+    const { rewards, stats, challenges, levelUps } = r;
+
+    // El desglose de estilo es el corazón de la pantalla: muestra exactamente
+    // por qué te pagaron lo que te pagaron.
+    const style = rewards.styleParts.map((p, i) => `
+      <tr style="animation-delay:${300 + i * 70}ms">
+        <td>${p.label}</td>
+        <td class="${p.value >= 0 ? 'plus' : 'minus'}">${p.value >= 0 ? '+' : ''}${Math.round(p.value * 100)}%</td>
+      </tr>`).join('');
+
     const rows: [string, string][] = [
       ['Mejor combo', `×${stats.bestMultiplier.toFixed(2)}`],
       ['Drift más largo', `${stats.longestDrift.toFixed(1)} s`],
       ['Distancia driftada', `${Math.round(stats.driftDistance)} m`],
-      ['Choques', String(stats.crashes)],
-      ['Objetos destruidos', String(stats.cones)],
-      ['Transiciones', String(stats.transitions)],
       ['Velocidad máxima', `${Math.round(stats.topSpeed)} km/h`],
     ];
+
     return `
       <div class="screen results">
-        <h1>RUN COMPLETO</h1>
-        <div class="bigscore">${fmtInt(rewards.score)}</div>
-        <table>${rows.map(([k, v], i) => `<tr style="animation-delay:${i * 90}ms"><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
-        <div class="rewards">
-          <div style="animation-delay:700ms"><b>⚡ +${fmt(rewards.hype)}</b><span>HYPE</span></div>
-          <div style="animation-delay:790ms"><b>$ +${fmt(rewards.cash)}</b><span>CASH</span></div>
-          <div style="animation-delay:880ms"><b>+${fmt(rewards.xp)}</b><span>XP</span></div>
-          <div style="animation-delay:970ms"><b>★ +${fmt(rewards.rep)}</b><span>REP</span></div>
+        <h1>RUN TERMINADO</h1>
+        <div class="bigscore">${fmtInt(rewards.score)}<span>puntos</span></div>
+
+        <div class="payout">
+          <div class="payline"><span>Base</span><b>${fmtCash(Math.floor(rewards.score * 0.045))}</b></div>
+          <table class="stylebreak">${style}</table>
+          <div class="payline total">
+            <span>Estilo ×${rewards.style.toFixed(2)}</span>
+            <b class="cash">${fmtCash(rewards.cash)}</b>
+          </div>
         </div>
+
+        <table class="summary-table">${rows
+          .map(([k, v], i) => `<tr style="animation-delay:${i * 70}ms"><td>${k}</td><td>${v}</td></tr>`)
+          .join('')}</table>
+
+        <div class="rewards">
+          <div style="animation-delay:700ms"><b>${fmtCash(rewards.cash)}</b><span>PLATA</span></div>
+          <div style="animation-delay:780ms"><b>★ ${fmt(rewards.rep)}</b><span>REPUTACIÓN</span></div>
+          <div style="animation-delay:860ms"><b>${fmt(rewards.xp)}</b><span>XP</span></div>
+        </div>
+
         ${levelUps > 0 ? `<p class="levelup">¡SUBISTE ${levelUps} NIVEL${levelUps > 1 ? 'ES' : ''}!</p>` : ''}
-        ${contracts.length ? `<div class="contracts-done">${contracts.map((c) => `<p>✓ ${c}</p>`).join('')}</div>` : ''}
+        ${challenges.length ? `<div class="challenges-done">${challenges.map((c) => `<p>✓ ${c}</p>`).join('')}</div>` : ''}
+
         <div class="actions big">
-          <button data-act="drive">REPETIR</button>
+          <button data-act="drive">OTRA VUELTA</button>
           <button class="ghost" data-act="togarage">GARAGE</button>
         </div>
-      </div>`;
-  }
-
-  private offlineHtml(): string {
-    const d = this.offlineData!;
-    return `
-      <div class="screen modal">
-        <h1>BIENVENIDO DE VUELTA</h1>
-        <p>Estuviste <b>${fmtDuration(d.seconds)}</b> afuera.</p>
-        <p>Tu garage siguió laburando:</p>
-        <div class="bigscore">${fmtCash(d.cash)}</div>
-        <div class="actions big">
-          <button data-act="claim">COBRAR</button>
-          <button data-act="claim2">COBRAR ×2 HACIENDO UN RUN</button>
-        </div>
-        <small class="hint">Sin anuncios. El ×2 se gana manejando.</small>
       </div>`;
   }
 
@@ -618,6 +457,8 @@ export class GameUI {
       if (el.dataset.id === 'sfx') s.settings.sfxVolume = v;
       this.host.onSettingsChanged();
       this.host.markDirty();
+      const label = el.previousElementSibling?.querySelector('b');
+      if (label) label.textContent = `${Math.round(v * 100)}%`;
     }
   }
 
@@ -631,38 +472,15 @@ export class GameUI {
     let rerender = true;
 
     switch (act) {
-      case 'tab':
-        this.tab = id;
-        break;
+      case 'tab': this.tab = id; break;
       case 'drive':
-        audio.blip(720, 0.08, 'triangle', 0.2);
+        audio.click();
         this.hide();
-        this.host.startRun('timed');
+        this.host.startRun();
         return;
-      case 'togarage':
-        this.showGarage();
-        return;
-      case 'resume':
-        this.hide();
-        this.host.resumeRun();
-        return;
-      case 'endrun':
-        this.hide();
-        this.host.endRun();
-        return;
-      case 'claim':
-        s.cash += this.offlineData?.cash ?? 0;
-        audio.cash();
-        this.showGarage();
-        this.host.markDirty();
-        return;
-      case 'claim2':
-        s.cash += (this.offlineData?.cash ?? 0) * 2;
-        audio.cash(4);
-        this.hide();
-        this.host.startRun('timed');
-        this.host.markDirty();
-        return;
+      case 'togarage': this.showGarage(); return;
+      case 'resume': this.hide(); this.host.resumeRun(); return;
+      case 'endrun': this.hide(); this.host.endRun(); return;
 
       case 'buyupgrade': {
         const idx = s.cars.findIndex((c) => c.instanceId === s.activeCarInstanceId);
@@ -670,27 +488,12 @@ export class GameUI {
         if (ok) this.host.onCarChanged();
         break;
       }
-      case 'buysponsor': ok = A.buySponsor(s, id); break;
-      case 'hire': ok = A.hireStaff(s, id); break;
-      case 'fire': ok = A.fireStaff(s, id); break;
-      case 'buyroom': ok = A.buyRoom(s, id); break;
-      case 'buybay': ok = A.buyBay(s); break;
       case 'buycar':
         ok = A.buyCar(s, id);
         if (ok) this.toast(`¡${getCar(id).displayName} en el garage!`);
         break;
       case 'sell': ok = A.sellCar(s, id); if (ok) this.host.onCarChanged(); break;
-      case 'select':
-        s.activeCarInstanceId = id;
-        this.host.onCarChanged();
-        break;
-      case 'buylegacy': ok = A.buyLegacy(s, id); break;
-      case 'prestige':
-        if (confirm('¿Vender el imperio? Perdés cash, sponsors, staff, salas y todos los autos menos el activo.')) {
-          ok = A.prestige(s, s.activeCarInstanceId);
-          if (ok) this.host.onCarChanged();
-        } else ok = false;
-        break;
+      case 'select': ok = A.selectCar(s, id); if (ok) this.host.onCarChanged(); break;
 
       case 'setup-rec': {
         const car = s.cars.find((c) => c.instanceId === s.activeCarInstanceId)!;
@@ -705,13 +508,12 @@ export class GameUI {
         break;
       }
 
-      case 'paint': case 'wheel': case 'caliper': case 'neon': case 'smoke': case 'painttype': case 'kit': {
+      case 'paint': case 'wheel': case 'caliper': case 'smoke': case 'painttype': case 'kit': {
         const car = s.cars.find((c) => c.instanceId === s.activeCarInstanceId)!;
         const c = car.cosmetics;
         if (act === 'paint') c.paintColor = id;
         if (act === 'wheel') c.wheelColor = id;
         if (act === 'caliper') c.caliperColor = id;
-        if (act === 'neon') c.neonColor = id === 'none' ? null : id;
         if (act === 'smoke') c.smokeColor = id === 'none' ? null : id;
         if (act === 'painttype') c.paintType = id as typeof c.paintType;
         if (act === 'kit') c.bodyKit = parseInt(id, 10);
@@ -725,40 +527,24 @@ export class GameUI {
       case 'shake': s.settings.screenShake = !s.settings.screenShake; this.host.onSettingsChanged(); break;
       case 'arc': s.settings.showAngleArc = !s.settings.showAngleArc; this.host.onSettingsChanged(); break;
 
-      case 'export':
-        window.dispatchEvent(new CustomEvent('neon:export'));
-        rerender = false;
-        break;
-      case 'import':
-        window.dispatchEvent(new CustomEvent('neon:import'));
-        rerender = false;
-        break;
+      case 'export': window.dispatchEvent(new CustomEvent('neon:export')); rerender = false; break;
+      case 'import': window.dispatchEvent(new CustomEvent('neon:import')); rerender = false; break;
       case 'wipe':
         if (confirm('¿Borrar TODO el progreso? No hay vuelta atrás.')) {
           window.dispatchEvent(new CustomEvent('neon:wipe'));
         }
         rerender = false;
         break;
-      default:
-        rerender = false;
+      default: rerender = false;
     }
 
     if (ok) {
-      if (act.startsWith('buy') || act === 'hire') audio.cash(Math.random() * 4);
-      else audio.blip(560, 0.05, 'sine', 0.14);
+      if (act.startsWith('buy')) audio.cash();
+      else audio.click();
       this.host.markDirty();
     } else {
-      audio.blip(180, 0.09, 'square', 0.12);
+      audio.click(false);
     }
     if (rerender && this.screen === 'garage') this.render();
-  }
-
-  refreshBonuses(): Bonuses {
-    return computeBonuses(this.save);
-  }
-
-  playerProgress(): { level: number; frac: number } {
-    const need = xpForLevel(this.save.playerLevel);
-    return { level: this.save.playerLevel, frac: clamp(this.save.playerXp / need, 0, 1) };
   }
 }

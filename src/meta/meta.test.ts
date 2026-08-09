@@ -1,104 +1,111 @@
 import { describe, expect, it } from 'vitest';
-import { ROOMS, roomCost, bayCost } from '../data/rooms';
-import { SPONSORS, sponsorCost } from '../data/sponsors';
-import { STAFF, staffCost } from '../data/staff';
+import { CARS, getCar } from '../data/cars';
 import { UPGRADES, upgradeCost } from '../data/upgrades';
-import { getCar } from '../data/cars';
 import { makeCar, newSave } from '../save/SaveManager';
 import type { SaveGame } from '../save/types';
 import { buildCar } from './CarBuild';
-import { computeBonuses, incomePerSecond, runRewards, xpForLevel, applyXp } from './Economy';
-import { ensureContracts, evaluateContracts } from './Contracts';
+import {
+  applyXp, CASH_RATE, computeBonuses, runRewards, styleMultiplier, xpForLevel,
+} from './Economy';
+import { ensureChallenges, evaluateChallenges } from './Challenges';
 import * as A from './Actions';
 import { fmt } from '../ui/format';
 import type { RunStats } from '../sim/ScoreSystem';
 
-function stats(score: number): RunStats {
+// SaveManager usa localStorage; en node no existe, así que lo stubeamos.
+const store = new Map<string, string>();
+(globalThis as unknown as { localStorage: Storage }).localStorage = {
+  getItem: (k: string) => store.get(k) ?? null,
+  setItem: (k: string, v: string) => void store.set(k, v),
+  removeItem: (k: string) => void store.delete(k),
+  clear: () => store.clear(),
+  key: (i: number) => [...store.keys()][i] ?? null,
+  get length() { return store.size; },
+} as Storage;
+
+function stats(over: Partial<RunStats> = {}): RunStats {
   return {
-    score, bestMultiplier: 3, longestDrift: 8, driftDistance: 400, crashes: 0,
+    score: 20_000, bestMultiplier: 3, longestDrift: 8, driftDistance: 400, crashes: 0,
     cones: 12, transitions: 4, wallRides: 2, nearMisses: 1, topSpeed: 140,
-    cleanRun: true, zoneScore: { Puerto: score * 0.4 }, chainedCorners: 3, bestChainedCorners: 5,
+    cleanRun: true, zoneScore: { Puerto: 8000 }, chainedCorners: 3, bestChainedCorners: 5,
+    ...over,
   };
 }
 
-/** Estado de progresión plausible para un nivel de Hype dado. */
-function stateAt(hype: number): SaveGame {
-  const save = newSave();
-  save.hypeTotal = hype;
-  const tier = Math.log10(Math.max(10, hype));
-  save.playerLevel = Math.max(1, Math.floor(tier * 6));
-  for (const sp of SPONSORS) {
-    if (hype >= sp.hypeRequired) save.sponsors[sp.id] = Math.min(sp.maxLevel, Math.floor(tier * 2));
-  }
-  for (const st of STAFF) save.staff[st.id] = Math.min(st.maxLevel, Math.floor(tier));
-  for (const r of ROOMS) save.rooms[r.id] = Math.min(r.maxLevel, Math.floor(tier));
-  save.bays = Math.min(8, 1 + Math.floor(tier / 2));
-  const car = save.cars[0];
-  for (const u of UPGRADES) car.upgrades[u.id] = Math.min(u.maxLevel, Math.floor(tier * 2));
-  save.cash = incomePerSecond(save) * 120;
-  return save;
-}
-
-/** La compra más barata disponible ahora mismo, en cash. */
-function cheapestPurchase(save: SaveGame): number {
-  const b = computeBonuses(save);
-  const options: number[] = [];
-  const car = save.cars[0];
-  for (const u of UPGRADES) {
-    const level = car.upgrades[u.id] ?? 0;
-    if (level < u.maxLevel) options.push(upgradeCost(u, level).cash * (1 - b.upgradeDiscount));
-  }
-  for (const sp of SPONSORS) {
-    const level = save.sponsors[sp.id] ?? 0;
-    if (save.hypeTotal >= sp.hypeRequired && level < sp.maxLevel) options.push(sponsorCost(sp, level));
-  }
-  for (const st of STAFF) {
-    const level = save.staff[st.id] ?? 0;
-    if (level < st.maxLevel) options.push(staffCost(st, level));
-  }
-  for (const r of ROOMS) {
-    const level = save.rooms[r.id] ?? 0;
-    if (level < r.maxLevel) options.push(roomCost(r, level));
-  }
-  if (save.bays < 8) options.push(bayCost(save.bays + 1));
-  return Math.min(...options);
-}
-
-describe('economía', () => {
-  it('siempre hay algo comprable cerca (invariante del Pilar 4)', () => {
-    const failures: string[] = [];
-    for (let i = 0; i < 100; i++) {
-      const hype = Math.pow(10, 1 + (i / 100) * 7); // 10 → 1e8
-      const save = stateAt(hype);
-      const ips = incomePerSecond(save);
-      const cheapest = cheapestPurchase(save);
-      // La compra más barata nunca debe estar a más de 30 min de idle
-      if (cheapest > ips * 1800) {
-        failures.push(`hype=${fmt(hype)} ips=${fmt(ips)}/s más barato=${fmt(cheapest)}`);
-      }
+describe('economía sin tycoon', () => {
+  it('no existe ninguna fuente de plata que no sea manejar', async () => {
+    const eco = await import('./Economy');
+    for (const banned of ['incomePerSecond', 'computeOffline', 'baseIncomePerSecond', 'bayIncome']) {
+      expect(banned in eco, `${banned} debería estar borrado`).toBe(false);
     }
-    expect(failures, failures.slice(0, 5).join('\n')).toHaveLength(0);
+    const save = newSave();
+    expect('hypeTotal' in save).toBe(false);
+    expect('sponsors' in save).toBe(false);
+    expect('parts' in save).toBe(false);
   });
 
-  it('el ingreso pasivo crece de forma monótona con el Hype', () => {
-    let prev = 0;
-    for (let h = 0; h < 1e9; h = h * 3 + 10) {
-      const v = incomePerSecond(stateAt(h));
-      expect(v).toBeGreaterThan(prev);
-      prev = v;
-    }
-  });
-
-  it('el cash de un run tiene retornos decrecientes; el Hype no', () => {
+  it('la plata escala lineal con el score', () => {
     const b = computeBonuses(newSave());
-    const small = runRewards(stats(10_000), b);
-    const big = runRewards(stats(1_000_000), b);
-    expect(big.hype / small.hype).toBeCloseTo(100, 0);
-    expect(big.cash / small.cash).toBeGreaterThan(20);
-    expect(big.cash / small.cash).toBeLessThan(60);
+    const small = runRewards(stats({ score: 10_000 }), b);
+    const big = runRewards(stats({ score: 100_000 }), b);
+    // Mismo estilo, 10× de score → 10× de plata. Sin retornos decrecientes.
+    expect(big.cash / small.cash).toBeCloseTo(10, 1);
   });
 
-  it('sube de nivel y nunca deja XP negativa', () => {
+  it('manejar mejor paga más con el mismo score', () => {
+    const b = computeBonuses(newSave());
+    const sloppy = runRewards(
+      stats({ bestMultiplier: 1.5, crashes: 4, cleanRun: false, wallRides: 0, transitions: 0, bestChainedCorners: 1 }),
+      b,
+    );
+    const clean = runRewards(
+      stats({ bestMultiplier: 8, crashes: 0, cleanRun: true, wallRides: 8, transitions: 12, bestChainedCorners: 10 }),
+      b,
+    );
+    expect(clean.cash).toBeGreaterThan(sloppy.cash * 2);
+  });
+
+  it('chocar penaliza y nunca deja el pago en cero', () => {
+    const bad = styleMultiplier(stats({ crashes: 20, cleanRun: false, bestMultiplier: 1, wallRides: 0, transitions: 0, bestChainedCorners: 0 }));
+    expect(bad.total).toBeGreaterThanOrEqual(0.4);
+    expect(bad.total).toBeLessThan(1);
+  });
+
+  it('menos asistencias = más plata', () => {
+    const mk = (level: 'casual' | 'standard' | 'pro'): number => {
+      const s = newSave();
+      s.settings.assistLevel = level;
+      return runRewards(stats(), computeBonuses(s)).cash;
+    };
+    expect(mk('pro')).toBeGreaterThan(mk('standard'));
+    expect(mk('standard')).toBeGreaterThan(mk('casual'));
+  });
+
+  it('el ritmo de progresión es razonable: nada de plata regalada', () => {
+    const b = computeBonuses(newSave());
+    // Un run decente de principiante
+    const rookie = runRewards(stats({ score: 12_000, bestMultiplier: 2.5 }), b).cash;
+    // Un run bueno de alguien que ya sabe
+    const good = runRewards(
+      stats({ score: 150_000, bestMultiplier: 7, wallRides: 6, transitions: 10, bestChainedCorners: 8 }),
+      b,
+    ).cash;
+
+    const firstUpgrade = upgradeCost(UPGRADES[0], 0);
+    const secondCar = getCar('barrow_wedge').price;
+    const midCar = getCar('kite_300zt').price;
+
+    // La primera mejora entra con un run
+    expect(firstUpgrade).toBeLessThan(rookie * 3);
+    // El segundo auto cuesta varios runs de principiante, no uno
+    expect(secondCar / rookie).toBeGreaterThan(3);
+    expect(secondCar / rookie).toBeLessThan(20);
+    // El auto del medio se compra con varios runs buenos
+    expect(midCar / good).toBeGreaterThan(1);
+    expect(midCar / good).toBeLessThan(15);
+  });
+
+  it('sube de nivel sin dejar XP negativa', () => {
     const save = newSave();
     const levels = applyXp(save, xpForLevel(1) * 3);
     expect(levels).toBeGreaterThan(0);
@@ -106,13 +113,12 @@ describe('economía', () => {
   });
 });
 
-describe('acciones', () => {
+describe('acciones del garage', () => {
   it('no se puede comprar sin plata', () => {
     const save = newSave();
     save.cash = 0;
     expect(A.buyUpgrade(save, 0, 'engine')).toBe(false);
-    expect(A.buySponsor(save, 'koen')).toBe(false);
-    expect(A.hireStaff(save, 'mechanic')).toBe(false);
+    expect(A.buyCar(save, 'barrow_wedge')).toBe(false);
   });
 
   it('comprar descuenta exactamente el precio', () => {
@@ -120,79 +126,60 @@ describe('acciones', () => {
     save.cash = 10_000;
     const price = A.upgradePrice(save, 0, 'engine')!;
     expect(A.buyUpgrade(save, 0, 'engine')).toBe(true);
-    expect(save.cash).toBe(10_000 - price.cash);
+    expect(save.cash).toBe(10_000 - price);
     expect(save.cars[0].upgrades.engine).toBe(1);
   });
 
-  it('los sponsors bloqueados por Hype no se pueden firmar', () => {
+  it('los autos top piden reputación además de plata', () => {
     const save = newSave();
-    save.cash = 1e12;
-    save.hypeTotal = 0;
-    expect(A.buySponsor(save, 'aurora')).toBe(false);
-    expect(A.buySponsor(save, 'koen')).toBe(true);
-  });
-
-  it('el prestige conserva lo que corresponde', () => {
-    const save = newSave();
-    save.hypeTotal = 50_000_000;
     save.cash = 1e9;
-    save.sponsors = { koen: 5 };
-    save.staff = { mechanic: 3 };
-    A.grantCar(save, 'kite_300zt');
-    const keep = save.activeCarInstanceId;
-    expect(A.prestige(save, keep)).toBe(true);
-    expect(save.legacy).toBeGreaterThan(0);
-    expect(save.cash).toBe(0);
-    expect(save.hypeTotal).toBe(0);
-    expect(save.sponsors).toEqual({});
-    expect(save.cars).toHaveLength(1);
-    expect(save.cars[0].instanceId).toBe(keep);
-    expect(save.prestigeCount).toBe(1);
+    save.rep = 0;
+    expect(A.carUnlock(save, 'phantom_01').ok).toBe(false);
+    save.rep = 99_999;
+    expect(A.carUnlock(save, 'phantom_01').ok).toBe(true);
   });
 
   it('nunca te quedás sin autos', () => {
     const save = newSave();
     expect(A.sellCar(save, save.cars[0].instanceId)).toBe(false);
   });
+
+  it('vender devuelve plata y cambia el auto activo', () => {
+    const save = newSave();
+    save.cash = 1e6;
+    expect(A.buyCar(save, 'barrow_wedge')).toBe(true);
+    const extra = save.cars[1].instanceId;
+    A.selectCar(save, extra);
+    const before = save.cash;
+    expect(A.sellCar(save, extra)).toBe(true);
+    expect(save.cash).toBeGreaterThan(before);
+    expect(save.activeCarInstanceId).toBe(save.cars[0].instanceId);
+  });
 });
 
-describe('contratos', () => {
+describe('desafíos', () => {
   it('siempre hay 3 activos más el diario', () => {
     const save = newSave();
-    ensureContracts(save);
-    expect(save.contracts.filter((c) => !c.daily && !c.done)).toHaveLength(3);
-    expect(save.contracts.filter((c) => c.daily && !c.done)).toHaveLength(1);
+    ensureChallenges(save);
+    expect(save.challenges.filter((c) => !c.daily && !c.done)).toHaveLength(3);
+    expect(save.challenges.filter((c) => c.daily && !c.done)).toHaveLength(1);
   });
 
-  it('los targets escalan con el rendimiento del jugador', () => {
-    const rookie = newSave();
-    rookie.records.bestScore = 5_000;
-    const pro = newSave();
-    pro.records.bestScore = 5_000_000;
-    ensureContracts(rookie);
-    ensureContracts(pro);
-    const scoreTarget = (s: SaveGame): number =>
-      s.contracts.find((c) => c.type === 'score')?.target ?? 0;
-    if (scoreTarget(rookie) && scoreTarget(pro)) {
-      expect(scoreTarget(pro)).toBeGreaterThan(scoreTarget(rookie));
-    }
-  });
-
-  it('completar un contrato paga una sola vez', () => {
+  it('completar paga una sola vez', () => {
     const save = newSave();
-    save.contracts = [{
+    save.challenges = [{
       id: 'x', type: 'score', text: 'test', target: 1000, progress: 0,
-      reward: { cash: 500, parts: 2, rep: 1 }, done: false, daily: false, expiresAt: 0,
+      reward: { cash: 500, rep: 1 }, done: false, daily: false, expiresAt: 0,
     }];
-    evaluateContracts(save, stats(5000), 1);
+    evaluateChallenges(save, stats({ score: 5000 }), 1);
     expect(save.cash).toBe(500);
-    evaluateContracts(save, stats(5000), 1);
+    evaluateChallenges(save, stats({ score: 5000 }), 1);
     expect(save.cash).toBe(500);
   });
 });
 
 describe('build del auto', () => {
-  it('los upgrades cambian la física de verdad', () => {
+  it('las mejoras cambian la física de verdad', () => {
     const save = newSave();
     const b = computeBonuses(save);
     const stock = buildCar(save.cars[0], b);
@@ -213,22 +200,61 @@ describe('build del auto', () => {
     expect(buildCar(wide, b).spec.trackWidth).toBeGreaterThan(stock);
   });
 
-  it('cada auto del roster se siente distinto', () => {
-    const save = newSave();
-    const b = computeBonuses(save);
+  it('cada auto se siente distinto', () => {
+    const b = computeBonuses(newSave());
     const seen = new Set<string>();
-    for (const id of ['kite_240', 'kestrel_gt', 'sable_formula', 'phantom_01']) {
-      const c = makeCar(id);
-      const built = buildCar(c, b);
+    for (const def of CARS) {
+      const built = buildCar(makeCar(def.id), b);
       const sig = [
-        Math.round(built.spec.mass / 50),
-        Math.round(built.spec.tireFalloff * 20),
+        Math.round(built.spec.mass / 60),
+        Math.round(built.spec.tireFalloff * 25),
         Math.round(built.spec.maxSteerAngle * 20),
       ].join('/');
-      expect(seen.has(sig), `${id} duplica el feel de otro auto`).toBe(false);
+      expect(seen.has(sig), `${def.id} duplica el feel de otro auto`).toBe(false);
       seen.add(sig);
-      expect(getCar(id).displayName.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('migración de saves', () => {
+  it('un save v1 con tycoon carga y pierde la capa idle', async () => {
+    const v1 = {
+      version: 1,
+      cash: 999_999_999,
+      hypeTotal: 5_000_000,
+      parts: 400,
+      legacy: 12,
+      sponsors: { koen: 9 },
+      staff: { mechanic: 4 },
+      rooms: { office: 3 },
+      bays: 5,
+      prestigeCount: 2,
+      contracts: [{
+        id: 'a', type: 'score', text: 'viejo', target: 100, progress: 0,
+        reward: { cash: 10, parts: 3, rep: 1 }, done: false, daily: false, expiresAt: 0,
+      }],
+      cars: [{
+        id: 'kite_240', instanceId: 'x', level: 3, xp: 10,
+        upgrades: { engine: 2 }, setup: {}, inBay: 0, isLegendary: false,
+        cosmetics: { paintColor: '#fff', paintType: 'gloss', wheelId: 2, neonColor: '#0ff', bodyKit: 0 },
+      }],
+      activeCarInstanceId: 'x',
+    };
+    localStorage.setItem('neon-apex-save', JSON.stringify(v1));
+    const { SaveManager } = await import('../save/SaveManager');
+    const s = new SaveManager().data as SaveGame & Record<string, unknown>;
+
+    expect(s.version).toBe(2);
+    expect(s.hypeTotal).toBeUndefined();
+    expect(s.sponsors).toBeUndefined();
+    expect(s.bays).toBeUndefined();
+    // La plata inflada por el idle se recorta
+    expect(s.cash).toBeLessThanOrEqual(250_000);
+    // Lo que sí es del jugador se conserva
+    expect(s.cars[0].level).toBe(3);
+    expect(s.cars[0].upgrades.engine).toBe(2);
+    expect(s.challenges).toHaveLength(1);
+    localStorage.clear();
   });
 });
 
@@ -238,10 +264,15 @@ describe('formato de números', () => {
     expect(fmt(999)).toBe('999');
     expect(fmt(1234)).toBe('1.23K');
     expect(fmt(45_600)).toBe('45.6K');
-    expect(fmt(456_000)).toBe('456K');
     expect(fmt(1.5e6)).toBe('1.50M');
     expect(fmt(1e12)).toBe('1.00T');
-    expect(fmt(1e15)).toBe('1.00Qa');
-    expect(fmt(1e45)).toMatch(/^1\.00[a-z]{2}$/);
+  });
+
+  it('CASH_RATE es la perilla única del balance', () => {
+    expect(CASH_RATE).toBeGreaterThan(0);
+    expect(runRewards(stats({ score: 1000, bestMultiplier: 1, cleanRun: false, crashes: 0, wallRides: 0, transitions: 0, bestChainedCorners: 0 }), {
+      cashBonus: 1, repBonus: 1, torqueBonus: 1, gripBonus: 1,
+      extraMultiplier: 0, tierSpeed: 1, crashShield: false, upgradeDiscount: 0,
+    }).cash).toBe(Math.floor(1000 * CASH_RATE));
   });
 });

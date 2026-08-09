@@ -14,6 +14,7 @@ uniform float uSizeEnd;
 uniform float uGravity;
 uniform float uDrag;
 uniform float uProj;
+uniform float uNearFade;
 
 varying float vAlpha;
 varying vec3 vColor;
@@ -43,7 +44,10 @@ void main() {
   float size = mix(uSizeStart, uSizeEnd, t) * (0.75 + aSeed * 0.5);
   gl_PointSize = max(1.0, size * uProj / max(0.001, -mv.z));
 
-  vAlpha = 1.0 - t * t;
+  // En tercera persona la cámara va 6 m detrás del auto y el humo sale justo
+  // ahí: sin este fade, una partícula tapa la pantalla entera.
+  float depth = -mv.z;
+  vAlpha = (1.0 - t * t) * smoothstep(0.6, uNearFade, depth);
   vColor = aColor;
   vRot = aSeed * 6.283 + age * (aSeed - 0.5) * 2.0;
 }
@@ -126,6 +130,7 @@ export class Particles {
         uGravity: { value: opts.gravity },
         uDrag: { value: opts.drag },
         uProj: { value: 800 },
+        uNearFade: { value: 9.0 },
         uMap: { value: opts.map },
         uOpacity: { value: opts.opacity },
       },
@@ -170,6 +175,10 @@ export class Particles {
 
   setOpacity(v: number): void {
     this.mat.uniforms.uOpacity.value = v;
+  }
+
+  setNearFade(v: number): void {
+    this.mat.uniforms.uNearFade.value = v;
   }
 
   clear(): void {

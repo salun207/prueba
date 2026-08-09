@@ -73,7 +73,7 @@ void main() {
 
   // Color grading: sombras al azul, luces al magenta
   float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
-  col = mix(col * vec3(0.94, 0.96, 1.07), col * vec3(1.06, 0.97, 1.03), smoothstep(0.15, 0.85, l));
+  col = mix(col * vec3(0.92, 0.90, 1.10), col * vec3(1.10, 1.00, 0.86), smoothstep(0.12, 0.80, l));
 
   col *= uExposure;
   col += uFlashColor * uFlash;
@@ -117,9 +117,9 @@ export class PostFX {
   private matBlur: THREE.ShaderMaterial;
   private matComposite: THREE.ShaderMaterial;
 
-  settings: PostSettings = { bloom: true, grain: 0.025, aberration: 0.0, vignette: 0.35 };
+  settings: PostSettings = { bloom: true, grain: 0.016, aberration: 0.0, vignette: 0.28 };
   flash = 0;
-  flashColor = new THREE.Color(0x22e1ff);
+  flashColor = new THREE.Color(0xffb03a);
 
   constructor(renderer: THREE.WebGLRenderer, width: number, height: number) {
     this.renderer = renderer;
@@ -141,7 +141,7 @@ export class PostFX {
     this.matBright = new THREE.ShaderMaterial({
       vertexShader: QUAD_VS,
       fragmentShader: BRIGHT_FS,
-      uniforms: { tDiffuse: { value: null }, uThreshold: { value: 0.78 } },
+      uniforms: { tDiffuse: { value: null }, uThreshold: { value: 0.86 } },
       depthTest: false,
       depthWrite: false,
     });
@@ -162,7 +162,7 @@ export class PostFX {
         uVignette: { value: 0.35 },
         uGrain: { value: 0.025 },
         uAberration: { value: 0.0 },
-        uExposure: { value: 1.9 },
+        uExposure: { value: 1.35 },
         uTime: { value: 0 },
         uFlash: { value: 0 },
         uFlashColor: { value: new THREE.Vector3(0.13, 0.88, 1.0) },
@@ -224,9 +224,9 @@ export class PostFX {
     u.uTime.value = time;
     u.uFlash.value = this.flash;
     (u.uFlashColor.value as THREE.Vector3).set(
-      this.flashColor.r * 0.5,
-      this.flashColor.g * 0.5,
-      this.flashColor.b * 0.5,
+      this.flashColor.r * 0.45,
+      this.flashColor.g * 0.45,
+      this.flashColor.b * 0.45,
     );
     this.blit(this.matComposite, null);
 

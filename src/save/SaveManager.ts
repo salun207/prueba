@@ -11,7 +11,7 @@ function newId(): string {
   return `c${Date.now().toString(36)}${uid.toString(36)}`;
 }
 
-export function makeCar(id: string, bay: number | null = 0): CarSave {
+export function makeCar(id: string): CarSave {
   const def = CARS.find((c) => c.id === id) ?? CARS[0];
   return {
     id,
@@ -23,49 +23,39 @@ export function makeCar(id: string, bay: number | null = 0): CarSave {
     cosmetics: {
       paintColor: def.defaultPaint,
       paintType: 'gloss',
-      wheelId: 0,
-      wheelColor: '#2a2f3a',
-      caliperColor: '#ff3b30',
+      wheelColor: '#2a2622',
+      caliperColor: '#ff4d3a',
       bodyKit: 0,
-      neonColor: null,
       smokeColor: null,
     },
-    inBay: bay,
   };
 }
 
 export function newSave(): SaveGame {
-  const first = makeCar('kite_240', 0);
+  const first = makeCar('kite_240');
   return {
     version: SAVE_VERSION,
     createdAt: Date.now(),
     lastSeenAt: Date.now(),
     playtimeSeconds: 0,
     cash: 0,
-    hypeTotal: 0,
     rep: 0,
-    parts: 0,
-    legacy: 0,
     playerLevel: 1,
     playerXp: 0,
     cars: [first],
     activeCarInstanceId: first.instanceId,
-    bays: 1,
-    rooms: {},
-    sponsors: {},
-    staff: {},
-    legacyNodes: {},
-    contracts: [],
+    challenges: [],
     dailyStreak: 0,
     lastDailyClaim: 0,
-    prestigeCount: 0,
     records: {
       bestScore: 0,
       bestCombo: 0,
       longestDrift: 0,
+      bestCashRun: 0,
       totalRuns: 0,
       totalCrashes: 0,
       totalDriftDistance: 0,
+      totalCashEarned: 0,
     },
     settings: defaultSettings(),
     tutorialDone: false,
@@ -73,12 +63,51 @@ export function newSave(): SaveGame {
   };
 }
 
-/** Migraciones: nunca romper un save viejo. */
-const MIGRATIONS: Record<number, (s: SaveGame) => SaveGame> = {
-  // 1 → 2 iría acá cuando cambie el esquema.
+type LegacySave = SaveGame & Record<string, unknown>;
+
+/**
+ * Migraciones: nunca romper un save viejo.
+ *
+ * 1 → 2 saca toda la capa tycoon (hype, partes, sponsors, staff, salas, bahías,
+ * prestige). La plata que el jugador tenía se conserva pero se recorta, porque
+ * en v1 venía inflada por el ingreso pasivo y con la economía nueva rompería la
+ * progresión.
+ */
+const MIGRATIONS: Record<number, (s: LegacySave) => LegacySave> = {
+  1: (s) => {
+    const legacy = s as LegacySave;
+    s.cash = Math.min(Number(legacy.cash) || 0, 250_000);
+    s.rep = Number(legacy.rep) || 0;
+    s.challenges = Array.isArray(legacy.contracts)
+      ? (legacy.contracts as SaveGame['challenges']).map((c) => ({
+          ...c,
+          reward: { cash: c.reward?.cash ?? 0, rep: c.reward?.rep ?? 0 },
+        }))
+      : [];
+    for (const key of [
+      'hypeTotal', 'hypeCurrent', 'parts', 'legacy', 'sponsors', 'staff',
+      'rooms', 'bays', 'legacyNodes', 'prestigeCount', 'contracts',
+    ]) {
+      delete legacy[key];
+    }
+    for (const car of s.cars ?? []) {
+      const c = car as CarSave & Record<string, unknown>;
+      delete c.inBay;
+      delete c.perks;
+      delete c.isLegendary;
+      delete c.setupPresets;
+      const cos = c.cosmetics as unknown as Record<string, unknown> | undefined;
+      if (cos) {
+        delete cos.neonColor;
+        delete cos.wheelId;
+        delete cos.decals;
+      }
+    }
+    return s;
+  },
 };
 
-function migrate(save: SaveGame): SaveGame {
+function migrate(save: LegacySave): SaveGame {
   let s = save;
   while (s.version < SAVE_VERSION) {
     const fn = MIGRATIONS[s.version];
@@ -92,16 +121,14 @@ function migrate(save: SaveGame): SaveGame {
   return s;
 }
 
-/** Un NaN en el cash rompe todo el juego para siempre. Se sanea al cargar. */
+/** Un NaN en el cash rompe el juego para siempre. Se sanea al cargar. */
 function sanitize(s: SaveGame): SaveGame {
-  const nums: (keyof SaveGame)[] = ['cash', 'hypeTotal', 'rep', 'parts', 'legacy', 'playerXp'];
-  for (const k of nums) {
-    const v = s[k] as unknown as number;
-    if (!Number.isFinite(v) || v < 0) (s[k] as unknown as number) = 0;
+  for (const k of ['cash', 'rep', 'playerXp'] as const) {
+    if (!Number.isFinite(s[k]) || s[k] < 0) s[k] = 0;
   }
   if (!Number.isFinite(s.playerLevel) || s.playerLevel < 1) s.playerLevel = 1;
-  if (!s.cars || s.cars.length === 0) {
-    const c = makeCar('kite_240', 0);
+  if (!Array.isArray(s.cars) || s.cars.length === 0) {
+    const c = makeCar('kite_240');
     s.cars = [c];
     s.activeCarInstanceId = c.instanceId;
   }
@@ -110,10 +137,13 @@ function sanitize(s: SaveGame): SaveGame {
   }
   for (const c of s.cars) {
     c.setup = { ...SETUP_DEFAULTS, ...c.setup };
+    c.upgrades = c.upgrades ?? {};
     if (!Number.isFinite(c.xp) || c.xp < 0) c.xp = 0;
     if (!Number.isFinite(c.level) || c.level < 1) c.level = 1;
   }
+  if (!Array.isArray(s.challenges)) s.challenges = [];
   s.settings = { ...defaultSettings(), ...s.settings };
+  s.records = { ...newSave().records, ...s.records };
   return s;
 }
 
@@ -131,8 +161,8 @@ export class SaveManager {
       try {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
-        const parsed = JSON.parse(raw) as SaveGame;
-        return sanitize(migrate({ ...newSave(), ...parsed }));
+        const parsed = JSON.parse(raw) as LegacySave;
+        return sanitize(migrate({ ...newSave(), ...parsed } as LegacySave));
       } catch {
         // corrupto: probamos el backup
       }
@@ -147,11 +177,8 @@ export class SaveManager {
   update(dt: number): void {
     this.data.playtimeSeconds += dt;
     this.timer += dt;
-    if (this.dirty && this.timer > 2) {
-      this.flush();
-    } else if (this.timer > 30) {
-      this.flush();
-    }
+    if (this.dirty && this.timer > 2) this.flush();
+    else if (this.timer > 30) this.flush();
   }
 
   flush(): void {
@@ -180,8 +207,8 @@ export class SaveManager {
 
   importSave(text: string): boolean {
     try {
-      const parsed = JSON.parse(decodeURIComponent(escape(atob(text.trim())))) as SaveGame;
-      this.data = sanitize(migrate({ ...newSave(), ...parsed }));
+      const parsed = JSON.parse(decodeURIComponent(escape(atob(text.trim())))) as LegacySave;
+      this.data = sanitize(migrate({ ...newSave(), ...parsed } as LegacySave));
       this.flush();
       return true;
     } catch {
@@ -190,6 +217,8 @@ export class SaveManager {
   }
 
   get activeCar(): CarSave {
-    return this.data.cars.find((c) => c.instanceId === this.data.activeCarInstanceId) ?? this.data.cars[0];
+    return (
+      this.data.cars.find((c) => c.instanceId === this.data.activeCarInstanceId) ?? this.data.cars[0]
+    );
   }
 }

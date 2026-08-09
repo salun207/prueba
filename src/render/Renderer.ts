@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PostFX } from './PostFX';
 import { CameraRig } from './CameraRig';
+import { DUSK, Sky } from './Sky';
 
 export type Quality = 'low' | 'medium' | 'high' | 'ultra';
 
@@ -9,6 +10,7 @@ export interface QualityPreset {
   marks: number;
   shadows: boolean;
   shadowSize: number;
+  shadowRange: number;
   bloom: boolean;
   grain: number;
   aberration: number;
@@ -16,10 +18,10 @@ export interface QualityPreset {
 }
 
 export const QUALITY: Record<Quality, QualityPreset> = {
-  low: { smoke: 400, marks: 800, shadows: false, shadowSize: 0, bloom: false, grain: 0, aberration: 0, maxDpr: 1 },
-  medium: { smoke: 900, marks: 2000, shadows: false, shadowSize: 0, bloom: true, grain: 0, aberration: 0, maxDpr: 1.25 },
-  high: { smoke: 2048, marks: 4096, shadows: true, shadowSize: 1024, bloom: true, grain: 0.02, aberration: 0.022, maxDpr: 1.75 },
-  ultra: { smoke: 4096, marks: 8192, shadows: true, shadowSize: 2048, bloom: true, grain: 0.02, aberration: 0.03, maxDpr: 2 },
+  low: { smoke: 500, marks: 900, shadows: false, shadowSize: 0, shadowRange: 0, bloom: false, grain: 0, aberration: 0, maxDpr: 1 },
+  medium: { smoke: 1100, marks: 2200, shadows: true, shadowSize: 1024, shadowRange: 45, bloom: true, grain: 0, aberration: 0, maxDpr: 1.25 },
+  high: { smoke: 2200, marks: 4096, shadows: true, shadowSize: 2048, shadowRange: 70, bloom: true, grain: 0.016, aberration: 0.02, maxDpr: 1.75 },
+  ultra: { smoke: 4096, marks: 8192, shadows: true, shadowSize: 2048, shadowRange: 95, bloom: true, grain: 0.016, aberration: 0.026, maxDpr: 2 },
 };
 
 export class Renderer {
@@ -27,11 +29,13 @@ export class Renderer {
   readonly scene = new THREE.Scene();
   readonly rig: CameraRig;
   readonly post: PostFX;
+  readonly sky: Sky;
   private sun: THREE.DirectionalLight;
+  private hemi: THREE.HemisphereLight;
   private canvas: HTMLCanvasElement;
   quality: Quality = 'high';
   private frameTimes: number[] = [];
-  private autoQualityCooldown = 5;
+  private autoQualityCooldown = 6;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -42,41 +46,37 @@ export class Renderer {
       alpha: false,
       stencil: false,
     });
-    this.renderer.setClearColor(0x0b0d14, 1);
+    this.renderer.setClearColor(0x2e2a5c, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    this.scene.fog = new THREE.FogExp2(0x0b0d14, 0.0022);
+    this.sky = new Sky(DUSK);
+    this.scene.add(this.sky.mesh);
 
-    // Ojo: un color sRGB oscuro como 0x1a1d24 en lineal vale ~0.01. Para que la
-    // noche se vea (y no sea negro puro) las luces van fuertes y frías.
-    const hemi = new THREE.HemisphereLight(0x8b9ac9, 0x4a5266, 3.0);
-    this.scene.add(hemi);
+    // La niebla toma el color del horizonte: lo lejano se funde con el cielo.
+    this.scene.fog = new THREE.FogExp2(0xff8a3d, 0.0022);
 
-    this.sun = new THREE.DirectionalLight(0xbcc9f0, 0.8);
-    this.sun.position.set(-60, 90, 60);
+    // Atardecer: el rebote del cielo es cálido y fuerte, así que la sombra
+    // nunca es negra y todo se sigue leyendo aunque el sol esté rasante.
+    this.hemi = new THREE.HemisphereLight(0xffd0a8, 0x8a7460, 3.0);
+    this.scene.add(this.hemi);
+
+    this.sun = new THREE.DirectionalLight(0xffcb8a, 1.9);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(1024, 1024);
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.bias = -0.0012;
+    this.sun.shadow.normalBias = 0.06;
     const cam = this.sun.shadow.camera;
-    // Solo el auto proyecta sombra real: el resto usa blobs. Si los edificios
-    // proyectan, la caja del shadow map deja media pantalla a oscuras.
-    cam.left = -12;
-    cam.right = 12;
-    cam.top = 12;
-    cam.bottom = -12;
-    cam.near = 10;
-    cam.far = 220;
-    this.sun.shadow.bias = -0.0015;
+    cam.near = 1;
+    cam.far = 400;
     this.scene.add(this.sun);
     this.scene.add(this.sun.target);
 
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, rect.width || window.innerWidth);
-    const h = Math.max(1, rect.height || window.innerHeight);
+    const w = Math.max(1, canvas.clientWidth || window.innerWidth);
+    const h = Math.max(1, canvas.clientHeight || window.innerHeight);
     this.rig = new CameraRig(w / h);
     this.post = new PostFX(this.renderer, 1, 1);
-    this.resize();
     this.setQuality('high');
   }
 
@@ -85,7 +85,17 @@ export class Renderer {
     const p = QUALITY[q];
     this.renderer.shadowMap.enabled = p.shadows;
     this.sun.castShadow = p.shadows;
-    if (p.shadows) this.sun.shadow.mapSize.set(p.shadowSize, p.shadowSize);
+    if (p.shadows) {
+      this.sun.shadow.mapSize.set(p.shadowSize, p.shadowSize);
+      const cam = this.sun.shadow.camera;
+      cam.left = -p.shadowRange;
+      cam.right = p.shadowRange;
+      cam.top = p.shadowRange;
+      cam.bottom = -p.shadowRange;
+      cam.updateProjectionMatrix();
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
     this.post.settings.bloom = p.bloom;
     this.post.settings.grain = p.grain;
     this.post.settings.aberration = p.aberration;
@@ -103,19 +113,17 @@ export class Renderer {
     this.post.setSize(Math.floor(w * dpr), Math.floor(h * dpr));
   }
 
-  /** Baja la calidad sola si el framerate no da. */
   private autoQuality(dt: number): void {
     this.autoQualityCooldown -= dt;
     this.frameTimes.push(dt);
     if (this.frameTimes.length > 180) this.frameTimes.shift();
     if (this.autoQualityCooldown > 0 || this.frameTimes.length < 150) return;
     const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
-    const fps = 1 / avg;
     const order: Quality[] = ['low', 'medium', 'high', 'ultra'];
     const idx = order.indexOf(this.quality);
-    if (fps < 50 && idx > 0) {
+    if (1 / avg < 50 && idx > 0) {
       this.setQuality(order[idx - 1]);
-      this.autoQualityCooldown = 12;
+      this.autoQualityCooldown = 14;
       this.frameTimes.length = 0;
     }
   }
@@ -123,14 +131,17 @@ export class Renderer {
   render(time: number, dt: number, focusX: number, focusZ: number, speed: number): void {
     this.autoQuality(dt);
 
-    // La sombra sigue al auto: un solo shadow map chico alcanza
+    // El sol acompaña al auto para que el shadow map siempre lo cubra.
+    const d = this.sky.sunDirection;
     this.sun.target.position.set(focusX, 0, focusZ);
-    this.sun.position.set(focusX - 60, 90, focusZ + 60);
+    this.sun.position.set(focusX + d.x * 150, d.y * 150 + 30, focusZ + d.z * 150);
+
+    this.sky.follow(this.rig.camera);
 
     this.renderer.setRenderTarget(this.post.target);
     this.renderer.clear();
     this.renderer.render(this.scene, this.rig.camera);
     this.renderer.setRenderTarget(null);
-    this.post.render(time, Math.min(1.6, speed / 40));
+    this.post.render(time, Math.min(1.6, speed / 45));
   }
 }

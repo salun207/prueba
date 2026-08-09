@@ -5,18 +5,19 @@ import { buildHarborMap } from './data/maps/harbor';
 import { InputManager } from './input/InputManager';
 import { clamp, DEG } from './lib/math';
 import { buildCar, type BuiltCar } from './meta/CarBuild';
-import { ensureContracts, evaluateContracts } from './meta/Contracts';
+import { ensureChallenges, evaluateChallenges } from './meta/Challenges';
 import {
-  applyXp, carXpForLevel, computeBonuses, computeOffline, incomePerSecond, runRewards,
+  applyXp, carXpForLevel, computeBonuses, runRewards, styleMultiplier, CASH_RATE,
   type Bonuses,
 } from './meta/Economy';
-import { AERIAL, DRONE } from './render/CameraRig';
+import { CAMERAS } from './render/CameraRig';
 import { CarView } from './render/CarView';
 import { QUALITY, Renderer } from './render/Renderer';
 import { smokeTexture, radialTexture } from './render/Textures';
 import { FloatingText } from './render/vfx/FloatingText';
 import { Particles } from './render/vfx/Particles';
 import { TireMarks } from './render/vfx/TireMarks';
+import { WorldView } from './render/WorldView';
 import { SaveManager } from './save/SaveManager';
 import { resolveCollisions } from './sim/Collision';
 import { stepCar, type PhysicsContext } from './sim/CarPhysics';
@@ -24,15 +25,11 @@ import { ScoreSystem } from './sim/ScoreSystem';
 import { Traffic } from './sim/Traffic';
 import { createCarState, resetCarState, type CarState } from './sim/types';
 import { SimWorld } from './sim/World';
-import { WorldView } from './render/WorldView';
 import { Hud } from './ui/Hud';
 import { GameUI, type UiHost } from './ui/Screens';
-import { fmtCash } from './ui/format';
 
 const PHYSICS_DT = 1 / 120;
-const RUN_DURATION = 90;
-
-type Mode = 'timed' | 'free';
+const RUN_DURATION = 120;
 
 export class Game implements UiHost {
   private renderer: Renderer;
@@ -54,19 +51,18 @@ export class Game implements UiHost {
   private floating: FloatingText;
   private marks: TireMarks;
   private coach: HTMLElement;
+  private trafficMeshes: THREE.InstancedMesh | null = null;
 
   private accumulator = 0;
   private time = 0;
   private lastFrame = 0;
   private running = false;
   private paused = false;
-  private mode: Mode = 'timed';
   private timeLeft = RUN_DURATION;
-  private droneCam = false;
-  private crashShieldUsed = false;
   private coachTimer = -1;
   private coachStep = 0;
-  private smokeColor = new THREE.Color(0xe8ecf5);
+  private smokeColor = new THREE.Color(0xe8dccb);
+  private dummy = new THREE.Object3D();
 
   constructor(gameCanvas: HTMLCanvasElement, hudCanvas: HTMLCanvasElement, uiRoot: HTMLElement) {
     this.saves = new SaveManager();
@@ -78,13 +74,16 @@ export class Game implements UiHost {
     this.worldView = new WorldView(mapDef);
     this.renderer.scene.add(this.worldView.group);
 
+    // La cámara consulta el mundo para no meterse en las paredes.
+    this.renderer.rig.probe = (x, z) => this.world.nearestWallDistance(x, z, 6);
+
     this.traffic = new Traffic(mapDef.lanes, this.saves.data.settings.traffic);
     this.buildTrafficView();
 
     const q = QUALITY[this.saves.data.settings.quality];
     this.smoke = new Particles({
-      count: q.smoke, life: 1.4, sizeStart: 0.5, sizeEnd: 3.4,
-      gravity: 0.5, drag: 1.6, opacity: 0.5, additive: false, map: smokeTexture(),
+      count: q.smoke, life: 1.5, sizeStart: 0.35, sizeEnd: 2.4,
+      gravity: 0.5, drag: 2.1, opacity: 0.17, additive: false, map: smokeTexture(),
     });
     this.sparks = new Particles({
       count: 256, life: 0.55, sizeStart: 0.22, sizeEnd: 0.04,
@@ -106,19 +105,11 @@ export class Game implements UiHost {
     this.rebuildCar();
     this.applySettings();
     this.wireEvents();
-
-    ensureContracts(this.saves.data);
+    ensureChallenges(this.saves.data);
 
     window.addEventListener('resize', () => this.resize());
     this.resize();
-
-    // Ganancias offline: lo primero que ve el jugador al volver
-    const offline = computeOffline(this.saves.data);
-    if (offline.cash > 0 && offline.seconds > 60) {
-      this.ui.showOffline(offline.seconds, offline.cash);
-    } else {
-      this.ui.showGarage();
-    }
+    this.ui.showGarage();
 
     this.lastFrame = performance.now();
     requestAnimationFrame(this.frame);
@@ -129,8 +120,6 @@ export class Game implements UiHost {
   }
 
   // ─────────────────────────── setup ───────────────────────────
-
-  private trafficMeshes: THREE.InstancedMesh | null = null;
 
   private buildTrafficView(): void {
     if (this.trafficMeshes) {
@@ -143,8 +132,9 @@ export class Game implements UiHost {
       new THREE.MeshLambertMaterial({ color: 0xffffff }),
       this.traffic.cars.length,
     );
+    mesh.castShadow = true;
     const c = new THREE.Color();
-    const palette = [0x7a3a3a, 0x3a5a7a, 0x4a4a55, 0x6a6a75, 0x2a6a5a];
+    const palette = [0xb0503c, 0x4a6f9a, 0x8a857e, 0xc9c2b4, 0x3f7a68];
     this.traffic.cars.forEach((t, i) => {
       c.setHex(palette[Math.floor(t.colorSeed * palette.length) % palette.length]);
       mesh.setColorAt(i, c);
@@ -164,9 +154,8 @@ export class Game implements UiHost {
     this.carView = new CarView(this.built.def.body, carSave.cosmetics);
     this.renderer.scene.add(this.carView.group, this.carView.shadowMesh);
 
-    this.smokeColor.set(carSave.cosmetics.smokeColor ?? '#e8ecf5');
+    this.smokeColor.set(carSave.cosmetics.smokeColor ?? '#e8dccb');
     audio.setCar(this.built.def);
-
     this.score.extraMultiplier = this.bonuses.extraMultiplier;
     this.score.tierSpeed = this.bonuses.tierSpeed;
   }
@@ -175,8 +164,10 @@ export class Game implements UiHost {
     const st = this.saves.data.settings;
     this.renderer.setQuality(st.quality);
     this.renderer.rig.shakeEnabled = st.screenShake;
+    this.renderer.rig.config = CAMERAS[clamp(st.camera, 0, CAMERAS.length - 1)];
     this.hud.showAngleArc = st.showAngleArc;
     audio.setVolumes(st.masterVolume, st.musicVolume, st.sfxVolume);
+    this.bonuses = computeBonuses(this.saves.data);
   }
 
   private wireEvents(): void {
@@ -184,33 +175,34 @@ export class Game implements UiHost {
       this.hud.onTier(e.tier);
       audio.tier(e.tier);
       if (e.label) {
-        this.floating.show(e.label, `×${e.mult.toFixed(1)}`, '#22e1ff', this.carState.posX, 3.5, this.carState.posZ, 1.2);
+        this.floating.show(e.label, `×${e.mult.toFixed(1)}`, '#ffb03a',
+          this.carState.posX, 2.6, this.carState.posZ, 0.9);
       }
     });
     bus.on('drift:bank', (e) => {
       this.hud.onBank();
-      audio.bank();
-      this.renderer.post.flash = Math.min(0.5, 0.12 + e.mult * 0.03);
-      this.floating.show(`+${Math.floor(e.points).toLocaleString('es-AR')}`, '', '#39ff88', e.x, 4.5, e.z, 1.1);
-      if (e.mult > 4) this.renderer.rig.addTrauma(0.15);
+      audio.bank(e.mult);
+      this.renderer.post.flash = Math.min(0.4, 0.1 + e.mult * 0.025);
+      const cash = Math.floor(e.points * CASH_RATE * this.bonuses.cashBonus);
+      this.floating.show(`+$${cash.toLocaleString('es-AR')}`, '', '#ffd98a', e.x, 3.2, e.z, 0.95);
+      if (e.mult > 4) this.renderer.rig.addTrauma(0.12);
     });
-    bus.on('drift:lost', () => {
-      audio.blip(140, 0.25, 'sawtooth', 0.16);
-    });
+    bus.on('drift:lost', () => audio.lost());
     bus.on('bonus', (e) => {
-      this.floating.show(e.label, `+${e.points}`, '#ffa332', e.x, 3, e.z, 0.8);
+      audio.pickup();
+      this.floating.show(e.label, `+${e.points}`, '#ffe9c0', e.x, 2.2, e.z, 0.62);
     });
     bus.on('collision', (e) => {
-      audio.impact(e.severity, 'x');
-      this.renderer.rig.addTrauma(clamp(e.impulse / 18, 0.05, 0.85));
-      const n = e.severity === 'scrape' ? 8 : e.severity === 'hit' ? 18 : 34;
+      audio.impact(e.severity);
+      this.renderer.rig.addTrauma(clamp(e.impulse / 20, 0.04, 0.7));
+      const n = e.severity === 'scrape' ? 8 : e.severity === 'hit' ? 16 : 30;
       for (let i = 0; i < n; i++) {
         this.sparks.spawn(
           e.x + e.nx * 1.2, 0.5 + Math.random() * 0.4, e.z + e.nz * 1.2,
           e.nx * 6 + (Math.random() - 0.5) * 7,
           2 + Math.random() * 4,
           e.nz * 6 + (Math.random() - 0.5) * 7,
-          1, 0.75, 0.35,
+          1, 0.72, 0.3,
         );
       }
     });
@@ -261,17 +253,15 @@ export class Game implements UiHost {
 
   // ─────────────────────────── UiHost ───────────────────────────
 
-  startRun(mode: Mode): void {
-    this.mode = mode;
-    this.timeLeft = mode === 'timed' ? RUN_DURATION : Infinity;
+  startRun(): void {
+    this.timeLeft = RUN_DURATION;
     this.running = true;
     this.paused = false;
-    this.crashShieldUsed = false;
     this.rebuildCar();
 
     const spawn = this.world.def.spawn;
     resetCarState(this.carState, spawn.x, spawn.z, spawn.yaw);
-    this.carState.velZ = 12; // arrancás andando, no parado
+    this.carState.velZ = 14; // arrancás andando, no parado
     this.score.reset(this.carState);
     this.world.resetDestructibles();
     this.world.resetHeat();
@@ -307,14 +297,18 @@ export class Game implements UiHost {
     const save = this.saves.data;
     const stats = this.score.stats;
     const rewards = runRewards(stats, this.bonuses);
+    // El escape paga un extra sobre el run entero.
+    const extra = Math.floor(rewards.cash * this.built.mods.cashBonus);
+    rewards.cash += extra;
 
     save.cash += rewards.cash;
-    save.hypeTotal += rewards.hype;
     save.rep += rewards.rep;
     save.runsPlayed++;
     save.records.bestScore = Math.max(save.records.bestScore, stats.score);
     save.records.bestCombo = Math.max(save.records.bestCombo, stats.bestMultiplier);
     save.records.longestDrift = Math.max(save.records.longestDrift, stats.longestDrift);
+    save.records.bestCashRun = Math.max(save.records.bestCashRun, rewards.cash);
+    save.records.totalCashEarned += rewards.cash;
     save.records.totalRuns++;
     save.records.totalCrashes += stats.crashes;
     save.records.totalDriftDistance += stats.driftDistance;
@@ -322,7 +316,6 @@ export class Game implements UiHost {
 
     const levelUps = applyXp(save, rewards.xp);
 
-    // XP del auto
     const car = this.saves.activeCar;
     car.xp += rewards.xp;
     while (car.level < 30 && car.xp >= carXpForLevel(car.level)) {
@@ -330,9 +323,9 @@ export class Game implements UiHost {
       car.level++;
     }
 
-    const results = evaluateContracts(save, stats, this.bonuses.repBonus);
-    const done = results.filter((r) => r.completed).map((r) => r.contract.text);
-    ensureContracts(save);
+    const results = evaluateChallenges(save, stats, this.bonuses.repBonus);
+    const done = results.filter((r) => r.completed).map((r) => r.challenge.text);
+    ensureChallenges(save);
 
     this.saves.markDirty();
     this.saves.flush();
@@ -348,10 +341,8 @@ export class Game implements UiHost {
   onSettingsChanged(): void {
     this.applySettings();
     const st = this.saves.data.settings;
-    if (this.traffic.cars.length === 0 || st.traffic) {
-      this.traffic = new Traffic(this.world.def.lanes, st.traffic);
-      this.buildTrafficView();
-    }
+    this.traffic = new Traffic(this.world.def.lanes, st.traffic);
+    this.buildTrafficView();
     this.saves.markDirty();
   }
 
@@ -370,10 +361,6 @@ export class Game implements UiHost {
     this.saves.update(rawDelta);
     this.ui.update(rawDelta);
 
-    // El garage siempre está laburando
-    const ips = incomePerSecond(this.saves.data, this.bonuses);
-    this.saves.data.cash += ips * rawDelta;
-
     if (this.input.consumePause() && this.running) {
       if (this.paused) {
         this.resumeRun();
@@ -386,9 +373,9 @@ export class Game implements UiHost {
     }
 
     const simulating = this.running && !this.paused && !this.ui.visible;
+    this.input.update(rawDelta);
 
     if (simulating) {
-      this.input.update(rawDelta);
       this.accumulator += rawDelta;
       let steps = 0;
       while (this.accumulator >= PHYSICS_DT && steps < 8) {
@@ -398,16 +385,12 @@ export class Game implements UiHost {
       }
       if (steps >= 8) this.accumulator = 0;
 
-      if (this.mode === 'timed') {
-        this.timeLeft -= rawDelta;
-        if (this.timeLeft <= 0) {
-          this.timeLeft = 0;
-          this.endRun();
-        }
+      this.timeLeft -= rawDelta;
+      if (this.timeLeft <= 0) {
+        this.timeLeft = 0;
+        this.endRun();
       }
       this.updateCoach(rawDelta);
-    } else {
-      this.input.update(rawDelta);
     }
 
     this.updateVisuals(rawDelta);
@@ -422,27 +405,33 @@ export class Game implements UiHost {
     if (this.running && !this.ui.visible) {
       this.hud.draw(this.hudModel(), this.score, this.carState, rawDelta);
     } else {
-      this.hud.draw({ ...this.hudModel(), score: 0 }, this.score, this.carState, 0);
-      const ctx = (document.getElementById('hud') as HTMLCanvasElement).getContext('2d')!;
-      if (this.ui.visible) ctx.clearRect(0, 0, 5000, 5000);
+      this.hud.clear();
     }
   };
 
+  /** Plata que el jugador ya se ganó en este run, en vivo. */
+  private liveCash(): number {
+    const stats = this.score.stats;
+    const pending = this.score.pending;
+    const style = styleMultiplier(stats).total;
+    return Math.floor((stats.score + pending) * CASH_RATE * style * this.bonuses.cashBonus);
+  }
+
   private hudModel() {
     const save = this.saves.data;
-    const contract = save.contracts.find((c) => !c.done && !c.daily);
+    const challenge = save.challenges.find((c) => !c.done && !c.daily);
     return {
       score: this.score.stats.score,
       timeLeft: this.timeLeft,
-      freeRoam: this.mode === 'free',
-      hype: save.hypeTotal,
+      freeRoam: false,
       cash: save.cash,
+      cashLive: this.liveCash(),
       speedKmh: this.carState.speed * 3.6,
       rpmNorm: clamp(this.carState.rpm / (this.built.spec.redline || 7000), 0, 1),
       gear: this.carState.gear,
       zone: this.world.zoneNameAt(this.carState.posX, this.carState.posZ),
-      contractText: contract?.text ?? null,
-      contractProgress: contract ? Math.max(contract.progress, 0) / contract.target : 0,
+      contractText: challenge?.text ?? null,
+      contractProgress: challenge ? Math.max(challenge.progress, 0) / challenge.target : 0,
     };
   }
 
@@ -463,16 +452,12 @@ export class Game implements UiHost {
     this.ctx.gripScale = this.built.mods.gripScale;
 
     stepCar(car, this.built.spec, this.input.state, this.ctx, dt);
-
     this.traffic.update(car, dt, () => this.score.onNearMiss(car));
 
     resolveCollisions(
       car, this.built.spec, this.world, this.traffic.cars,
       (info) => {
-        const shielded =
-          this.bonuses.crashShield && !this.crashShieldUsed && info.severity !== 'scrape';
-        if (shielded) this.crashShieldUsed = true;
-        this.score.onImpact(car, info.severity, shielded);
+        this.score.onImpact(car, info.severity, false);
         bus.emit('collision', {
           severity: info.severity, impulse: info.impulse,
           x: info.x, z: info.z, nx: info.nx, nz: info.nz,
@@ -482,18 +467,16 @@ export class Game implements UiHost {
         const d = this.world.destructibles[index];
         this.worldView.setDestructibleVisible(index, false, this.world.def);
         this.score.onConeDestroyed(car, d.hype);
-        audio.propHit();
         for (let i = 0; i < 6; i++) {
           this.sparks.spawn(
             d.x, 0.5, d.z,
             (Math.random() - 0.5) * 6, 2 + Math.random() * 3, (Math.random() - 0.5) * 6,
-            1, 0.5, 0.2,
+            1, 0.6, 0.25,
           );
         }
       },
     );
 
-    // Límites del mapa (red de seguridad si algo se escapa)
     const lim = this.world.half - 6;
     if (Math.abs(car.posX) > lim || Math.abs(car.posZ) > lim) {
       car.posX = clamp(car.posX, -lim, lim);
@@ -517,21 +500,23 @@ export class Game implements UiHost {
       this.marks.breakStrip(1);
     }
     if (this.input.consumeCamera()) {
-      this.droneCam = !this.droneCam;
-      this.renderer.rig.setConfig(this.droneCam ? DRONE : AERIAL);
+      const name = this.renderer.rig.cycle();
+      this.saves.data.settings.camera = CAMERAS.indexOf(this.renderer.rig.config);
+      this.saves.markDirty();
+      this.ui.toast(`Cámara: ${name}`);
     }
 
     this.carView.update(car, car.steerVisual, this.input.state.brake > 0.1, dt);
     this.renderer.rig.update(car, this.score.tierIndex, Math.max(dt, 1e-4));
 
-    // ── Humo y marcas de goma en las ruedas traseras ──
+    // ── Humo y marcas en las ruedas traseras ──
     const cos = Math.cos(car.yaw);
     const sin = Math.sin(car.yaw);
     const trackHalf = spec.trackWidth * 0.5;
     const rearOffset = -spec.bodyLength * 0.31;
     const slip = car.rearSlipVelocity;
-    const onGround = this.world.surfaceAt(car.posX, car.posZ);
-    const dusty = onGround === 4 || onGround === 3;
+    const surface = this.world.surfaceAt(car.posX, car.posZ);
+    const dusty = surface === 4 || surface === 3;
 
     for (let w = 0; w < 2; w++) {
       const side = w === 0 ? 1 : -1;
@@ -539,23 +524,25 @@ export class Game implements UiHost {
       const wz = car.posZ - sin * trackHalf * side + cos * rearOffset;
 
       if (slip > 2 && car.speed > 2) {
-        this.marks.addPoint(w, wx, wz, car.velX / (car.speed || 1), car.velZ / (car.speed || 1),
-          clamp(slip / 12, 0.15, 1) * (dusty ? 0.25 : 1));
+        this.marks.addPoint(
+          w, wx, wz, car.velX / (car.speed || 1), car.velZ / (car.speed || 1),
+          clamp(slip / 12, 0.15, 1) * (dusty ? 0.25 : 1),
+        );
 
-        const rate = clamp(slip * 8, 0, 90) * dt * (this.score.tierIndex >= 3 ? 1.4 : 1);
+        const rate = clamp(slip * 3.4, 0, 38) * dt * (this.score.tierIndex >= 3 ? 1.3 : 1);
         let n = Math.floor(rate);
         if (Math.random() < rate - n) n++;
         for (let i = 0; i < n; i++) {
-          const jx = (Math.random() - 0.5) * 0.35;
-          const jz = (Math.random() - 0.5) * 0.35;
+          // Casi nada de velocidad hacia atrás: si no, el humo viaja derecho
+          // hacia la cámara. Se abre a los costados y sube.
           this.smoke.spawn(
-            wx + jx, 0.18, wz + jz,
-            -car.velX * 0.25 + (Math.random() - 0.5) * 2.5,
-            0.6 + Math.random() * 0.8,
-            -car.velZ * 0.25 + (Math.random() - 0.5) * 2.5,
-            dusty ? 0.55 : this.smokeColor.r,
-            dusty ? 0.42 : this.smokeColor.g,
-            dusty ? 0.28 : this.smokeColor.b,
+            wx + (Math.random() - 0.5) * 0.4, 0.18, wz + (Math.random() - 0.5) * 0.4,
+            -car.velX * 0.04 + (Math.random() - 0.5) * 3.4,
+            0.5 + Math.random() * 0.7,
+            -car.velZ * 0.04 + (Math.random() - 0.5) * 3.4,
+            dusty ? 0.62 : this.smokeColor.r,
+            dusty ? 0.5 : this.smokeColor.g,
+            dusty ? 0.34 : this.smokeColor.b,
           );
         }
       } else {
@@ -570,24 +557,20 @@ export class Game implements UiHost {
     this.sparks.update(dt, projScale);
     this.floating.update(dt);
 
-    // Tráfico
     if (this.trafficMeshes) {
-      const dummy = new THREE.Object3D();
       this.traffic.cars.forEach((t, i) => {
-        dummy.position.set(t.x, 0.75, t.z);
-        dummy.rotation.set(0, -t.rot, 0);
-        dummy.scale.set(t.hw * 2, 1.5, t.hd * 2);
-        dummy.updateMatrix();
-        this.trafficMeshes!.setMatrixAt(i, dummy.matrix);
+        this.dummy.position.set(t.x, 0.75, t.z);
+        this.dummy.rotation.set(0, -t.rot, 0);
+        this.dummy.scale.set(t.hw * 2, 1.5, t.hd * 2);
+        this.dummy.updateMatrix();
+        this.trafficMeshes!.setMatrixAt(i, this.dummy.matrix);
       });
       this.trafficMeshes.instanceMatrix.needsUpdate = true;
     }
 
-    // Audio
     audio.updateCar(car, this.input.state.throttle, !this.running, dt);
     audio.setMusicIntensity(clamp(this.score.tierIndex / 6, 0, 1));
-    const zone = this.world.zoneNameAt(car.posX, car.posZ);
-    audio.setReverb(zone === 'Túnel' ? 0.4 : 0.02);
+    audio.setReverb(this.world.zoneNameAt(car.posX, car.posZ) === 'Túnel' ? 0.5 : 0);
   }
 
   // ─────────────────────────── onboarding ───────────────────────────
@@ -597,8 +580,8 @@ export class Game implements UiHost {
     [7, 'FRENÁ Y GIRÁ', 'S + A/D'],
     [16, 'MANTENÉ EL DERRAPE', 'el combo sube solo'],
     [27, 'FRENO DE MANO PARA INICIAR', 'ESPACIO'],
-    [40, 'ANDÁ DONDE QUIERAS', 'cuanto más ángulo y más cerca de las paredes, más puntos'],
-    [50, '', ''],
+    [40, 'CADA DERRAPE ES PLATA', 'mirá el contador abajo a la izquierda'],
+    [52, '', ''],
   ];
 
   private updateCoach(dt: number): void {
@@ -621,16 +604,17 @@ export class Game implements UiHost {
     this.coach.classList.add('show');
   }
 
-  /** Diagnóstico rápido desde consola: `game.debug()` */
+  /** Diagnóstico desde consola: `game.debug()` */
   debug(): Record<string, unknown> {
     return {
-      cash: fmtCash(this.saves.data.cash),
-      ips: incomePerSecond(this.saves.data, this.bonuses),
+      cash: this.saves.data.cash,
+      liveCash: this.liveCash(),
+      rep: this.saves.data.rep,
       car: this.built.def.displayName,
       speed: this.carState.speed * 3.6,
       driftAngle: this.carState.driftAngle / DEG(1),
-      obstacles: this.world.def.obstacles.length,
-      destructibles: this.world.destructibles.length,
+      camera: this.renderer.rig.config.name,
+      camHeight: this.renderer.rig.camera.position.y,
       quality: this.renderer.quality,
     };
   }

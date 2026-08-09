@@ -160,16 +160,17 @@ export function buildHarborMap(): MapDefinition {
           const cx = x0 + cw * (i + 0.5);
           const cz = z0 + cd * (j + 0.5);
           if (isBlocked(cx, cz, Math.min(hw, hd) * 0.75)) continue;
-          // Alturas acotadas: con cámara aérea a 68°, un edificio muy alto al
-          // lado del auto tapa la vista. Solo unos pocos hitos pasan de 30 m.
+          // En tercera persona la cámara va a 2.3 m del piso, así que los
+          // edificios altos ya no tapan nada: encajonan la calle y dan
+          // referencia de velocidad. Vuelven a crecer.
           const distCenter = Math.hypot(cx, cz);
-          const landmark = rng.chance(0.05) && hw > 14 && hd > 14;
+          const landmark = rng.chance(0.08) && hw > 13 && hd > 13;
           const height = landmark
-            ? rng.range(34, 52)
-            : 10 + rng.range(0, 1) ** 2 * 20 * (1 - distCenter / 1400);
+            ? rng.range(48, 78)
+            : 11 + rng.range(0, 1) ** 2 * 34 * (1 - distCenter / 1600);
           obstacles.push({
             x: cx, z: cz, hw, hd, rot: 0,
-            height: Math.max(9, height),
+            height: Math.max(10, height),
             kind: 'building',
             colorSeed: rng.next(),
           });

@@ -4,7 +4,7 @@ import type { CarSpec } from '../sim/types';
 export interface CarMods {
   torqueScale: number;
   gripScale: number;
-  hypeBonus: number;
+  /** Fracción extra de plata por run (0.1 = +10%). */
   cashBonus: number;
   crashReduction: number;
 }
@@ -16,8 +16,6 @@ export interface UpgradeDef {
   maxLevel: number;
   baseCost: number;
   growth: number;
-  /** Costo en Parts (⚙) a partir del nivel `partsFrom`. */
-  partsFrom: number;
   apply: (spec: CarSpec, level: number, mods: CarMods) => void;
   readout: (level: number) => string;
 }
@@ -30,7 +28,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 20,
     baseCost: 1500,
     growth: 1.28,
-    partsFrom: 12,
     apply: (_s, l, m) => {
       m.torqueScale *= 1 + 0.04 * l;
     },
@@ -43,7 +40,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 12,
     baseCost: 6000,
     growth: 1.3,
-    partsFrom: 8,
     apply: (s, l) => {
       s.torqueCurve = s.torqueCurve.map(([r, t]) => [r, r >= 4000 ? t * (1 + 0.03 * l) : t]);
     },
@@ -52,16 +48,15 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'exhaust',
     name: 'Escape',
-    desc: '+1.5% torque, +2% Hype',
+    desc: '+1.5% torque y +2% de plata por run',
     maxLevel: 10,
     baseCost: 3000,
     growth: 1.26,
-    partsFrom: 99,
     apply: (_s, l, m) => {
       m.torqueScale *= 1 + 0.015 * l;
-      m.hypeBonus += 0.02 * l;
+      m.cashBonus += 0.02 * l;
     },
-    readout: (l) => `+${(l * 2).toFixed(0)}% Hype`,
+    readout: (l) => `+${(l * 2).toFixed(0)}% plata`,
   },
   {
     id: 'weight',
@@ -70,7 +65,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 15,
     baseCost: 4000,
     growth: 1.3,
-    partsFrom: 9,
     apply: (s, l) => {
       s.mass *= Math.max(0.65, 1 - 0.012 * l);
       s.inertiaYaw *= Math.max(0.7, 1 - 0.01 * l);
@@ -84,7 +78,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 15,
     baseCost: 5000,
     growth: 1.28,
-    partsFrom: 10,
     apply: (s, l, m) => {
       s.cgHeight *= Math.max(0.7, 1 - 0.02 * l);
       m.gripScale *= 1 + 0.01 * l;
@@ -98,7 +91,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 20,
     baseCost: 2500,
     growth: 1.27,
-    partsFrom: 12,
     apply: (_s, l, m) => {
       m.gripScale *= 1 + 0.02 * l;
     },
@@ -111,7 +103,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 10,
     baseCost: 9000,
     growth: 1.3,
-    partsFrom: 6,
     apply: (s, l) => {
       s.diffLock = Math.min(1, s.diffLock + 0.05 * l);
     },
@@ -124,7 +115,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 10,
     baseCost: 12000,
     growth: 1.32,
-    partsFrom: 5,
     apply: (s, l) => {
       s.maxSteerAngle += DEG(1.5) * l;
     },
@@ -137,7 +127,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 10,
     baseCost: 3500,
     growth: 1.26,
-    partsFrom: 99,
     apply: (s, l) => {
       s.brakeTorqueFront *= 1 + 0.04 * l;
       s.brakeTorqueRear *= 1 + 0.04 * l;
@@ -151,7 +140,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 8,
     baseCost: 15000,
     growth: 1.34,
-    partsFrom: 4,
     apply: (s, l) => {
       s.shiftTime *= Math.max(0.35, 1 - 0.06 * l);
     },
@@ -164,7 +152,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 5,
     baseCost: 25000,
     growth: 1.4,
-    partsFrom: 3,
     apply: (s, l, m) => {
       s.mass += 15 * l;
       m.crashReduction += 0.1 * l;
@@ -178,7 +165,6 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 10,
     baseCost: 20000,
     growth: 1.3,
-    partsFrom: 6,
     apply: (s, l) => {
       s.downforceCoefficient *= 1 + 0.08 * l;
       s.dragCoefficient *= 1 + 0.03 * l;
@@ -189,10 +175,8 @@ export const UPGRADES: UpgradeDef[] = [
 
 export const UPGRADES_BY_ID = new Map(UPGRADES.map((u) => [u.id, u]));
 
-export function upgradeCost(u: UpgradeDef, level: number): { cash: number; parts: number } {
-  const cash = Math.floor(u.baseCost * Math.pow(u.growth, level));
-  const parts = level >= u.partsFrom ? Math.floor(2 * Math.pow(1.35, level - u.partsFrom)) : 0;
-  return { cash, parts };
+export function upgradeCost(u: UpgradeDef, level: number): number {
+  return Math.floor(u.baseCost * Math.pow(u.growth, level));
 }
 
 // ─────────────────────────── setup (gratis) ───────────────────────────

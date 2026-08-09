@@ -9,6 +9,23 @@
 > playtesting, pero se arranca exactamente con estos valores para tener una base
 > reproducible.
 >
+> **Revisión 2 — qué cambió respecto de este documento.** El juego se construyó a partir
+> de este brief y después se rehizo con feedback de jugador. Tres secciones ya NO
+> describen la implementación:
+>
+> - **§7 Cámara aérea → tercera persona.** La cámara es de persecución (6.6 m atrás,
+>   2.35 m de alto, FOV que abre con la velocidad). Lo que se conservó es el principio:
+>   el rumbo sigue el vector velocidad, no el yaw, para que el drift se lea. Ver
+>   `src/render/CameraRig.ts`.
+> - **§13 Capa tycoon → borrada entera.** Sin ingreso pasivo, sponsors, staff, salas,
+>   bahías, ganancias offline ni prestige. La plata sale de driftear y de nada más, con
+>   un multiplicador de estilo que premia manejar bien. Ver §13-bis abajo y
+>   `src/meta/Economy.ts`.
+> - **§10 Estética nocturna de neón → atardecer.** Cielo ámbar a violeta, sombras largas,
+>   separación de superficies por tono.
+>
+> El resto del documento (física, scoring, mapa, arquitectura) sigue vigente.
+>
 > **Regla legal innegociable:** el juego se inspira en el *feel* y en las ideas de diseño
 > de Drift Legends y CarX Drift Racing. **No se usa ni un solo asset, modelo, textura,
 > sonido, logo, nombre de auto, nombre de marca, fuente, ni pista de esos juegos.** Todos
@@ -709,9 +726,18 @@ Gamepad: rumble proporcional a `rearSlipVelocity` (motor de baja frecuencia) y a
 
 ---
 
-# 7. Cámara aérea
+# 7. Cámara
 
-## 7.1 Concepto
+> **Revisión 2:** la cámara es de TERCERA PERSONA, no aérea. Lo de abajo queda como
+> registro del diseño original; el principio que sobrevivió es el de §7.2.1 (seguir el
+> vector velocidad, no el yaw), que es igual de crítico en persecución: con 28% de sesgo
+> hacia el yaw, el auto entra cruzado en el cuadro y ves el ángulo que mantenés.
+>
+> Config real: 6.6 m atrás, 2.35 m de alto, mira 7 m adelante, FOV 64° que abre a 80° con
+> la velocidad, sondeo contra obstáculos para acercarse cuando hay una pared atrás.
+> Tres presets con `C`. Ver `src/render/CameraRig.ts`.
+
+## 7.1 Concepto original (aéreo, ya no vigente)
 
 Cámara **top-down con inclinación**, no cenital pura. Una cenital pura (90°) se ve plana y
 no deja ver la altura de los edificios. La cámara vive a **62° de inclinación desde la
@@ -1208,6 +1234,19 @@ En calidad "Baja" se apagan bloom, aberración, grano y motion blur. FXAA se man
 
 # 12. Audio
 
+> **Revisión 2:** la primera implementación de esta sección salió chillona y molesta. Dos
+> correcciones que valen más que todo lo que sigue:
+>
+> 1. **El motor no puede ser sierra + waveshaper.** Da un zumbador. Se reemplazó por una
+>    `PeriodicWave` con armónicos que caen como 1/n^1.25, filtro cerrado y ganancia baja.
+>    El motor acompaña, no tapa.
+> 2. **El chirrido de goma con Q=18 es un silbido.** Bajó a Q=3.5 con una capa de rumor
+>    grave que le da cuerpo, y con techo de ganancia.
+> 3. **Las recompensas son la melodía.** Cada premio toca la nota siguiente de una escala
+>    pentatónica y sube; encadenar suena a que subís algo. Es el truco de los juegos de
+>    monedas y es lo que engancha de verdad. Los buses de recompensa van MÁS FUERTE que
+>    los de motor y goma, no al revés.
+
 **Todo sintetizado con Web Audio API.** Sin archivos. Esto suena a limitación pero es una
 ventaja: bundle de 0 KB de audio, y el motor puede tener un pitch perfectamente continuo,
 que es lo único que importa en un juego de autos.
@@ -1288,231 +1327,83 @@ Botón de mute global siempre visible (tecla `M`).
 
 ---
 
-# 13. CAPA TYCOON — Garage Empire
+# 13. ECONOMÍA — la plata sale de driftear
 
-Esta es la capa que hace que el juego sea "atrapante" y no un simulador de una tarde. La
-regla de oro: **la capa tycoon nunca bloquea el manejo**. Nunca hay energía, nunca hay
-vidas, nunca hay que esperar para jugar un run. La capa tycoon es lo que hace que jugar el
-run tenga consecuencias.
+> Esta sección reemplaza a la capa tycoon del brief original. El tycoon se implementó
+> completo (sponsors, staff, salas, bahías, ingreso pasivo, offline, prestige) y se
+> borró después de probarlo: inflaba la plata hasta volver irrelevante el manejo, que es
+> justo lo contrario de lo que tiene que hacer un juego de drift.
 
-## 13.1 El concepto de fantasía
+## 13.1 La regla
 
-Sos un piloto que arranca en un garage de mala muerte con un auto viejo. A medida que
-generás Hype con tus drifts, la escena te empieza a mirar: aparecen sponsors, contratás
-gente, sumás bahías, abrís una escuela de drift, vendés merch. Terminás manejando un
-imperio del drift.
-
-## 13.2 Monedas y recursos
-
-| Recurso | Símbolo | Se gana | Se gasta en | Notas |
-|---|---|---|---|---|
-| **Cash** | `$` | Runs + ingreso pasivo | Upgrades, staff, bahías, autos, cosméticos | La moneda de trabajo |
-| **Hype** | `⚡` | Solo drifteando | Se acumula, no se gasta | Es el "nivel" del imperio. Define los ingresos pasivos |
-| **Rep** | `★` | Runs grandes, contratos | Desbloquear autos y zonas | Escaso, se gana lento |
-| **Legacy** | `◆` | Solo con Prestige | Bonus permanentes | Meta-moneda |
-| **Parts** | `⚙` | Contratos, cajas de recompensa, desmantelar autos | Upgrades de tier alto | Impide que solo se compre todo con plata |
-
-**No hay moneda premium. No hay compras. No hay anuncios. No hay loot boxes pagas.** El
-juego es una experiencia completa y honesta.
-
-## 13.3 El motor de ingreso pasivo
-
-```ts
-// El ingreso base por segundo depende del Hype total acumulado
-function baseIncomePerSecond(hypeTotal: number): number {
-  return 0.9 * Math.pow(hypeTotal, 0.62);
-}
+```
+plata = puntos × 0.045 × estilo × asistencias
 ```
 
-| Hype total | $/s base | $/hora |
+Y nada más. No hay ingreso pasivo, ni timers, ni recompensas por volver, ni moneda
+premium. Si el juego está cerrado, no pasa nada.
+
+**Por qué el score entra lineal.** En la versión con idle, el cash usaba `score^0.78`
+para que los runs enormes no dejaran atrás al ingreso pasivo. Sin idle ese exponente no
+tiene sentido: castiga exactamente lo que querés premiar. Ahora 10× de score son 10× de
+plata, sin techo.
+
+## 13.2 Multiplicador de estilo
+
+Es lo que separa "manejar mucho" de "manejar bien". Con el mismo score, un run prolijo
+paga más del doble que uno sucio.
+
+| Concepto | Efecto | Tope |
 |---|---|---|
-| 100 | 15.6 | 56.000 |
-| 1.000 | 65 | 234.000 |
-| 10.000 | 271 | 975.000 |
-| 100.000 | 1.128 | 4.06 M |
-| 1.000.000 | 4.700 | 16.9 M |
+| Combo máximo | +10% por punto de multiplicador | — |
+| Curvas encadenadas | +3% cada una | 12 |
+| Transiciones | +2% cada una | 15 |
+| Wall rides | +3% cada uno | 10 |
+| Run sin chocar | **+35%** | — |
+| Choques | −5% cada uno | −30% |
 
-Después se aplican los multiplicadores de todas las fuentes (§13.4–13.8):
+Piso duro en ×0.4: un run desastroso paga poco, nunca cero (Pilar 3).
 
-```ts
-incomePerSecond = baseIncomePerSecond(hype)
-                * sponsorMultiplier      // 1.0 → 12.0
-                * staffMultiplier        // 1.0 → 8.0
-                * garageMultiplier       // 1.0 → 5.0
-                * prestigeMultiplier     // 1.0 → ∞
-                * eventMultiplier;       // 1.0 o 2.0 durante eventos
-```
+## 13.3 Asistencias que pagan
 
-## 13.4 Sponsors
-
-Los sponsors se **desbloquean por umbrales de Hype** y hay que "firmarlos" pagando un
-costo inicial. Cada uno tiene un nivel que se puede subir.
-
-| # | Sponsor (nombres originales) | Se desbloquea a | Costo base | Multiplicador base | Bonus especial |
-|---|---|---|---|---|---|
-| 1 | **Kōen Tyres** | 0 ⚡ | $500 | ×1.15 | +5% duración de las gomas |
-| 2 | **Vertex Fluids** | 250 ⚡ | $4.000 | ×1.20 | +3% torque |
-| 3 | **NightOwl Energy** | 1.500 ⚡ | $25.000 | ×1.28 | +10% Hype ganado en runs nocturnos |
-| 4 | **Chassis Nine** | 8.000 ⚡ | $180.000 | ×1.35 | -8% daño de choques |
-| 5 | **Halo Optics** | 40.000 ⚡ | $1.2 M | ×1.45 | Desbloquea neón bajo el auto |
-| 6 | **Torque Republic** | 200.000 ⚡ | $9 M | ×1.55 | +1 tier de multiplicador máximo |
-| 7 | **Static Wear** | 1 M ⚡ | $70 M | ×1.70 | Merch: +15% cash de runs |
-| 8 | **Meridian Motors** | 6 M ⚡ | $600 M | ×1.90 | Auto exclusivo "Meridian Zenith" |
-| 9 | **Aurora Broadcast** | 40 M ⚡ | $5 B | ×2.20 | Los runs se "transmiten": +25% Hype |
-| 10 | **The Syndicate** | 300 M ⚡ | $50 B | ×2.60 | Desbloquea el modo Prestige avanzado |
-
-**Niveles de sponsor:** cada uno sube hasta nivel 25.
-`costoNivel(n) = costoBase * 1.16^n`
-`multiplicadorNivel(n) = multiplicadorBase + 0.04 * n`
-Los multiplicadores de todos los sponsors firmados **se multiplican entre sí.**
-
-## 13.5 Staff
-
-Gente que contratás. Cada uno tiene un rol, un nivel, y un costo que sube.
-
-| Rol | Efecto por nivel | Costo base | Escala | Máx |
-|---|---|---|---|---|
-| **Mecánico** | -3% costo de upgrades del auto | $2.000 | ×1.18 | 20 |
-| **Marketing** | +4% Hype ganado en runs | $8.000 | ×1.21 | 20 |
-| **Contador** | +5% ingreso pasivo | $15.000 | ×1.20 | 25 |
-| **Ingeniero** | +2% torque y +1% grip | $50.000 | ×1.25 | 15 |
-| **Scout** | +6% Rep de contratos | $120.000 | ×1.22 | 15 |
-| **Manager** | +2% a TODOS los otros efectos de staff | $1 M | ×1.35 | 10 |
-| **Instructor** | La escuela de drift genera $/s propio | $400.000 | ×1.28 | 20 |
-| **Community Manager** | Ganancias offline: +30 min de tope por nivel | $250.000 | ×1.30 | 12 |
-
-**Sabor:** cada contratación muestra un retrato generado proceduralmente (formas
-geométricas simples, distintas por seed) y un nombre inventado. Se pueden despedir (te
-devuelven el 40%).
-
-## 13.6 El garage físico
-
-El garage es una **pantalla que ves y que crece**. No es una lista de menús. Es una vista
-isométrica de tu galpón donde:
-
-- **Bahías (bays):** arrancás con 1, llegás a 8. Cada bahía puede tener un auto. Cada auto
-  en una bahía genera **$/s pasivo** proporcional a su valor y a su nivel (los autos
-  "se alquilan para eventos" cuando no los usás — la excusa narrativa).
-  `ingresoBahía = valorAuto^0.55 * (1 + nivelAuto * 0.12) * 0.4 / s`
-  - Costo de la bahía n: `$50.000 * 6^(n-1)` → 50k, 300k, 1.8M, 10.8M, 65M, 390M, 2.3B.
-- **Salas mejorables:**
-  | Sala | Efecto | Niveles |
-  |---|---|---|
-  | Taller | -% tiempo/costo de upgrades | 10 |
-  | Dyno | +% torque a todos los autos | 10 |
-  | Oficina | +% ingreso pasivo | 15 |
-  | Sala de trofeos | +% Hype (los trofeos se muestran físicamente) | 10 |
-  | Tienda de merch | $/s plano | 20 |
-  | Escuela de drift | $/s plano, escala con Instructores | 20 |
-  | Lounge | +% ganancias offline | 10 |
-- **Visualización:** cada mejora **cambia visualmente el garage**: aparecen herramientas,
-  el piso pasa de cemento roto a epoxi brillante, se prenden luces de neón, aparece un
-  sillón, se llena la estantería de trofeos. **Esto no es opcional** — la sensación de
-  "mi lugar está creciendo" es el 50% del enganche de un tycoon.
-
-## 13.7 Ganancias offline
-
-```ts
-const elapsed = Math.min(now - lastSeen, offlineCapSeconds);
-const offlineEarnings = incomePerSecond * elapsed * offlineEfficiency;
-// offlineEfficiency arranca en 0.40 y sube con la sala Lounge hasta 0.85
-// offlineCapSeconds arranca en 2 h y sube con Community Manager hasta 8 h
-```
-
-Al volver, se muestra un **modal de bienvenida** con:
-- Cuánto tiempo pasó ("Estuviste 3h 42m afuera")
-- Cuánto ganaste, con un contador animado que sube
-- Un botón "COBRAR" grande y satisfactorio (con el cha-ching y partículas de billetes)
-- Un botón opcional **"COBRAR ×2 mirando un anuncio"** → **NO. No hay anuncios.** En su
-  lugar: **"COBRAR ×2 completando un run de 60 s"** — te empuja a jugar, que es lo que
-  querés. Ese es el gancho honesto.
-
-## 13.8 Contratos (misiones)
-
-Siempre hay **3 contratos activos** + **1 contrato diario**. Al completar uno, aparece
-otro en 20 minutos (o instantáneo si tenés bahías libres).
-
-**Tipos generados proceduralmente:**
-
-| Tipo | Ejemplo | Recompensa |
+| Preset | Pago | Rep |
 |---|---|---|
-| Score | "Hacé 250.000 puntos en un solo run" | $ + Rep |
-| Combo | "Alcanzá multiplicador ×6" | $ + Parts |
-| Duración | "Mantené un drift por 20 segundos" | Parts |
-| Zona | "Hacé 80.000 puntos en el puerto" | $ + Rep |
-| Proximidad | "Conseguí 15 bonus de WALL RIDE" | Parts |
-| Destrucción | "Destruí 40 conos en un run" | $ |
-| Velocidad | "Driftea a más de 150 km/h por 3 segundos" | Rep |
-| Encadenado | "Encadená 8 curvas sin romper el combo" | Parts + Rep |
-| Auto específico | "Hacé 100.000 puntos con un auto tier B" | $ ×2 |
-| Limpio | "Hacé 150.000 puntos sin chocar" | Rep ×2 |
+| Casual | ×0.8 | ×0.7 |
+| Estándar | ×1.0 | ×1.0 |
+| Pro | **×1.35** | **×1.5** |
 
-La dificultad de los contratos escala con el nivel del jugador: los targets se calculan
-como `percentil70(scoresRecientes) * factorDificultad`. **Siempre desafiantes, nunca
-imposibles.**
+Es el único incentivo de progresión que no es "esperá más": bajás las ayudas, ganás más.
 
-**Contrato diario:** más grande, recompensa mucho mayor, expira en 24 h. Racha de días
-consecutivos multiplica la recompensa (×1 a ×3 en 7 días).
+## 13.4 Dos monedas
 
-## 13.9 Prestige — "Vender el imperio"
+- **Plata ($)** — compra todo: mejoras y autos.
+- **Reputación (★)** — `score × estilo / 6000`. Solo abre los dos autos de arriba de todo.
 
-Cuando el jugador acumuló `Hype total > 10 M`, se desbloquea la opción de **vender todo**:
+Se borraron Hype (era el nivel del imperio idle) y Partes (era fricción sin segunda
+fuente). Dos monedas alcanzan.
 
-```ts
-legacyPointsGanados = Math.floor(Math.pow(hypeTotal / 1e6, 0.5) * 12);
-// 10 M hype  →  38 ◆
-// 100 M hype →  120 ◆
-// 1 B hype   →  380 ◆
-```
+## 13.5 Ritmo objetivo
 
-**Se pierde:** cash, sponsors, staff, salas del garage, todos los autos menos uno a elección.
-**Se conserva:** Legacy Points, autos "legendarios" marcados, cosméticos, récords, mapas
-desbloqueados, y el árbol de Legacy.
+| Compra | Costo | Runs aproximados |
+|---|---|---|
+| Primera mejora | $1.500 | 1 run de principiante |
+| Segundo auto (Barrow) | $9.000 | 5–8 runs de principiante |
+| Auto del medio (Kite 300ZT) | $48.000 | 3–5 runs buenos |
+| Tier S (Sable Formula D) | $5.5 M | endgame, ~100 runs buenos |
 
-**Árbol de Legacy** (se compra con ◆, es permanente):
+Verificado con un test que compara los precios contra lo que paga un run típico
+(`src/meta/meta.test.ts`, "el ritmo de progresión es razonable").
 
-| Nodo | Costo | Efecto | Máx |
-|---|---|---|---|
-| Ingreso inicial | 5 ◆ | +25% ingreso pasivo | 10 |
-| Hype magnético | 8 ◆ | +15% Hype de runs | 10 |
-| Garage heredado | 20 ◆ | Empezás con 1 bahía extra | 4 |
-| Contactos | 15 ◆ | Los sponsors 1–3 arrancan firmados | 1 |
-| Mano dura | 12 ◆ | -20% costo de todos los upgrades | 8 |
-| Piloto veterano | 30 ◆ | +1 tier de multiplicador de combo inicial | 3 |
-| Adrenalina | 25 ◆ | El combo tarda 25% menos en subir de tier | 5 |
-| Segunda vida | 40 ◆ | El primer choque de cada run no rompe el combo | 1 |
-| Imperio | 100 ◆ | ×2 a TODO el ingreso pasivo | 5 |
+## 13.6 Feedback: mostrar el cálculo
 
-**Cuándo empujar al prestige:** el juego muestra un indicador de "eficiencia" — cuando el
-ritmo de progreso baja de cierto umbral, aparece una sugerencia sutil (nunca un pop-up
-molesto) de que conviene resetear.
+Dos lugares, y los dos importan:
 
-## 13.10 Eventos temporales
-
-Cada 4 horas de tiempo real arranca un evento de 30 minutos:
-- **Hora Feliz:** ×2 ingreso pasivo
-- **Fiebre de Hype:** ×2 Hype de runs
-- **Noche de Chatarra:** ×3 Parts de contratos
-- **Carrera Callejera:** un contrato especial de score altísimo con recompensa enorme
-
-Se muestra en el HUD del garage con un timer. **Sin notificaciones push, sin FOMO
-agresivo.** Si te lo perdés, viene otro en 4 horas.
-
-## 13.11 Por qué esto engancha (el diseño detrás)
-
-1. **Dos ritmos que se alimentan:** el skill (runs) y el tiempo (idle). Si sos bueno,
-   progresás rápido. Si no tenés tiempo, igual progresás. Nunca estás estancado.
-2. **Siempre hay 3 cosas comprables:** una barata (comprás ya, dopamina inmediata), una
-   media (2 runs), una cara (una sesión). Verificar esta invariante con un test automático
-   que simule 100 estados de progresión y confirme que siempre hay al menos una compra a
-   < 30 s, una a < 5 min y una a < 30 min de distancia.
-3. **Los números crecen mucho:** de $500 a $50.000.000.000. El formateo abreviado
-   (1.2K, 340M, 5.6B, 12T, luego aa/ab/ac...) es parte del placer.
-4. **Todo cambia visualmente:** el garage, el auto, el HUD. Nunca es solo una lista de números.
-5. **El prestige da un segundo aire:** cuando la curva se aplana, resetear se siente como
-   un poder, no como un castigo.
-
----
+1. **En vivo, durante el run:** un contador `+$X` abajo a la izquierda que sube mientras
+   derrapás. Es el recordatorio permanente de de dónde sale la plata.
+2. **En la pantalla de resultados:** el desglose línea por línea del multiplicador de
+   estilo, con cada bonus y cada penalización por separado. El jugador tiene que poder
+   leer exactamente por qué le pagaron lo que le pagaron; si no, el multiplicador es
+   magia y no enseña nada.
 
 # 14. Economía y progresión
 
