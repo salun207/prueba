@@ -12,7 +12,7 @@ import { studioEnvironment } from '/src/render/CarPreview.ts';
 
 const W = 1280, H = 720;
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -81,6 +81,18 @@ function draw() {
 }
 draw();
 window.shot = (n) => { i = n; draw(); };
+// Muestreo de píxeles: para saber si algo está recortado a blanco hay que
+// mirar el número, no la imagen.
+window.sample = (pts) => {
+  const c2 = document.createElement('canvas');
+  c2.width = W; c2.height = H;
+  const g2 = c2.getContext('2d');
+  g2.drawImage(canvas, 0, 0);
+  return pts.map(([x, y]) => {
+    const d = g2.getImageData(x, y, 1, 1).data;
+    return [x, y, d[0], d[1], d[2]];
+  });
+};
 window.info = () => {
   const out = [];
   view.group.traverse((o) => {

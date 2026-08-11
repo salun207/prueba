@@ -661,6 +661,11 @@ export class Game implements UiHost {
     this.ctx.surfaceGrip = this.mode === 'traffic'
       ? this.highway!.gripAt(car.posX, car.posZ)
       : this.world!.gripAt(car.posX, car.posZ);
+    // El mantenimiento de carril necesita saber para dónde va la ruta. En drift
+    // no existe, y sin este dato la asistencia queda apagada sola.
+    this.ctx.roadHeading = this.mode === 'traffic'
+      ? this.highway!.heading(car.posZ)
+      : undefined;
 
     stepCar(car, this.built.spec, this.input.state, this.ctx, dt);
 

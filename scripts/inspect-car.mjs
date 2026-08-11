@@ -15,6 +15,12 @@ for (let i = 0; i < 4; i++) {
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${dir}car_${car}_${process.argv[3] || 'lit'}_${i}.png` });
 }
+await page.evaluate((n) => window.shot(n), 0);
+await page.waitForTimeout(600);
+const px = await page.evaluate(() => window.sample([
+  [700, 400], [760, 420], [620, 300], [560, 330], [850, 380],
+]));
+console.log('pixeles (x,y,r,g,b):', JSON.stringify(px));
 const rows = await page.evaluate(() => window.info());
 for (const r of rows) {
   console.log(

@@ -24,6 +24,17 @@ export interface HandlingProfile {
    * no se cruce solo a alta velocidad.
    */
   selfAlign: number;
+  /**
+   * Mantenimiento de carril: cuánto contravolantea solo hacia la dirección del
+   * camino. 0 lo apaga.
+   *
+   * `selfAlign` alinea el morro con la VELOCIDAD, que no es lo mismo: después
+   * de un cambio de carril el auto queda derecho pero cruzado 30° respecto de
+   * la ruta, y se va en diagonal para siempre. Esto es lo que hace que soltar
+   * el volante te devuelva al camino, que es el manejo que pide un juego de
+   * tráfico: el volante mueve el auto de carril, no lo apunta a otro lado.
+   */
+  laneKeep: number;
   /** Si el freno de mano suelta el tren trasero. */
   handbrake: boolean;
 }
@@ -39,6 +50,7 @@ export const HANDLING: Record<'drift' | 'traffic', HandlingProfile> = {
     yawDamp: 1.12,
     steerFalloff: 1,
     selfAlign: 0.5,
+    laneKeep: 0,
     handbrake: true,
   },
   // Tráfico: plantado. Se esquiva con reflejos, no peleando el auto.
@@ -47,8 +59,9 @@ export const HANDLING: Record<'drift' | 'traffic', HandlingProfile> = {
     frontGrip: 1.14,
     falloffScale: 0.35,
     yawDamp: 2.3,
-    steerFalloff: 1.9,
+    steerFalloff: 1.3,
     selfAlign: 4.2,
+    laneKeep: 1.9,
     handbrake: false,
   },
 };

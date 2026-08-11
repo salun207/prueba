@@ -458,7 +458,7 @@ export function carPaintTexture(): THREE.Texture {
       const p = Math.round(at * S) % S;
       ctx.fillStyle = 'rgba(90,90,96,0.55)';
       ctx.fillRect(0, p, S, 1.5);
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
       ctx.fillRect(0, p + 1.5, S, 1);
     }
 
@@ -466,6 +466,53 @@ export function carPaintTexture(): THREE.Texture {
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
     tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
+  });
+}
+
+/**
+ * Mapa de rugosidad del barniz.
+ *
+ * El costado de un auto es una superficie grande y casi plana: con rugosidad
+ * constante, el reflejo la cubre ENTERA de una sola vez y queda una plancha
+ * blanca uniforme, que es exactamente lo que se veía como "textura rota". Con
+ * la rugosidad variando en manchas grandes, el mismo reflejo se corta y se lee
+ * como chapa con brillo, no como una calcomanía.
+ */
+export function carGlossTexture(): THREE.Texture {
+  return cached('cargloss', () => {
+    const S = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = S;
+    canvas.height = S;
+    const ctx = canvas.getContext('2d')!;
+    const img = ctx.createImageData(S, S);
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        // Dos escalas: manchas anchas de barniz y grano fino de la escarcha
+        const broad = fbm((x / S) * 3, (y / S) * 3, 3, 3, 311);
+        const fine = fbm((x / S) * 18, (y / S) * 18, 2, 18, 57);
+        const i = (y * S + x) * 4;
+        const v = clamp255(120 + (broad - 0.5) * 150 + (fine - 0.5) * 34);
+        img.data[i] = v;
+        img.data[i + 1] = v;
+        img.data[i + 2] = v;
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // Las juntas de chapa son más mate que el resto
+    for (const at of [0.5, 1.0]) {
+      const p = Math.round(at * S) % S;
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(0, p, S, 2.5);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
     tex.anisotropy = 4;
     return tex;
   });

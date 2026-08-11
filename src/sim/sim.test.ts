@@ -552,6 +552,43 @@ describe('perfiles de manejo', () => {
     expect(traffic.settled).toBeLessThan(DEG(4));
   });
 
+  it('en tráfico se cambia de carril rápido y el auto vuelve al camino solo', async () => {
+    const { HANDLING } = await import('./Handling');
+
+    for (const id of ['kite_240', 'kite_300zt']) {
+      for (const kmh of [90, 140, 200]) {
+        const spec = getCar(id).spec;
+        const car = createCarState(0, 0, 0);
+        car.velZ = kmh / 3.6;
+        car.speed = kmh / 3.6;
+        car.gear = 5;
+        car.rpm = 5000;
+        const input = createInput();
+        input.throttle = 0.6;
+        // roadHeading 0 = la ruta va derecho hacia +Z
+        const c = ctx({ handling: HANDLING.traffic, roadHeading: 0 });
+
+        let t = 0;
+        let cambio = -1;
+        for (let f = 0; f < 1200; f++) {
+          input.steer = cambio < 0 ? -1 : 0; // tope a la izquierda, después soltar
+          stepCar(car, spec, input, c, DT);
+          t += DT;
+          if (cambio < 0 && car.posX >= 3.7) cambio = t;
+        }
+
+        // Un carril en menos de 1.2 s a cualquier velocidad
+        expect(cambio).toBeGreaterThan(0);
+        expect(cambio).toBeLessThan(1.2);
+        // Soltando el volante el auto vuelve a apuntar al camino...
+        expect(Math.abs(car.yaw)).toBeLessThan(DEG(2));
+        // ...y no sigue cruzándose la autopista en diagonal. Sin el
+        // mantenimiento de carril esto daba 130 m y subiendo.
+        expect(car.posX).toBeLessThan(8);
+      }
+    }
+  });
+
   it('en tráfico el auto no se cruza solo yendo derecho a fondo', async () => {
     const { HANDLING } = await import('./Handling');
     const spec = getCar('kite_300zt').spec;

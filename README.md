@@ -10,7 +10,7 @@ navegador, sin instalación y sin conexión.
 ```bash
 npm install
 npm run dev           # http://localhost:5173
-npm test              # 53 tests de física, autopista, economía, circuitos y saves
+npm test              # 54 tests de física, autopista, economía, circuitos y saves
 npm run build         # typecheck + bundle
 npm run build:single  # todo en un solo HTML autocontenido (dist-single/)
 npm run smoke         # prueba en Chromium headless (requiere playwright)
@@ -65,9 +65,26 @@ El tráfico **se sigue entre sí**: cada auto sale con su propia velocidad y, cu
 alcanza al de adelante de su carril, se acopla a su velocidad en vez de atravesarlo.
 Salen pelotones solos, que es como se ve una autopista llena de verdad.
 
-En este modo el auto va **plantado**: el perfil de manejo sube el grip trasero, aplana la
-caída de la goma pasado el pico y agrega un torque de autoalineación que apunta el morro
-hacia el vector velocidad. Se esquiva con reflejos, no peleando el auto.
+### El manejo
+
+El volante **mueve el auto de carril**, no lo apunta a otro lado. Un carril entero en
+**0.85 s** a cualquier velocidad —de 90 a 200 km/h—, y al soltar, el auto vuelve solo a
+apuntar al camino con un sobrepaso de un carril.
+
+Eso sale de tres cosas encima del mismo modelo de física del drift:
+
+- **Plantado**: más grip trasero, la goma no se cae de golpe pasado el pico y el doble de
+  amortiguación de guiñada.
+- **Autoalineación**: un torque que apunta el morro hacia el vector velocidad, para que a
+  200 km/h el auto vaya clavado.
+- **Mantenimiento de carril**: contravolante automático hacia la dirección de la ruta.
+  Es lo que faltaba y lo que hacía que el manejo se sintiera mal: la autoalineación
+  apunta el morro a la *velocidad*, no al *camino*, así que después de un cambio de
+  carril el auto quedaba perfectamente derecho pero cruzado 30° respecto de la ruta, y se
+  iba en diagonal para siempre — 130 metros y subiendo. Y no alcanza con apuntar al
+  camino: alineado y todo, el auto sigue con velocidad lateral, así que el rumbo objetivo
+  se inclina *en contra* de esa deriva. Es el volantazo corto que da un piloto para
+  terminar un cambio de carril.
 
 ## Circuitos (modo Drift)
 

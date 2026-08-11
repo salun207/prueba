@@ -148,15 +148,17 @@ const SILL = 0.26;
  */
 const PROFILE: [number, number, number][] = [
   // [x sobre hw, x sobre topW, altura: 0 = zócalo, 1 = techo]
-  [0.50, 0.00, -0.12], // panza
-  [0.82, 0.00, 0.00], // bajos
-  [0.96, 0.00, 0.14], // zócalo
-  [1.00, 0.00, 0.32], // cintura, el punto más ancho
-  [0.97, 0.00, 0.52], // hombro
-  [0.80, 0.18, 0.70], // quiebre hacia el techo
-  [0.42, 0.56, 0.86], // parante
-  [0.12, 0.84, 0.96], // borde del techo
-  [0.00, 0.62, 1.00], // techo
+  [0.48, 0.00, -0.14], // panza
+  [0.78, 0.00, -0.04], // bajos
+  [0.92, 0.00, 0.08], // zócalo
+  [0.985, 0.00, 0.22], // arranque de la puerta
+  [1.00, 0.00, 0.38], // cintura, el punto más ancho
+  [0.965, 0.00, 0.54], // la puerta empieza a meterse
+  [0.88, 0.06, 0.66], // hombro
+  [0.62, 0.34, 0.80], // quiebre hacia el techo
+  [0.30, 0.68, 0.91], // parante
+  [0.08, 0.88, 0.975], // borde del techo
+  [0.00, 0.64, 1.00], // techo
 ];
 
 /** Sección transversal completa: lado derecho de abajo a arriba, después el izquierdo. */
@@ -177,7 +179,7 @@ export interface CarMeshes {
 }
 
 /** Índices dentro del anillo (ver PROFILE). */
-const SHOULDER_R = 4;
+const SHOULDER_R = 6;
 const ROOF_R = PROFILE.length - 1;
 const ROOF_L = PROFILE.length;
 const SHOULDER_L = PROFILE.length * 2 - 1 - SHOULDER_R;

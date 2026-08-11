@@ -28,6 +28,11 @@ export interface PhysicsContext {
   gripScale: number;
   /** Perfil de manejo del modo activo. Si falta, se usa el de drift. */
   handling?: HandlingProfile;
+  /**
+   * Rumbo del camino bajo el auto (rad). Solo lo usa el mantenimiento de
+   * carril; si falta, esa asistencia no actúa.
+   */
+  roadHeading?: number;
 }
 
 export function stepCar(
@@ -46,7 +51,29 @@ export function stepCar(
   const speedFactor = 1 / (1 + spec.steerSpeedFalloff * prof.steerFalloff * (car.speed / 25));
   const playerSteer = -input.steer * spec.maxSteerAngle * speedFactor;
   const assist = counterSteerAssist(car, spec, input, ctx.assistLevel);
-  const desiredSteer = clamp(playerSteer + assist, -spec.maxSteerAngle, spec.maxSteerAngle);
+  // El mantenimiento de carril entra por las ruedas, como un volantazo suave
+  // del piloto, no como un torque mágico sobre el chasis. Mantiene algo de
+  // autoridad incluso mientras girás, para que el auto no se cruce de más.
+  let laneKeep = 0;
+  if (prof.laneKeep > 0 && ctx.roadHeading !== undefined && car.speed > 4) {
+    const rh = ctx.roadHeading;
+    // Apuntar al rumbo del camino no alcanza: alineado y todo, el auto sigue
+    // con velocidad lateral y cruza tres carriles antes de frenarla. El rumbo
+    // objetivo se inclina EN CONTRA de esa deriva, que es el volantazo corto
+    // que da un piloto para terminar un cambio de carril.
+    const vLatRoad = car.velX * Math.cos(rh) - car.velZ * Math.sin(rh);
+    const target = rh - clamp(vLatRoad * 0.09, -0.45, 0.45);
+    const err = normalizeAngle(target - car.yaw);
+    const release = 0.3 + 0.7 * (1 - Math.min(1, Math.abs(input.steer) / 0.6));
+    laneKeep = clamp(
+      err * prof.laneKeep * release,
+      -spec.maxSteerAngle * 0.9,
+      spec.maxSteerAngle * 0.9,
+    );
+  }
+  const desiredSteer = clamp(
+    playerSteer + assist + laneKeep, -spec.maxSteerAngle, spec.maxSteerAngle,
+  );
 
   const steerRate = Math.abs(input.steer) > 0.05 ? spec.steerSpeed : spec.steerReturnSpeed;
   car.steerVisual = moveTowards(car.steerVisual, desiredSteer, steerRate * dt);

@@ -87,6 +87,25 @@
 >   textura y luz por separado hasta que el artefacto desaparece. Fue lo único que separó
 >   "la malla está mal" de "la luz está mal".
 >
+>
+> **Revisión 4.2 — mantenimiento de carril, y la pintura.**
+>
+> - **§5-bis `laneKeep`.** El perfil de tráfico suma un contravolante automático hacia el
+>   rumbo del camino (`ctx.roadHeading`), aplicado por las RUEDAS y no como torque sobre
+>   el chasis. Es lo que faltaba para que el manejo se sintiera bien: `selfAlign` apunta
+>   el morro a la **velocidad**, no al **camino**, así que tras un cambio de carril el
+>   auto quedaba derecho pero cruzado 30° y se iba en diagonal para siempre (medido: 130 m
+>   y subiendo). Y apuntar al camino tampoco alcanza — alineado y todo queda velocidad
+>   lateral —, así que el rumbo objetivo se inclina en contra de la deriva. Resultado
+>   medido y fijado en un test: un carril en 0.85 s de 90 a 200 km/h, yaw final < 2° y
+>   desvío total < 8 m.
+> - **§10 la pintura.** El costado seguía leyéndose como una plancha uniforme aun sin
+>   recorte a blanco. Se arregló con tres cosas: sección con *tumblehome* (la puerta se
+>   mete hacia adentro al subir, así la normal barre a lo alto del flanco), **mapa de
+>   rugosidad** en el barniz para que el reflejo se corte en manchas en vez de cubrir el
+>   panel entero, y vidrios que dejaron de ser negro puro — se leían como un agujero en
+>   el techo.
+>
 > El resto del documento (física, scoring de drift, arquitectura) sigue vigente.
 >
 > **Regla legal innegociable:** el juego se inspira en el *feel* y en las ideas de diseño

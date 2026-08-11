@@ -3,7 +3,7 @@ import type { BodyParams } from '../data/cars';
 import type { CarCosmetics } from '../save/types';
 import type { CarState } from '../sim/types';
 import { buildCarBody, buildWheel } from './CarBody';
-import { carPaintTexture, radialTexture, shadowTexture } from './Textures';
+import { carGlossTexture, carPaintTexture, radialTexture, shadowTexture } from './Textures';
 
 /**
  * Auto en 3D. La carrocería es una cáscara loftada (ver CarBody.ts) y encima
@@ -35,10 +35,13 @@ export class CarView {
     this.paintMat = new THREE.MeshStandardMaterial({
       color: 0xffffff, metalness: 0.04, roughness: 0.32, envMapIntensity: 0.7,
       map: carPaintTexture(),
+      roughnessMap: carGlossTexture(),
     });
+    // Vidrio. En negro puro y con metalness alto se leía como un agujero en el
+    // techo: sin reflejo, sin volumen y sin dejar ver que hay una cabina.
     const glassMat = new THREE.MeshStandardMaterial({
-      color: 0x0c1014, metalness: 0.9, roughness: 0.08,
-      transparent: true, opacity: 0.86, envMapIntensity: 1.4,
+      color: 0x1b2836, metalness: 0.1, roughness: 0.13,
+      transparent: true, opacity: 0.86, envMapIntensity: 1.0,
       side: THREE.DoubleSide,
     });
     const trimMat = new THREE.MeshStandardMaterial({
