@@ -540,6 +540,10 @@
             </div>
             <button class="modal-close" onclick="document.getElementById('searchError').style.display='none'" aria-label="Cerrar">✕</button>
           </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-primary" id="seRetry" type="button" style="height:36px;padding:8px 16px;font-size:13px">Reintentar</button>
+            <button class="btn-ghost" id="seImport" type="button" style="height:36px;padding:8px 16px;font-size:13px">Importar mi lista</button>
+          </div>
         </div>
       </div>
 
@@ -1758,15 +1762,17 @@ const OVERPASS_MIRRORS = [
 
 async function overpassQuery(query, onIntento) {
   let ultimoError;
+  // Arrancar por uno al azar evita que todos golpeen siempre el mismo
+  const inicio = Math.floor(Math.random() * OVERPASS_MIRRORS.length);
   for (let i = 0; i < OVERPASS_MIRRORS.length; i++) {
-    const url = OVERPASS_MIRRORS[i];
+    const url = OVERPASS_MIRRORS[(inicio + i) % OVERPASS_MIRRORS.length];
     if (onIntento) onIntento(i + 1, OVERPASS_MIRRORS.length);
     try {
       const res = await fetchConTimeout(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "data=" + encodeURIComponent(query),
-      }, 45000);
+      }, 60000);
       if (res.ok) return await res.json();
       // 429 y 504 son saturación: vale la pena probar otro servidor
       ultimoError = new Error(res.status === 429 || res.status === 504
@@ -1794,8 +1800,8 @@ async function fetchOSM(nichoKey, ciudad) {
       ? "Consultando el mapa… puede tardar unos segundos"
       : `El primer servidor no respondió, probando otro (${n} de ${total})…`;
   };
-  const armarQuery = bb => `[out:json][timeout:20];(${tags
-    .map(t => `nwr${t}(${bb.sur},${bb.oeste},${bb.norte},${bb.este});`).join("")});out center 600;`;
+  const armarQuery = bb => `[out:json][timeout:50];(${tags
+    .map(t => `nw${t}(${bb.sur},${bb.oeste},${bb.norte},${bb.este});`).join("")});out center 400;`;
 
   let data, bb = null, recortado = false, ampliado = false;
   try {
@@ -1804,23 +1810,26 @@ async function fetchOSM(nichoKey, ciudad) {
     zonaResuelta = bb.nombre || "";
     data = await overpassQuery(armarQuery(bb), avisar);
 
-    // Un partido chico puede dar apenas un puñado: se amplía y reintenta
+    // Un partido chico puede dar apenas un puñado: se amplía y reintenta.
+    // Si esa segunda consulta falla, se conserva lo que ya se tenía.
     if ((data.elements || []).length < 8) {
       const msg = document.getElementById("scanMsg");
       if (msg) msg.textContent = "Pocos resultados: ampliando la zona…";
-      const data2 = await overpassQuery(armarQuery(ampliarBBox(bb, 3)), avisar);
-      if ((data2.elements || []).length > (data.elements || []).length) {
-        data = data2;
-        ampliado = true;
-      }
+      try {
+        const data2 = await overpassQuery(armarQuery(ampliarBBox(bb, 3)), avisar);
+        if ((data2.elements || []).length > (data.elements || []).length) {
+          data = data2;
+          ampliado = true;
+        }
+      } catch { /* alcanza con lo que ya vino */ }
     }
   } catch (e) {
     if (bb) throw e;                       // ya tenía la zona: el fallo es de Overpass
     const limpia = ciudad.split(",")[0].trim().replace(/"/g, "");
     zonaResuelta = "";
     data = await overpassQuery(
-      `[out:json][timeout:20];area["name"="${limpia}"]->.a;` +
-      `(${tags.map(t => `nwr${t}(area.a);`).join("")});out center 600;`, avisar);
+      `[out:json][timeout:50];area["name"="${limpia}"]->.a;` +
+      `(${tags.map(t => `nw${t}(area.a);`).join("")});out center 400;`, avisar);
   }
   if (ampliado) ultimoAvisoZona = `En ${ciudad} había muy pocos cargados: se amplió la búsqueda a los alrededores.`;
   if (recortado) ultimoAvisoZona = `«${ciudad}» abarca un área muy grande: se buscó en el centro, unos 60 km a la redonda.`;
@@ -3585,6 +3594,15 @@ const MOTIVOS = [
 /* ══ Diagnóstico de conexión ══════════════════
    Prueba cada servicio por separado y dice cuál falla y por qué, en vez
    de dejar al usuario adivinando por qué no aparecen resultados. */
+document.getElementById("seRetry").addEventListener("click", () => {
+  document.getElementById("searchError").style.display = "none";
+  document.getElementById("searchBtn").click();
+});
+document.getElementById("seImport").addEventListener("click", () => {
+  document.getElementById("searchError").style.display = "none";
+  document.getElementById("openImport").click();
+});
+
 document.getElementById("diagBtn").addEventListener("click", async () => {
   const out = document.getElementById("diagOut");
   out.style.display = "block";
@@ -3612,7 +3630,7 @@ document.getElementById("diagBtn").addEventListener("click", async () => {
 
   // Overpass
   try {
-    const d = await overpassQuery('[out:json][timeout:20];node["amenity"="veterinary"](-32.96,-60.70,-32.92,-60.63);out 3;');
+    const d = await overpassQuery('[out:json][timeout:50];node["amenity"="veterinary"](-32.96,-60.70,-32.92,-60.63);out 3;');
     const n = (d.elements || []).length;
     lineas.push(n
       ? ok(`Servidor de mapas: responde (probó veterinarias en Rosario y encontró ${n})`)
