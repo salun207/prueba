@@ -1650,6 +1650,50 @@ const OSM_COBERTURA = {
   limpieza: "baja", catering: "baja", "centro-unas": "baja", adiestrador: "baja",
 };
 
+/* Palabras del nombre por rubro. Muchos comercios están cargados con
+   una etiqueta genérica (una oficina, un local sin más) pero el nombre
+   dice de qué son: buscarlos así suma los que la etiqueta se pierde.
+   Sin eñes ni acentos, que complican la expresión en el servidor. */
+const OSM_NOMBRES = {
+  "clinica-dental": "odontolog|dental|dentista|implantolog|ortodon",
+  "clinica-estetica": "estetic|belleza|dermatolog|cosmiatr",
+  "kinesiologia": "kinesiolog|fisioterap|rehabilitac",
+  "veterinaria": "veterinar",
+  "podologia": "podolog|podiatr",
+  "psicologia": "psicolog|psicoterap|psicoanal",
+  "oftalmologia": "oftalmolog|optic",
+  "nutricion": "nutricion|nutriolog|nutrolog",
+  "peluqueria": "peluquer|hairdress|salon",
+  "barberia": "barber",
+  "centro-unas": "nails|manicur|belleza",
+  "spa": "spa|masaje|relax",
+  "restaurante": "restaurant|parrilla|resto|bodegon",
+  "cafeteria": "cafe|coffee|confiter",
+  "pizzeria": "pizz",
+  "catering": "catering|eventos",
+  "gimnasio": "gimnasio|gym|fitness|crossfit",
+  "yoga-pilates": "yoga|pilates",
+  "plomeria": "plomer|gasista|sanitari",
+  "electricista": "electricista|electricidad",
+  "cerrajeria": "cerrajer",
+  "reformas": "reforma|construc|albanil|obra",
+  "limpieza": "limpieza|lavader|tintorer",
+  "taller": "taller|mecanic|lubricentro|gomeria",
+  "escuela-manejo": "manejo|conducir|automovilis",
+  "estudio-juridico": "abogad|juridic",
+  "estudio-contable": "contad|contable|impuest",
+  "inmobiliaria": "inmobiliar|propiedades",
+  "instituto": "instituto|academia|idiomas",
+  "fotografo": "fotograf",
+  "agencia-viajes": "viajes|turismo|travel",
+  "petshop": "pet shop|petshop|mascota|forrajer",
+  "peluqueria-canina": "canin|pet grooming|mascota",
+  "guarderia-canina": "canin|guarderia|hotel para",
+  "adiestrador": "adiestr|educacion canina",
+  "cuidador-mascotas": "cuidado de mascota|pet sitter|paseo",
+  "paseador": "paseo de perro|dog walk|paseador",
+};
+
 const OSM_TAGS = {
   "clinica-dental": ['["amenity"="dentist"]', '["healthcare"="dentist"]', '["healthcare:speciality"="dentistry"]'],
   "clinica-estetica": ['["shop"="beauty"]', '["shop"="beauty"]["beauty"="cosmetic"]'],
@@ -1824,8 +1868,22 @@ async function fetchOSM(nichoKey, ciudad) {
     zonaResuelta = bb.nombre || "";
     data = await overpassQuery(armarQuery(bb), avisar);
 
-    // Un partido chico puede dar apenas un puñado: se amplía y reintenta.
-    // Si esa segunda consulta falla, se conserva lo que ya se tenía.
+    // Segunda pasada por nombre: recupera los que están cargados con una
+    // etiqueta genérica pero cuyo nombre dice de qué son. Se hace aparte
+    // porque escanear nombres es más caro que filtrar por etiqueta.
+    const claves = OSM_NOMBRES[nichoKey];
+    if (claves && (data.elements || []).length < 120) {
+      const msg = document.getElementById("scanMsg");
+      if (msg) msg.textContent = "Buscando también por nombre…";
+      try {
+        const porNombre = await overpassQuery(
+          `[out:json][timeout:50];(nw["name"~"${claves}",i](${bb.sur},${bb.oeste},${bb.norte},${bb.este}););out center 400;`,
+          avisar);
+        data.elements = (data.elements || []).concat(porNombre.elements || []);
+      } catch { /* alcanza con lo que ya vino */ }
+    }
+
+    // Si sigue habiendo muy pocos, se amplía la zona y se reintenta
     if ((data.elements || []).length < 8) {
       const msg = document.getElementById("scanMsg");
       if (msg) msg.textContent = "Pocos resultados: ampliando la zona…";
@@ -1850,8 +1908,12 @@ async function fetchOSM(nichoKey, ciudad) {
 
   const seq = Date.now();
   const vistos = new Set();
+  const idsVistos = new Set();
   const out = [];
   (data.elements || []).forEach((el, i) => {
+    const claveId = el.type + "-" + el.id;
+    if (idsVistos.has(claveId)) return;      // vino en las dos pasadas
+    idsVistos.add(claveId);
     const t = el.tags || {};
     const name = t.name || t["operator"] || "";
     if (!name || vistos.has(name.toLowerCase())) return;
