@@ -599,6 +599,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
               Escribirles a todos
             </button>
+            <label class="chk"><input type="checkbox" id="onlyPhone"> Solo con teléfono</label>
             <label class="chk"><input type="checkbox" id="onlyHot"> Solo altas (70 o más)</label>
             <select id="sortBy">
               <option value="score">Ordenar: puntuación</option>
@@ -1098,6 +1099,19 @@
       <div class="mini-stat"><div class="ms-l">Sin responder (est.)</div><div class="ms-v" id="mPerdidas">—</div></div>
       <div class="mini-stat"><div class="ms-l">Horario</div><div class="ms-v" id="mHorario" style="font-size:13px">—</div></div>
     </div>
+    <div id="mNoPhone" style="display:none;margin-bottom:16px;border:1px solid var(--warning);border-radius:10px;padding:14px 16px;background:var(--page)">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">Este negocio no tiene el teléfono en el mapa</div>
+      <p style="font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-bottom:10px">
+        OpenStreetMap lo tiene cargado como local pero sin número. Buscalo en Google (un clic) y pegalo acá: queda guardado y ya podés escribirle.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <a class="btn-ghost" id="mBuscarTel" href="#" target="_blank" rel="noopener" style="text-decoration:none;height:38px;display:inline-flex;align-items:center">Buscar el teléfono en Google</a>
+        <input id="mNuevoTel" type="tel" placeholder="+54 11 4787-0196" autocomplete="off"
+               style="flex:1 1 190px;min-width:150px;height:38px;padding:8px 12px;border-radius:9px;border:1px solid var(--hairline);background:var(--surface-1);outline:none">
+        <button class="btn-primary" id="mGuardarTel" type="button" style="height:38px;padding:8px 16px;font-size:13px">Guardar</button>
+      </div>
+    </div>
+
     <div id="mMapWrap" style="display:none;margin-bottom:16px">
       <h4>Dónde queda</h4>
       <div id="mMap" style="position:relative;width:100%;height:170px;overflow:hidden;border-radius:10px;border:1px solid var(--hairline);background:var(--page);margin-bottom:8px"></div>
@@ -2596,6 +2610,7 @@ function mostrarErrorBusqueda(rubro, ciudad, fuente, detalle) {
 function visibleResults() {
   let list = [...results];
   if (document.getElementById("onlyHot").checked) list = list.filter(b => b.score >= 70);
+  if (document.getElementById("onlyPhone").checked) list = list.filter(b => waDigits(b.phone));
   const s = document.getElementById("sortBy").value;
   list.sort((a, b) =>
     s === "reviews" ? b.reviews - a.reviews :
@@ -2664,8 +2679,10 @@ function renderResults() {
       </td>
       <td>
         <div class="actions">
-          <a class="icon-btn" href="tel:${b.phone.replace(/[\s-]/g, "")}" title="Llamar al ${esc(b.phone)}">${ICONS.phone}</a>
-          <button class="icon-btn" title="Ver mensaje de WhatsApp" onclick="openMsg('${b.id}')">${ICONS.chat}</button>
+          ${b.phone
+            ? `<a class="icon-btn" href="tel:${b.phone.replace(/[\s-]/g, "")}" title="Llamar al ${esc(b.phone)}">${ICONS.phone}</a>`
+            : `<span class="icon-btn" style="opacity:.35" title="Sin teléfono publicado">${ICONS.phone}</span>`}
+          <button class="icon-btn" title="${waDigits(b.phone) ? "Ver mensaje de WhatsApp" : "Sin teléfono: abrí la ficha para cargarlo"}" onclick="openMsg('${b.id}')" ${waDigits(b.phone) ? "" : 'style="opacity:.45"'}>${ICONS.chat}</button>
           <a class="icon-btn" href="${esc(mapLinks(b).ver)}" target="_blank" rel="noopener" title="Ver en Google Maps">${ICONS.pin}</a>
           <button class="icon-btn ${isSaved ? "saved" : ""}" title="${isSaved ? "Quitar de mi cartera" : "Guardar lead"}" onclick="toggleLead('${b.id}')">${isSaved ? ICONS.check : ICONS.plus}</button>
         </div>
@@ -2892,6 +2909,19 @@ window.openMsg = function (id) {
   document.getElementById("mConsultas").textContent = b.consultas ? `~${b.consultas}` : "—";
   document.getElementById("mPerdidas").textContent = b.perdidas ? `~${b.perdidas}` : "—";
   document.getElementById("mHorario").textContent = b.horario || "—";
+  // Falta el teléfono: se ofrece buscarlo y cargarlo a mano
+  const sinTel = !waDigits(b.phone);
+  document.getElementById("mNoPhone").style.display = sinTel ? "block" : "none";
+  if (sinTel) {
+    const consulta = [b.name, b.address, b.ciudad, "teléfono"].filter(Boolean).join(" ");
+    document.getElementById("mBuscarTel").href =
+      "https://www.google.com/search?q=" + encodeURIComponent(consulta);
+    document.getElementById("mNuevoTel").value = "";
+  }
+  const btnWa = document.getElementById("mWhatsapp");
+  btnWa.disabled = sinTel;
+  btnWa.style.opacity = sinTel ? ".5" : "";
+
   // Ubicación: el mapa solo si hay coordenadas; los enlaces, siempre
   const ml = mapLinks(b);
   const wrap = document.getElementById("mMapWrap");
@@ -2938,6 +2968,27 @@ function closeModal() { modalBack.classList.remove("on"); modalBiz = null; }
 document.getElementById("mClose").addEventListener("click", closeModal);
 modalBack.addEventListener("click", (e) => { if (e.target === modalBack) closeModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modalBack.classList.contains("on")) closeModal(); });
+
+document.getElementById("mGuardarTel").addEventListener("click", () => {
+  if (!modalBiz) return;
+  const tel = document.getElementById("mNuevoTel").value.trim();
+  if (!waDigits(tel)) { toast("Ese número no parece válido: revisá que tenga el área"); return; }
+  modalBiz.phone = tel;
+  modalBiz.telManual = true;
+  // Se guarda en los resultados, en la cartera y en la cola de la campaña
+  const enRes = results.find(x => x.id === modalBiz.id); if (enRes) enRes.phone = tel;
+  const enLead = leads.find(x => x.id === modalBiz.id); if (enLead) enLead.phone = tel;
+  const enCola = campQueue.find(q => q.biz.id === modalBiz.id); if (enCola) enCola.biz.phone = tel;
+  save(LS.last, { query: lastQuery, results });
+  save(LS.leads, leads);
+  openMsg(modalBiz.id);
+  renderAll();
+  toast("Teléfono guardado: ya podés escribirle");
+});
+
+document.getElementById("mNuevoTel").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); document.getElementById("mGuardarTel").click(); }
+});
 
 document.getElementById("mCopyDir").addEventListener("click", async () => {
   if (!modalBiz) return;
@@ -3028,6 +3079,7 @@ document.getElementById("exportCsv").addEventListener("click", () => {
 
 /* ══ Filtros de resultados ════════════════════ */
 document.getElementById("onlyHot").addEventListener("change", renderResults);
+document.getElementById("onlyPhone").addEventListener("change", renderResults);
 document.getElementById("sortBy").addEventListener("change", renderResults);
 
 /* ══ Campaña: envío en cadena ═════════════════
