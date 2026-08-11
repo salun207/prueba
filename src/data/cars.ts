@@ -1,9 +1,12 @@
 import { DEG } from '../lib/math';
+import type { Silhouette } from '../render/CarBody';
 import type { CarSpec } from '../sim/types';
 
 export type Tier = 'D' | 'C' | 'B' | 'A' | 'S';
 
 export interface BodyParams {
+  /** Silueta lateral: define la forma real de la carrocería. */
+  silhouette: Silhouette;
   length: number;
   width: number;
   height: number;
@@ -82,6 +85,7 @@ const BASE: CarSpec = {
 };
 
 const BODY: BodyParams = {
+  silhouette: 'coupe',
   length: 4.35,
   width: 1.8,
   height: 1.28,
@@ -132,7 +136,7 @@ export const CARS: CarDefinition[] = [
       maxSteerAngle: DEG(38),
       dragCoefficient: 0.4,
     }),
-    body: body({ length: 4.2, width: 1.72, height: 1.24, spoiler: 'none', cabinEnd: 0.7 }),
+    body: body({ silhouette: 'coupe',  length: 4.2, width: 1.72, height: 1.24, spoiler: 'none', cabinEnd: 0.7 }),
   },
   {
     id: 'barrow_wedge',
@@ -163,7 +167,7 @@ export const CARS: CarDefinition[] = [
       gearRatios: [3.6, 2.15, 1.5, 1.05, 0.83],
       maxSteerAngle: DEG(40),
     }),
-    body: body({
+    body: body({ silhouette: 'hatch', 
       length: 3.9, width: 1.68, height: 1.34, cabinStart: 0.26, cabinEnd: 0.78,
       wedge: 0.1, spoiler: 'ducktail', wheelRadius: 0.31,
     }),
@@ -178,7 +182,7 @@ export const CARS: CarDefinition[] = [
     defaultPaint: '#22e1ff',
     audio: { cylinders: 6, turbo: true, character: 'inline6' },
     spec: spec({}),
-    body: body({}),
+    body: body({ silhouette: 'coupe' }),
   },
   {
     id: 'ferro_corsa',
@@ -206,7 +210,7 @@ export const CARS: CarDefinition[] = [
       ],
       redline: 6900,
     }),
-    body: body({ length: 4.7, width: 1.82, cabinStart: 0.28, cabinEnd: 0.68, spoiler: 'lip' }),
+    body: body({ silhouette: 'sedan',  length: 4.7, width: 1.82, cabinStart: 0.28, cabinEnd: 0.68, spoiler: 'lip' }),
   },
   {
     id: 'sable_rxzero',
@@ -234,7 +238,7 @@ export const CARS: CarDefinition[] = [
       gearRatios: [3.48, 2.02, 1.39, 1.0, 0.8, 0.66],
       maxSteerAngle: DEG(40),
     }),
-    body: body({ length: 4.28, height: 1.22, cabinStart: 0.32, cabinEnd: 0.7, spoiler: 'ducktail' }),
+    body: body({ silhouette: 'coupe',  length: 4.28, height: 1.22, cabinStart: 0.32, cabinEnd: 0.7, spoiler: 'ducktail' }),
   },
   {
     id: 'kestrel_gt',
@@ -265,7 +269,7 @@ export const CARS: CarDefinition[] = [
       gearRatios: [2.97, 1.78, 1.3, 1.0, 0.74],
       dragCoefficient: 0.5,
     }),
-    body: body({
+    body: body({ silhouette: 'muscle', 
       length: 4.85, width: 1.94, height: 1.32, cabinStart: 0.34, cabinEnd: 0.68,
       spoiler: 'ducktail', wheelRadius: 0.35, wheelWidth: 0.3, fenderFlare: 0.04,
     }),
@@ -298,7 +302,7 @@ export const CARS: CarDefinition[] = [
       maxSteerAngle: DEG(38),
       downforceCoefficient: 0.09,
     }),
-    body: body({ length: 4.68, width: 1.88, height: 1.26, spoiler: 'lip', wheelRadius: 0.34 }),
+    body: body({ silhouette: 'sedan',  length: 4.68, width: 1.88, height: 1.26, spoiler: 'lip', wheelRadius: 0.34 }),
   },
   {
     id: 'ronin_typer',
@@ -328,7 +332,7 @@ export const CARS: CarDefinition[] = [
       maxSteerAngle: DEG(44),
       downforceCoefficient: 0.11,
     }),
-    body: body({
+    body: body({ silhouette: 'coupe', 
       length: 4.52, width: 1.9, height: 1.22, cabinStart: 0.32, cabinEnd: 0.7,
       spoiler: 'wing', fenderFlare: 0.05, wheelRadius: 0.34, wheelWidth: 0.28,
     }),
@@ -361,7 +365,7 @@ export const CARS: CarDefinition[] = [
       gearRatios: [2.9, 1.75, 1.28, 1.0, 0.76],
       maxSteerAngle: DEG(48),
     }),
-    body: body({
+    body: body({ silhouette: 'muscle', 
       length: 4.9, width: 2.08, height: 1.3, cabinStart: 0.34, cabinEnd: 0.66,
       spoiler: 'bigwing', fenderFlare: 0.09, wheelRadius: 0.36, wheelWidth: 0.34,
     }),
@@ -396,7 +400,7 @@ export const CARS: CarDefinition[] = [
       gearRatios: [3.1, 1.92, 1.38, 1.0, 0.8, 0.66],
       downforceCoefficient: 0.1,
     }),
-    body: body({
+    body: body({ silhouette: 'gt', 
       length: 5.1, width: 1.98, height: 1.24, cabinStart: 0.38, cabinEnd: 0.74,
       noseDrop: 0.14, spoiler: 'lip', wheelRadius: 0.36,
     }),
@@ -433,7 +437,7 @@ export const CARS: CarDefinition[] = [
       downforceCoefficient: 0.16,
       shiftTime: 0.12,
     }),
-    body: body({
+    body: body({ silhouette: 'race', 
       length: 4.6, width: 2.02, height: 1.16, cabinStart: 0.34, cabinEnd: 0.66,
       wedge: 0.1, spoiler: 'bigwing', fenderFlare: 0.1, wheelRadius: 0.35, wheelWidth: 0.34,
     }),
@@ -469,7 +473,7 @@ export const CARS: CarDefinition[] = [
       downforceCoefficient: 0.2,
       shiftTime: 0.1,
     }),
-    body: body({
+    body: body({ silhouette: 'hyper', 
       length: 4.72, width: 2.0, height: 1.14, cabinStart: 0.36, cabinEnd: 0.72,
       noseDrop: 0.16, wedge: 0.12, spoiler: 'wing', fenderFlare: 0.08, wheelRadius: 0.35,
     }),
@@ -508,7 +512,7 @@ export const CARS: CarDefinition[] = [
       downforceCoefficient: 0.14,
       shiftTime: 0,
     }),
-    body: body({
+    body: body({ silhouette: 'hyper', 
       length: 4.66, width: 1.98, height: 1.18, cabinStart: 0.3, cabinEnd: 0.76,
       noseDrop: 0.18, wedge: 0.14, spoiler: 'wing', fenderFlare: 0.06, wheelRadius: 0.35,
     }),

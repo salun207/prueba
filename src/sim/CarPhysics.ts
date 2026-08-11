@@ -3,6 +3,7 @@ import { sampleTorqueCurve, tireForceNormalized } from './TireModel';
 import {
   antiSpinTorque, counterSteerAssist, rescueGripMultiplier, spinDampingMultiplier, throttleAssist,
 } from './Assists';
+import { HANDLING, type HandlingProfile } from './Handling';
 import type { AssistLevel, CarSpec, CarState, InputState } from './types';
 
 /**
@@ -25,6 +26,8 @@ export interface PhysicsContext {
   torqueScale: number;
   /** Escala global de grip (upgrades/setup). */
   gripScale: number;
+  /** Perfil de manejo del modo activo. Si falta, se usa el de drift. */
+  handling?: HandlingProfile;
 }
 
 export function stepCar(
@@ -34,11 +37,13 @@ export function stepCar(
   ctx: PhysicsContext,
   dt: number,
 ): void {
+  const prof = ctx.handling ?? HANDLING.drift;
+
   // ─── 0. SUPERFICIE (transición suave: un salto de μ descontrola el auto) ───
   car.surfaceGrip = damp(car.surfaceGrip, ctx.surfaceGrip, 6.7, dt);
 
   // ─── 1. DIRECCIÓN ─────────────────────────────────────────────────────────
-  const speedFactor = 1 / (1 + spec.steerSpeedFalloff * (car.speed / 25));
+  const speedFactor = 1 / (1 + spec.steerSpeedFalloff * prof.steerFalloff * (car.speed / 25));
   const playerSteer = -input.steer * spec.maxSteerAngle * speedFactor;
   const assist = counterSteerAssist(car, spec, input, ctx.assistLevel);
   const desiredSteer = clamp(playerSteer + assist, -spec.maxSteerAngle, spec.maxSteerAngle);
@@ -78,19 +83,20 @@ export function stepCar(
   const rescue = rescueGripMultiplier(car, dt);
   const throttle = throttleAssist(car, input.throttle, ctx.assistLevel);
 
-  let gripRear = spec.peakGripRear * surface * rescue;
-  if (input.handbrake) gripRear *= spec.handbrakeGripMultiplier;
+  let gripRear = spec.peakGripRear * surface * rescue * prof.rearGrip;
+  if (input.handbrake && prof.handbrake) gripRear *= spec.handbrakeGripMultiplier;
   // Círculo de fricción simplificado: el acelerador a fondo consume grip lateral.
   gripRear *= 1 - 0.28 * throttle * (car.gear > 0 ? 1 : 0);
 
-  const gripFront = spec.peakGripFront * surface;
+  const gripFront = spec.peakGripFront * surface * prof.frontGrip;
   // El diferencial bloqueado hace el tren trasero más predecible.
   const rearStiffness = spec.tireStiffnessRear * (1 + spec.diffLock * 0.22);
+  const falloff = spec.tireFalloff * prof.falloffScale;
 
   const FyFront =
-    -tireForceNormalized(slipFront, spec.tireStiffnessFront, spec.tireFalloff) * gripFront * FzFront;
+    -tireForceNormalized(slipFront, spec.tireStiffnessFront, falloff) * gripFront * FzFront;
   const FyRear =
-    -tireForceNormalized(slipRear, rearStiffness, spec.tireFalloff) * gripRear * FzRear;
+    -tireForceNormalized(slipRear, rearStiffness, falloff) * gripRear * FzRear;
 
   // ─── 6. FUERZA LONGITUDINAL ───────────────────────────────────────────────
   const gearRatio = car.gear > 0 ? spec.gearRatios[car.gear - 1] : car.gear < 0 ? -3.1 : 0;
@@ -162,10 +168,19 @@ export function stepCar(
   const torqueYaw = FyFront * Math.cos(steer) * spec.lengthFront - FyRear * spec.lengthRear;
   // Amortiguación de guiñada: sin esto el auto oscila y tiembla.
   const yawDamping =
-    -car.yawRate * spec.inertiaYaw * (0.55 + spec.diffLock * 0.12) *
+    -car.yawRate * spec.inertiaYaw * (0.55 + spec.diffLock * 0.12) * prof.yawDamp *
     spinDampingMultiplier(car, ctx.assistLevel);
   const spinAssist = antiSpinTorque(car, spec, ctx.assistLevel);
-  car.yawRate += ((torqueYaw + yawDamping + spinAssist) / spec.inertiaYaw) * dt;
+  // Autoalineación: apunta el auto hacia su propia velocidad. En tráfico es lo
+  // que hace que a 200 km/h el auto vaya clavado; en drift está casi apagada.
+  //
+  // El signo importa: driftAngleSigned es (dirección de la velocidad − yaw), así
+  // que para alinear el morro con la velocidad el torque va en el MISMO sentido.
+  // Con el signo invertido el término empuja el auto lejos de su velocidad y
+  // convierte cualquier resbalón en un trompo.
+  const align =
+    car.driftAngleSigned * prof.selfAlign * spec.inertiaYaw * Math.min(1, car.speed / 14);
+  car.yawRate += ((torqueYaw + yawDamping + spinAssist + align) / spec.inertiaYaw) * dt;
   car.yaw = normalizeAngle(car.yaw + car.yawRate * dt);
 
   const c2 = Math.cos(car.yaw);

@@ -285,6 +285,138 @@ export function facadeTexture(): THREE.Texture {
   });
 }
 
+/**
+ * Calzada completa de autopista, con las líneas pintadas adentro.
+ *
+ * La U cubre el ancho total de la calzada y la V se repite cada 40 m, así que
+ * una sola textura resuelve carriles, banda amarilla y bordes sin necesidad de
+ * geometría por raya. Todo se calcula en metros y recién ahí se pasa a píxeles,
+ * para que el marcado tenga el ancho real sin importar cuántos carriles haya.
+ */
+export function highwayTexture(lanes: number, twoWay: boolean, laneWidth = 3.7): THREE.Texture {
+  return cached(`highway_${lanes}_${twoWay}_${laneWidth}`, () => {
+    const W = 512;
+    const H = 1024;
+    const SPAN = 40; // metros de camino que cubre la textura a lo largo
+    const roadWidth = lanes * laneWidth;
+    const pxX = W / roadWidth;
+    const pxY = H / SPAN;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+
+    // ── Asfalto ──
+    const img = ctx.createImageData(W, H);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const n = fbm((x / W) * 40, (y / H) * 40, 4, 40, 17);
+        const g = (hash2(x, y, 4242) - 0.5) * 26;
+        const i = (y * W + x) * 4;
+        img.data[i] = clamp255(130 + (n - 0.5) * 38 + g);
+        img.data[i + 1] = clamp255(133 + (n - 0.5) * 38 + g);
+        img.data[i + 2] = clamp255(144 + (n - 0.5) * 42 + g);
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // Árido
+    for (let i = 0; i < 9000; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H;
+      ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.16)';
+      ctx.beginPath();
+      ctx.arc(x, y, Math.random() * 1.4 + 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Huellas de rodada: el asfalto se pule donde pasan las ruedas ──
+    for (let l = 0; l < lanes; l++) {
+      const centerM = (l + 0.5) * laneWidth;
+      for (const off of [-0.78, 0.78]) {
+        const cx = (centerM + off) * pxX;
+        const halfPx = 0.36 * pxX;
+        const grd = ctx.createLinearGradient(cx - halfPx, 0, cx + halfPx, 0);
+        grd.addColorStop(0, 'rgba(30,32,38,0)');
+        grd.addColorStop(0.5, 'rgba(30,32,38,0.2)');
+        grd.addColorStop(1, 'rgba(30,32,38,0)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(cx - halfPx, 0, halfPx * 2, H);
+      }
+    }
+
+    // ── Juntas longitudinales entre paños de pavimento ──
+    ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+    ctx.lineWidth = Math.max(1, 0.06 * pxX);
+    for (let l = 1; l < lanes; l++) {
+      const x = l * laneWidth * pxX;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+
+    // ── Marcado ──
+    const paint = (xM: number, widthM: number, y0: number, h: number, color: string): void => {
+      ctx.fillStyle = color;
+      ctx.fillRect((xM - widthM / 2) * pxX, y0, Math.max(1.5, widthM * pxX), h);
+    };
+    /** Línea discontinua: 4 m pintados, 6 m de vacío. Cierra justo en 40 m. */
+    const dashed = (xM: number, widthM: number, color: string): void => {
+      for (let k = 0; k < 4; k++) {
+        paint(xM, widthM, k * 10 * pxY, 4 * pxY, color);
+      }
+    };
+
+    const white = 'rgba(232,232,226,0.9)';
+    const yellow = 'rgba(226,182,58,0.92)';
+
+    // Bordes
+    paint(0.4, 0.16, 0, H, white);
+    paint(roadWidth - 0.4, 0.16, 0, H, white);
+
+    // Divisorias
+    const middle = lanes / 2;
+    for (let l = 1; l < lanes; l++) {
+      const x = l * laneWidth;
+      if (twoWay && l === middle) {
+        // Doble amarilla: prohibido cruzar… lo cual es exactamente el punto.
+        paint(x - 0.16, 0.13, 0, H, yellow);
+        paint(x + 0.16, 0.13, 0, H, yellow);
+      } else {
+        dashed(x, 0.13, white);
+      }
+    }
+
+    // ── Desgaste: la pintura nunca está entera ──
+    for (let i = 0; i < 2600; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H;
+      ctx.fillStyle = `rgba(120,123,133,${Math.random() * 0.5})`;
+      ctx.fillRect(x, y, Math.random() * 4 + 1, Math.random() * 3 + 1);
+    }
+
+    // ── Manchas de goma y aceite ──
+    for (let i = 0; i < 26; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H;
+      ctx.fillStyle = `rgba(20,20,24,${0.05 + Math.random() * 0.1})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, Math.random() * 26 + 6, Math.random() * 50 + 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    return tex;
+  });
+}
+
 /** Rayas de obra para las barreras. */
 export function stripeTexture(): THREE.Texture {
   return cached('stripe', () => {

@@ -27,6 +27,7 @@ export class AudioEngine {
   private busImpact!: GainNode;
   private busReward!: GainNode;
   private busMusic!: GainNode;
+  private busWind!: GainNode;
   private noiseBuffer!: AudioBuffer;
 
   // Motor
@@ -41,6 +42,11 @@ export class AudioEngine {
   private tireGain!: GainNode;
   private tireBand!: BiquadFilterNode;
   private tireLow!: GainNode;
+
+  // Viento y rodadura: la sensación de velocidad en la autopista
+  private windGain!: GainNode;
+  private windFilter!: BiquadFilterNode;
+  private rollGain!: GainNode;
 
   private delay!: DelayNode;
   private delayFeedback!: GainNode;
@@ -92,6 +98,7 @@ export class AudioEngine {
     this.busImpact = bus(0.5 * this.volumes.sfx);
     this.busReward = bus(0.85 * this.volumes.sfx);
     this.busMusic = bus(this.volumes.music);
+    this.busWind = bus(0.3 * this.volumes.sfx);
 
     const len = Math.floor(ctx.sampleRate * 2);
     this.noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -112,6 +119,7 @@ export class AudioEngine {
 
     this.buildEngine();
     this.buildTires();
+    this.buildWind();
     this.nextNoteTime = ctx.currentTime;
   }
 
@@ -221,6 +229,115 @@ export class AudioEngine {
     src2.start();
   }
 
+  /**
+   * Viento y rodadura. Es lo que da sensación de velocidad en la autopista:
+   * el motor solo no alcanza porque en 6ª a fondo el rpm casi no se mueve.
+   */
+  private buildWind(): void {
+    const ctx = this.ctx!;
+
+    this.windGain = ctx.createGain();
+    this.windGain.gain.value = 0;
+    this.windGain.connect(this.busWind);
+
+    const air = ctx.createBufferSource();
+    air.buffer = this.noiseBuffer;
+    air.loop = true;
+    this.windFilter = ctx.createBiquadFilter();
+    this.windFilter.type = 'bandpass';
+    this.windFilter.frequency.value = 700;
+    this.windFilter.Q.value = 0.7;
+    air.connect(this.windFilter);
+    this.windFilter.connect(this.windGain);
+    air.start();
+
+    // Rodadura: ruido lento y grave, el ruido del asfalto bajo las ruedas
+    this.rollGain = ctx.createGain();
+    this.rollGain.gain.value = 0;
+    this.rollGain.connect(this.busWind);
+    const roll = ctx.createBufferSource();
+    roll.buffer = this.noiseBuffer;
+    roll.loop = true;
+    roll.playbackRate.value = 0.32;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 240;
+    roll.connect(lp);
+    lp.connect(this.rollGain);
+    roll.start();
+  }
+
+  /** Viento + rodadura en función de la velocidad. `surface` 1 = asfalto. */
+  updateSpeedNoise(speedKmh: number, surface: number, idle: boolean): void {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const v = clamp(speedKmh / 220, 0, 1.2);
+    // Cuadrático: a baja velocidad no se escucha, arriba de 150 domina.
+    this.windGain.gain.setTargetAtTime(idle ? 0 : v * v * 0.5, now, 0.12);
+    this.windFilter.frequency.setTargetAtTime(420 + v * 1500, now, 0.15);
+    // Fuera del asfalto la rodadura se vuelve ripio: más fuerte y más grave.
+    const rough = surface < 0.9 ? 1.9 : 1;
+    this.rollGain.gain.setTargetAtTime(idle ? 0 : clamp(v * 1.3, 0, 1) * 0.34 * rough, now, 0.1);
+  }
+
+  /**
+   * Pasada de un auto. Barrido de banda hacia abajo = efecto Doppler; si viene
+   * de frente el barrido es mucho más violento, que es exactamente lo que
+   * escuchás cuando te cruzás a alguien a 200 de contramano.
+   */
+  whoosh(intensity: number, oncoming: boolean): void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const dur = oncoming ? 0.3 : 0.5;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    src.loop = true;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = oncoming ? 1.4 : 2.2;
+    const from = oncoming ? 1500 : 900;
+    band.frequency.setValueAtTime(from, t);
+    band.frequency.exponentialRampToValueAtTime(from * (oncoming ? 0.34 : 0.55), t + dur);
+    const g = ctx.createGain();
+    const peak = clamp(intensity, 0, 1) * (oncoming ? 0.5 : 0.34);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.002, peak), t + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(band);
+    band.connect(g);
+    g.connect(this.busWind);
+    src.start(t);
+    src.stop(t + dur + 0.02);
+  }
+
+  /** Bocina del que casi chocás. Dos tonos, con caída de tono al alejarse. */
+  horn(oncoming: boolean): void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const dur = 0.42;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.13, t + 0.02);
+    g.gain.setValueAtTime(0.13, t + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.connect(this.busImpact);
+    for (const base of [392, 494]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(base, t);
+      o.frequency.linearRampToValueAtTime(base * (oncoming ? 0.82 : 0.93), t + dur);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 1800;
+      o.connect(lp);
+      lp.connect(g);
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    }
+  }
+
   setCar(def: CarDefinition): void {
     this.carDef = def;
     if (!this.ctx) return;
@@ -240,6 +357,7 @@ export class AudioEngine {
     this.busTire.gain.value = 0.2 * sfx;
     this.busImpact.gain.value = 0.5 * sfx;
     this.busReward.gain.value = 0.85 * sfx;
+    this.busWind.gain.value = 0.3 * sfx;
   }
 
   setMuted(muted: boolean): void {

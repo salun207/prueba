@@ -6,7 +6,9 @@ import * as A from '../meta/Actions';
 import { buildCar, carValue } from '../meta/CarBuild';
 import { ASSIST_PAYOUT, carXpForLevel, computeBonuses, xpForLevel, type RunRewards } from '../meta/Economy';
 import { getMap, isMapUnlocked, MAPS } from '../data/maps';
+import { getRoute, isRouteUnlocked, ROUTES } from '../data/routes';
 import type { ChallengeSave, SaveGame } from '../save/types';
+import type { TrafficStats } from '../sim/Highway';
 import type { RunStats } from '../sim/ScoreSystem';
 import { fmt, fmtCash, fmtInt } from './format';
 
@@ -14,6 +16,8 @@ export interface UiHost {
   save: SaveGame;
   startRun(): void;
   onMapChanged(): void;
+  onRouteChanged(): void;
+  onModeChanged(): void;
   /** Foto renderizada del auto, o null si todavía no está lista. */
   carPreview(carId: string, paint?: string): string | null;
   resumeRun(): void;
@@ -23,7 +27,7 @@ export interface UiHost {
   markDirty(): void;
 }
 
-type Screen = 'hidden' | 'garage' | 'results' | 'pause';
+type Screen = 'hidden' | 'garage' | 'results' | 'trafficResults' | 'pause';
 
 const PALETTE = [
   '#ff4d3a', '#ffb03a', '#ffe9c0', '#7fd4c1',
@@ -35,11 +39,16 @@ export class GameUI {
   private root: HTMLElement;
   private host: UiHost;
   private screen: Screen = 'hidden';
-  private tab = 'maps';
+  private tab = 'modes';
   private results: {
     rewards: RunRewards;
     stats: RunStats;
     challenges: string[];
+    levelUps: number;
+  } | null = null;
+  private trafficResults: {
+    rewards: RunRewards;
+    stats: TrafficStats;
     levelUps: number;
   } | null = null;
   private toastTimer = 0;
@@ -77,6 +86,12 @@ export class GameUI {
     this.render();
   }
 
+  showTrafficResults(rewards: RunRewards, stats: TrafficStats, levelUps: number): void {
+    this.trafficResults = { rewards, stats, levelUps };
+    this.screen = 'trafficResults';
+    this.render();
+  }
+
   showPause(): void {
     this.screen = 'pause';
     this.render();
@@ -108,6 +123,7 @@ export class GameUI {
     switch (this.screen) {
       case 'garage': this.root.innerHTML = this.garageHtml(); break;
       case 'results': this.root.innerHTML = this.resultsHtml(); break;
+      case 'trafficResults': this.root.innerHTML = this.trafficResultsHtml(); break;
       case 'pause': this.root.innerHTML = this.pauseHtml(); break;
       default: this.root.innerHTML = '';
     }
@@ -116,6 +132,9 @@ export class GameUI {
   private topBar(): string {
     const s = this.save;
     const need = xpForLevel(s.playerLevel);
+    const where = s.gameMode === 'traffic'
+      ? getRoute(s.selectedRoute).name
+      : getMap(s.selectedMap).name;
     return `
       <header class="topbar">
         <div class="currencies">
@@ -126,14 +145,16 @@ export class GameUI {
           </span>
         </div>
         <button class="drive" data-act="drive">
-          MANEJAR<small>${getMap(this.save.selectedMap).name}</small>
+          MANEJAR<small>${s.gameMode === 'traffic' ? 'TRÁFICO' : 'DRIFT'} · ${where}</small>
         </button>
       </header>`;
   }
 
   private tabs(): string {
     const list: [string, string][] = [
-      ['maps', 'Circuitos'],
+      ['modes', 'Modo'],
+      [this.save.gameMode === 'traffic' ? 'routes' : 'maps',
+        this.save.gameMode === 'traffic' ? 'Rutas' : 'Circuitos'],
       ['cars', 'Autos'],
       ['upgrades', 'Mejoras'],
       ['setup', 'Setup'],
@@ -150,6 +171,8 @@ export class GameUI {
   private garageHtml(): string {
     let body = '';
     switch (this.tab) {
+      case 'modes': body = this.tabModes(); break;
+      case 'routes': body = this.tabRoutes(); break;
       case 'maps': body = this.tabMaps(); break;
       case 'cars': body = this.tabCars(); break;
       case 'upgrades': body = this.tabUpgrades(); break;
@@ -212,6 +235,80 @@ export class GameUI {
     return url
       ? `<img class="carshot" src="${url}" alt="" width="320" height="200">`
       : '<div class="carchip"></div>';
+  }
+
+  // ── Modo de juego ──
+  private tabModes(): string {
+    const s = this.save;
+    const r = s.records;
+    const card = (
+      id: string, name: string, blurb: string, best: string, keys: string,
+    ): string => `
+      <div class="card map ${s.gameMode === id ? 'active' : ''}">
+        <h3>${name}</h3>
+        <p class="blurb">${blurb}</p>
+        <small>${best}</small>
+        <p class="hint">${keys}</p>
+        <div class="actions">
+          ${s.gameMode === id
+            ? '<button disabled>ELEGIDO</button>'
+            : `<button data-act="mode" data-id="${id}">JUGAR ESTE</button>`}
+        </div>
+      </div>`;
+
+    return `<h2>Modo de juego</h2>
+      <p class="hint">Los dos comparten garage, plata y reputación: el auto que mejorás sirve para los dos.</p>
+      <div class="grid">
+        ${card(
+          'traffic', 'Tráfico',
+          'Autopista infinita. Esquivás autos a toda velocidad y cobrás por pasar cerca; ' +
+          'la mano contraria paga el doble. El run se termina cuando chocás fuerte.',
+          r.bestTrafficScore
+            ? `Mejor: ${fmtInt(r.bestTrafficScore)} pts · ${fmtInt(r.bestTrafficDistance)} m`
+            : 'Sin correr todavía',
+          'El auto va plantado: se maneja con reflejos, no peleándolo.',
+        )}
+        ${card(
+          'drift', 'Drift',
+          'Circuitos cerrados, 2 minutos por run. Encadenás derrapes y el combo multiplica ' +
+          'todo lo que venís juntando.',
+          r.bestScore ? `Mejor: ${fmtInt(r.bestScore)} pts · combo ×${r.bestCombo.toFixed(1)}` : 'Sin correr todavía',
+          'ESPACIO es freno de mano: el tren trasero se suelta.',
+        )}
+      </div>`;
+  }
+
+  // ── Rutas del modo tráfico ──
+  private tabRoutes(): string {
+    const s = this.save;
+    const cards = ROUTES.map((r) => {
+      const unlocked = isRouteUnlocked(r, s.rep);
+      const active = s.selectedRoute === r.id;
+      const rec = s.trafficRecords[r.id];
+      const stars = '●'.repeat(r.difficulty) + '○'.repeat(3 - r.difficulty);
+      const lanes = `${r.cfg.lanes} carril${r.cfg.lanes > 1 ? 'es' : ''} por mano` +
+        `${r.cfg.twoWay ? ' · doble mano' : ' · mano única'}`;
+      return `
+        <div class="card map ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}">
+          <div class="bar"><i style="width:${unlocked ? 100 : Math.min(100, (s.rep / r.repRequired) * 100)}%"></i></div>
+          <h3>${r.name} <span class="diff">${stars}</span></h3>
+          <p class="blurb">${r.blurb}</p>
+          <small>${lanes} · tráfico a ${r.cfg.trafficKmh} km/h</small><br>
+          <small>${rec
+            ? `Mejor: ${fmtInt(rec.bestScore)} pts · ${fmtInt(rec.bestDistance)} m · ${fmtCash(rec.bestCash)}`
+            : 'Sin correr todavía'}</small>
+          <div class="actions">
+            ${unlocked
+              ? active
+                ? '<button disabled>ELEGIDA</button>'
+                : `<button data-act="selectroute" data-id="${r.id}">ELEGIR</button>`
+              : `<button disabled>🔒 ${r.repRequired} ★ — te faltan ${r.repRequired - s.rep}</button>`}
+          </div>
+        </div>`;
+    }).join('');
+    return `<h2>Rutas</h2>
+            <p class="hint">Se abren con reputación (★). Tenés ${fmt(s.rep)} ★.</p>
+            <div class="grid">${cards}</div>`;
   }
 
   // ── Circuitos ──
@@ -364,19 +461,32 @@ export class GameUI {
   // ── Récords ──
   private tabRecords(): string {
     const r = this.save.records;
-    const rows: [string, string][] = [
+    const drift: [string, string][] = [
       ['Mejor score', fmtInt(r.bestScore)],
       ['Mejor combo', `×${r.bestCombo.toFixed(2)}`],
       ['Drift más largo', `${r.longestDrift.toFixed(1)} s`],
+      ['Distancia driftada', `${fmtInt(r.totalDriftDistance)} m`],
+    ];
+    const traffic: [string, string][] = [
+      ['Mejor score', fmtInt(r.bestTrafficScore)],
+      ['Distancia más larga', `${fmtInt(r.bestTrafficDistance)} m`],
+      ['Autos pasados', fmtInt(r.totalOvertakes)],
+      ['Pasadas al ras', fmtInt(r.totalNearMisses)],
+    ];
+    const common: [string, string][] = [
       ['Mejor run pagado', fmtCash(r.bestCashRun)],
       ['Plata total ganada', fmtCash(r.totalCashEarned)],
-      ['Distancia driftada', `${fmtInt(r.totalDriftDistance)} m`],
       ['Runs jugados', fmtInt(r.totalRuns)],
       ['Choques', fmtInt(r.totalCrashes)],
     ];
-    return `<h2>Récords</h2><table class="records">${rows
-      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
-      .join('')}</table>`;
+    const table = (rows: [string, string][]): string =>
+      `<table class="records">${rows
+        .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
+        .join('')}</table>`;
+    return `<h2>Récords</h2>
+      <h3>Tráfico</h3>${table(traffic)}
+      <h3>Drift</h3>${table(drift)}
+      <h3>General</h3>${table(common)}`;
   }
 
   // ── Opciones ──
@@ -469,6 +579,62 @@ export class GameUI {
       </div>`;
   }
 
+  // ── Resultados de tráfico ──
+  private trafficResultsHtml(): string {
+    const r = this.trafficResults;
+    if (!r) return '';
+    const { rewards, stats, levelUps } = r;
+
+    const style = rewards.styleParts.map((p, i) => `
+      <tr style="animation-delay:${300 + i * 70}ms">
+        <td>${p.label}</td>
+        <td class="${p.value >= 0 ? 'plus' : 'minus'}">${p.value >= 0 ? '+' : ''}${Math.round(p.value * 100)}%</td>
+      </tr>`).join('');
+
+    const rows: [string, string][] = [
+      ['Distancia', stats.distance >= 1000
+        ? `${(stats.distance / 1000).toFixed(2)} km`
+        : `${Math.round(stats.distance)} m`],
+      ['Autos pasados', fmtInt(stats.overtakes)],
+      ['Pasadas al ras', fmtInt(stats.nearMisses)],
+      ['Mejor combo', `×${stats.bestCombo.toFixed(1)}`],
+      ['Contramano', `${stats.oncomingTime.toFixed(1)} s`],
+      ['Velocidad máxima', `${Math.round(stats.topSpeed)} km/h`],
+    ];
+
+    return `
+      <div class="screen results">
+        <h1>${stats.crashed ? 'CHOCASTE' : 'RUN TERMINADO'}</h1>
+        <div class="bigscore">${fmtInt(rewards.score)}<span>puntos</span></div>
+
+        <div class="payout">
+          <div class="payline"><span>Base</span><b>${fmtCash(Math.floor(rewards.score * 0.12))}</b></div>
+          <table class="stylebreak">${style}</table>
+          <div class="payline total">
+            <span>Estilo ×${rewards.style.toFixed(2)}</span>
+            <b class="cash">${fmtCash(rewards.cash)}</b>
+          </div>
+        </div>
+
+        <table class="summary-table">${rows
+          .map(([k, v], i) => `<tr style="animation-delay:${i * 70}ms"><td>${k}</td><td>${v}</td></tr>`)
+          .join('')}</table>
+
+        <div class="rewards">
+          <div style="animation-delay:700ms"><b>${fmtCash(rewards.cash)}</b><span>PLATA</span></div>
+          <div style="animation-delay:780ms"><b>★ ${fmt(rewards.rep)}</b><span>REPUTACIÓN</span></div>
+          <div style="animation-delay:860ms"><b>${fmt(rewards.xp)}</b><span>XP</span></div>
+        </div>
+
+        ${levelUps > 0 ? `<p class="levelup">¡SUBISTE ${levelUps} NIVEL${levelUps > 1 ? 'ES' : ''}!</p>` : ''}
+
+        <div class="actions big">
+          <button data-act="drive">OTRA VUELTA</button>
+          <button class="ghost" data-act="togarage">GARAGE</button>
+        </div>
+      </div>`;
+  }
+
   private pauseHtml(): string {
     return `
       <div class="screen modal">
@@ -548,6 +714,21 @@ export class GameUI {
         }
         break;
       }
+      case 'selectroute': {
+        const entry = getRoute(id);
+        ok = isRouteUnlocked(entry, s.rep);
+        if (ok) {
+          s.selectedRoute = id;
+          this.host.onRouteChanged();
+          this.toast(`Ruta: ${entry.name}`);
+        }
+        break;
+      }
+      case 'mode':
+        s.gameMode = id === 'drift' ? 'drift' : 'traffic';
+        this.host.onModeChanged();
+        this.toast(s.gameMode === 'traffic' ? 'Modo tráfico' : 'Modo drift');
+        break;
 
       case 'setup-rec': {
         const car = s.cars.find((c) => c.instanceId === s.activeCarInstanceId)!;

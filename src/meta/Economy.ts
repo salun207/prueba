@@ -1,4 +1,5 @@
 import type { SaveGame } from '../save/types';
+import type { TrafficStats } from '../sim/Highway';
 import type { RunStats } from '../sim/ScoreSystem';
 
 /**
@@ -103,6 +104,55 @@ export function runRewards(stats: RunStats, b: Bonuses): RunRewards {
     cash,
     rep,
     xp: Math.floor(stats.score / 200),
+    style: style.total,
+    styleParts: style.parts,
+  };
+}
+
+// ───────────────────── recompensas del modo tráfico ─────────────────────
+
+/**
+ * El score de tráfico crece mucho más lento que el de drift (metros, no puntos
+ * de combo), así que la tasa es más alta para que un run comparable pague algo
+ * parecido. El estilo acá es otro: premia esquivar de cerca y andar de
+ * contramano, y castiga terminar contra un auto.
+ */
+export const TRAFFIC_CASH_RATE = 0.12;
+export const TRAFFIC_REP_RATE = 1 / 2200;
+
+export function trafficStyle(stats: TrafficStats): {
+  total: number;
+  parts: { label: string; value: number }[];
+} {
+  const parts: { label: string; value: number }[] = [];
+
+  const near = Math.min(stats.nearMisses, 60) * 0.012;
+  if (near > 0.005) parts.push({ label: `${stats.nearMisses} pasadas al ras`, value: near });
+
+  const combo = (stats.bestCombo - 1) * 0.05;
+  if (combo > 0.005) parts.push({ label: `Combo ×${stats.bestCombo.toFixed(1)}`, value: combo });
+
+  const onc = Math.min(stats.oncomingTime, 40) * 0.012;
+  if (onc > 0.005) parts.push({ label: `${stats.oncomingTime.toFixed(0)} s de contramano`, value: onc });
+
+  const fast = Math.max(0, stats.topSpeed - 140) * 0.004;
+  if (fast > 0.005) parts.push({ label: `Punta de ${Math.round(stats.topSpeed)} km/h`, value: fast });
+
+  if (!stats.crashed && stats.distance > 200) parts.push({ label: 'Llegaste entero', value: 0.3 });
+  else if (stats.crashed) parts.push({ label: 'Terminaste chocando', value: -0.2 });
+
+  const total = Math.max(0.4, 1 + parts.reduce((a, p) => a + p.value, 0));
+  return { total, parts };
+}
+
+export function trafficRewards(stats: TrafficStats, b: Bonuses): RunRewards {
+  const style = trafficStyle(stats);
+  const score = Math.floor(stats.score);
+  return {
+    score,
+    cash: Math.floor(score * TRAFFIC_CASH_RATE * style.total * b.cashBonus),
+    rep: Math.floor(score * TRAFFIC_REP_RATE * style.total * b.repBonus),
+    xp: Math.floor(score / 80),
     style: style.total,
     styleParts: style.parts,
   };

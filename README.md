@@ -1,14 +1,16 @@
 # NEON APEX
 
-Juego de drift arcade en tercera persona. Circuitos al atardecer, cámara de persecución,
-y toda la plata sale de driftear. Corre en el navegador, sin instalación y sin conexión.
+Juego de manejo arcade en tercera persona con **dos modos**: **Tráfico** — autopista
+infinita esquivando autos a toda velocidad — y **Drift** — circuitos cerrados encadenando
+derrapes. Se elige en el menú y comparten garage, plata y reputación. Corre en el
+navegador, sin instalación y sin conexión.
 
 **Jugar ya:** https://claude.ai/code/artifact/1424160b-aec9-439c-94e0-8a0d310ca62d
 
 ```bash
 npm install
 npm run dev           # http://localhost:5173
-npm test              # 41 tests de física, economía, circuitos y saves
+npm test              # 51 tests de física, autopista, economía, circuitos y saves
 npm run build         # typecheck + bundle
 npm run build:single  # todo en un solo HTML autocontenido (dist-single/)
 npm run smoke         # prueba en Chromium headless (requiere playwright)
@@ -20,7 +22,7 @@ npm run smoke         # prueba en Chromium headless (requiere playwright)
 |---|---|---|
 | Acelerar / Frenar | `W` `S` (o flechas) | RT / LT |
 | Girar | `A` `D` | Stick izquierdo |
-| Freno de mano | `Espacio` | A / X |
+| Freno de mano (solo drift) | `Espacio` | A / X |
 | Reset del auto | `R` | Y / △ |
 | Cambiar cámara | `C` | RB |
 | Pausa | `Esc` | Start |
@@ -28,7 +30,38 @@ npm run smoke         # prueba en Chromium headless (requiere playwright)
 Táctil: mitad inferior de la pantalla — izquierda freno de mano, centro volante
 (arrastrar), derecha freno y acelerador.
 
-## Circuitos
+## Modo Tráfico
+
+Una autopista **infinita**: el camino se describe con una función analítica de la
+distancia (`centerX(z) = sin(z/620)·74 + sin(z/233 + 1.7)·21`) y la geometría se recicla
+por cinta transportadora alrededor del jugador. No hay mapa que se termine ni hay dos
+tramos iguales.
+
+El run dura **hasta que chocás fuerte**: un roce te saca el combo, un impacto a más de
+~32 km/h relativos o de frente termina la corrida. Los puntos salen de tres cosas:
+
+```
+puntos/metro = velocidad × riesgo × combo × 1.4
+```
+
+- **Velocidad**: por debajo de 55 km/h no paga nada; escala hasta ×2.2.
+- **Riesgo**: ir de **contramano** paga **×2.2**.
+- **Combo**: cada pasada al ras (a menos de 1.3 m) lo sube medio punto hasta ×10, y se
+  cae solo a los 3 segundos si no seguís arriesgando.
+
+Tres rutas, que se abren con reputación:
+
+| Ruta | Se abre con | Qué es |
+|---|---|---|
+| **Autopista Costera** | desde el arranque | 3 carriles por mano, doble mano, curvas largas. |
+| **Ruta Libre** | 120 ★ | 2 carriles, poco tráfico y muy rápido: el que viene de frente aparece de golpe. |
+| **Hora Pico** | 450 ★ | 4 carriles por mano y todos llenos, tráfico lento. La plata está en pasar entre medio. |
+
+En este modo el auto va **plantado**: el perfil de manejo sube el grip trasero, aplana la
+caída de la goma pasado el pico y agrega un torque de autoalineación que apunta el morro
+hacia el vector velocidad. Se esquiva con reflejos, no peleando el auto.
+
+## Circuitos (modo Drift)
 
 Tres, y se abren con **reputación (★)**, que se gana drifteando:
 
@@ -48,10 +81,18 @@ Manejando, y nada más. **No hay ingreso pasivo, ni sponsors, ni staff, ni ganan
 offline, ni prestige.** Si el juego está cerrado, no pasa nada.
 
 ```
-plata = puntos × 0.045 × estilo × asistencias
+drift:   plata = puntos × 0.045 × estilo × asistencias
+tráfico: plata = puntos × 0.12  × estilo × asistencias
 ```
 
-El **estilo** es el multiplicador que premia manejar bien, no manejar mucho:
+La tasa de tráfico es más alta porque su score crece mucho más lento (metros, no puntos de
+combo): un run parecido paga parecido en los dos modos.
+
+En **tráfico** el estilo premia otra cosa: +1.2% por pasada al ras (tope 60), +5% por punto
+de combo, +1.2% por segundo de contramano (tope 40), +0.4% por km/h arriba de 140, **+30%**
+si llegás entero y **−20%** si terminás chocando.
+
+En **drift**, el estilo premia manejar bien, no manejar mucho:
 
 | Concepto | Efecto |
 |---|---|
@@ -102,7 +143,7 @@ pago.
 
 ## Audio
 
-La primera versión sonaba chillona. Se rehízo con dos reglas:
+La primera versión sonaba chillona. Se rehízo con tres reglas:
 
 1. **Motor y gomas son ambiente.** Armónicos con caída suave (`PeriodicWave` con
    amplitudes 1/n^1.25 en vez de sierra + distorsión), filtros cerrados y ganancia baja.
@@ -111,6 +152,11 @@ La primera versión sonaba chillona. Se rehízo con dos reglas:
    pentatónica y sube. Encadenar 20 conos suena a que estás subiendo algo, no a ruido.
    Los tiers tocan acordes ascendentes y cobrar el combo resuelve con un arpegio y un
    golpe grave.
+3. **La velocidad se escucha.** En 6ª a fondo el rpm casi no se mueve, así que el motor
+   solo no da sensación de velocidad: hay una capa de viento (ruido filtrado, ganancia
+   cuadrática con la velocidad) y otra de rodadura grave que se vuelve ripio fuera del
+   asfalto. Cada auto que pasás dispara un barrido de banda hacia abajo — Doppler — mucho
+   más violento si viene de frente, y si lo rozás te toca bocina con caída de tono.
 
 Todo sigue siendo sintetizado en runtime: cero archivos de audio.
 
@@ -119,7 +165,16 @@ Todo sigue siendo sintetizado en runtime: cero archivos de audio.
 Todo procedural, generado en canvas al iniciar: asfalto con árido, fisuras y parches de
 reparación; hormigón con juntas; pasto y tierra con matas y piedras; fachadas con grilla
 de ventanas (algunas encendidas); rayas de obra en las barreras; chapa corrugada con
-óxido en los contenedores. Las fachadas usan un shader que escala las UV según el tamaño
+óxido en los contenedores. La **calzada de autopista** es una sola textura con el marcado
+pintado adentro (líneas de borde, discontinuas de carril, doble amarilla al eje, huellas
+de rodada y goma), calculada en metros y recién ahí pasada a píxeles, así el ancho de las
+rayas es el real tenga la ruta 2 carriles o 8.
+
+Las **carrocerías** se generan por lofting: se define la silueta con estaciones a lo largo
+del auto (ancho y altura del techo en cada punto) y se cose una superficie entre ellas.
+Salen capó, parabrisas inclinado, techo, luneta y baúl como una sola cáscara continua, en
+nueve siluetas distintas. Los camiones se arman aparte con cajas, porque estirar una
+silueta de auto a 10 metros da una gota deforme. Las fachadas usan un shader que escala las UV según el tamaño
 real de cada edificio, para que las ventanas midan lo mismo en uno de 12 m y en uno de 40.
 
 Las **fotos de los autos** del garage son el mismo modelo 3D que manejás, renderizado en
@@ -154,8 +209,9 @@ rendimiento. Pagan plata extra; si no los hacés, no perdés nada.
 
 ## Qué NO está implementado
 
-- **Modos**: solo el run cronometrado de 2 minutos. Faltan Time Attack, Gymkhana,
-  persecución y tandem.
+- **Modos**: Tráfico y Drift. Faltan Time Attack, Gymkhana, persecución y tandem.
+- **Tráfico con IA**: los autos de la autopista van a velocidad fija en su carril; no
+  cambian de carril, no frenan y no reaccionan al jugador.
 - **Verticalidad**: la simulación es plana, así que no hay peraltes, saltos ni la
   autopista elevada de la ciudad.
 - **Replays y fotomodo.**

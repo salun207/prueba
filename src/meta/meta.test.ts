@@ -244,7 +244,7 @@ describe('migración de saves', () => {
     const { SaveManager } = await import('../save/SaveManager');
     const s = new SaveManager().data as SaveGame & Record<string, unknown>;
 
-    expect(s.version).toBe(3);
+    expect(s.version).toBe(4);
     expect(s.hypeTotal).toBeUndefined();
     expect(s.sponsors).toBeUndefined();
     expect(s.bays).toBeUndefined();
@@ -257,6 +257,10 @@ describe('migración de saves', () => {
     // v3: aparecen los mapas, y un save viejo arranca en el circuito
     expect(s.selectedMap).toBe('apex');
     expect(s.mapRecords).toEqual({});
+    // v4: aparece el modo tráfico, pero un save viejo sigue en el que conocía
+    expect(s.gameMode).toBe('drift');
+    expect(s.selectedRoute).toBe('autopista');
+    expect(s.trafficRecords).toEqual({});
     localStorage.clear();
   });
 });

@@ -308,3 +308,218 @@ describe('score', () => {
     expect(measure(false)).toBeLessThan(measure(true) * 0.6);
   });
 });
+
+describe('autopista (modo tráfico)', () => {
+  it('la calzada, la banquina y los guardarraíles quedan en ese orden', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS } = await import('./Highway');
+    const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    const cx = w.centerX(0);
+
+    expect(w.halfWidth).toBeGreaterThan(0);
+    expect(w.railOffset).toBeGreaterThan(w.halfWidth);
+
+    expect(w.onRoad(cx, 0)).toBe(true);
+    expect(w.onRoad(cx + w.halfWidth - 0.5, 0)).toBe(true);
+    expect(w.onRoad(cx + w.railOffset, 0)).toBe(false);
+
+    // El grip cae al salirse: asfalto → banquina → pasto
+    expect(w.gripAt(cx, 0)).toBe(1);
+    expect(w.gripAt(cx + w.halfWidth + 1, 0)).toBeLessThan(1);
+    expect(w.gripAt(cx + w.halfWidth + 10, 0)).toBeLessThan(w.gripAt(cx + w.halfWidth + 1, 0));
+  });
+
+  it('todos los carriles caen dentro de la calzada y no se pisan', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS } = await import('./Highway');
+    for (const cfg of Object.values(TRAFFIC_PRESETS)) {
+      const w = new HighwayWorld(cfg);
+      const lanes: number[] = [];
+      for (let i = 0; i < cfg.lanes; i++) lanes.push(i);
+      if (cfg.twoWay) for (let i = 1; i <= cfg.lanes; i++) lanes.push(-i);
+
+      const centers = lanes.map((l) => w.laneCenter(0, l) - w.centerX(0)).sort((a, b) => a - b);
+      for (const c of centers) {
+        expect(Math.abs(c) + cfg.laneWidth / 2).toBeLessThanOrEqual(w.halfWidth + 1e-9);
+      }
+      for (let i = 1; i < centers.length; i++) {
+        expect(centers[i] - centers[i - 1]).toBeCloseTo(cfg.laneWidth, 6);
+      }
+    }
+  });
+
+  it('la mano contraria solo existe si la ruta es de doble mano', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS } = await import('./Highway');
+    const two = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    const one = new HighwayWorld(TRAFFIC_PRESETS.ruta_libre);
+    expect(two.inOncoming(two.centerX(0) - 3, 0)).toBe(true);
+    expect(two.inOncoming(two.centerX(0) + 3, 0)).toBe(false);
+    expect(one.inOncoming(one.centerX(0) - 3, 0)).toBe(false);
+  });
+
+  it('el tráfico se repuebla siempre por delante del jugador', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS } = await import('./Highway');
+    const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    w.reset(0);
+    expect(w.cars.filter((c) => c.active).length).toBeGreaterThan(0);
+
+    let z = 0;
+    for (let f = 0; f < 4000; f++) {
+      z += 50 * DT;
+      w.update(z, DT);
+    }
+    const active = w.cars.filter((c) => c.active);
+    expect(active.length).toBeGreaterThan(0);
+    // Ninguno quedó colgado kilómetros atrás: el reciclado funciona
+    for (const c of active) expect(c.z).toBeGreaterThan(z - 200);
+    // Y siempre hay alguno adelante para esquivar
+    expect(active.some((c) => c.z > z + 50)).toBe(true);
+  });
+
+  it('el guardarraíl frena al auto en vez de dejarlo salir', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS, resolveHighway } = await import('./Highway');
+    const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    for (const c of w.cars) c.active = false;
+    const spec = getCar('kite_240').spec;
+    const car = createCarState(w.centerX(0) + w.railOffset + 5, 0, 0);
+    car.velX = 12;
+    let railHits = 0;
+    resolveHighway(car, spec, w, {
+      onNearMiss: () => {}, onOvertake: () => {},
+      onCrash: () => {}, onRail: () => { railHits++; },
+    });
+    expect(railHits).toBe(1);
+    expect(Math.abs(w.lateral(car.posX, car.posZ))).toBeLessThanOrEqual(w.railOffset + 1e-6);
+    expect(car.velX).toBeLessThan(0); // rebotó hacia adentro
+  });
+
+  it('un contacto sostenido cuenta un solo choque, no uno por frame', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS, resolveHighway } = await import('./Highway');
+    const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    w.reset(0);
+    for (const c of w.cars) c.active = false;
+
+    const target = w.cars[0];
+    target.active = true;
+    target.lane = 0;
+    target.z = 20;
+    target.x = w.laneCenter(20, 0);
+    target.speed = 20;
+    target.dir = 1;
+    target.length = 4.6;
+    target.width = 1.9;
+    target.hitCooldown = 0;
+
+    const spec = getCar('kite_240').spec;
+    const car = createCarState(target.x, target.z, 0);
+    car.velZ = 40;
+
+    let crashes = 0;
+    for (let f = 0; f < 30; f++) {
+      resolveHighway(car, spec, w, {
+        onNearMiss: () => {}, onOvertake: () => {},
+        onCrash: () => { crashes++; }, onRail: () => {},
+      });
+      w.update(car.posZ, DT);
+    }
+    expect(crashes).toBe(1);
+  });
+
+  it('el score premia velocidad y riesgo, no distancia sola', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS, TrafficScore } = await import('./Highway');
+    const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    for (const c of w.cars) c.active = false;
+
+    const run = (speed: number, oncoming: boolean): number => {
+      const s = new TrafficScore();
+      const car = createCarState(w.centerX(0) + (oncoming ? -3 : 3), 0, 0);
+      s.reset(car);
+      for (let f = 0; f < 600; f++) {
+        car.posZ += speed * DT;
+        car.posX = w.centerX(car.posZ) + (oncoming ? -3 : 3);
+        car.speed = speed;
+        s.update(car, w, DT);
+      }
+      return s.stats.score;
+    };
+
+    const slow = run(18, false);   // ~65 km/h
+    const fast = run(50, false);   // ~180 km/h
+    const risky = run(50, true);
+    expect(fast).toBeGreaterThan(slow * 3);
+    expect(risky).toBeGreaterThan(fast * 1.8);
+  });
+
+  it('pasar al ras sube el combo y se cae solo con el tiempo', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS, TrafficScore } = await import('./Highway');
+    const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    for (const c of w.cars) c.active = false;
+    const s = new TrafficScore();
+    const car = createCarState(w.centerX(0) + 3, 0, 0);
+    s.reset(car);
+
+    s.nearMiss(0.3);
+    s.nearMiss(0.3);
+    expect(s.combo).toBeGreaterThan(1);
+    expect(s.stats.nearMisses).toBe(2);
+
+    car.speed = 40;
+    for (let f = 0; f < 600; f++) {
+      car.posZ += 40 * DT;
+      s.update(car, w, DT);
+    }
+    expect(s.combo).toBe(1); // se venció la ventana de 3 s
+    expect(s.stats.bestCombo).toBeGreaterThan(1);
+  });
+});
+
+describe('perfiles de manejo', () => {
+  it('el perfil de tráfico va mucho más plantado que el de drift', async () => {
+    const { HANDLING } = await import('./Handling');
+    const spec = getCar('kite_240').spec;
+
+    /**
+     * Mismo latigazo de volante a 160 km/h en los dos perfiles: tope de lock a
+     * un lado, tope al otro y soltar. Devuelve el ángulo máximo que se cruzó y
+     * el que le queda un segundo después de soltar.
+     */
+    const flick = (mode: 'drift' | 'traffic'): { peak: number; settled: number } => {
+      const car = createCarState(0, 0, 0);
+      car.velZ = 45;
+      car.speed = 45;
+      car.gear = 4;
+      car.rpm = 5000;
+      const input = createInput();
+      const c = ctx({ handling: HANDLING[mode] });
+      let peak = 0;
+      for (let f = 0; f < 360; f++) {
+        input.throttle = 1;
+        input.steer = f < 60 ? 1 : f < 120 ? -1 : 0;
+        stepCar(car, spec, input, c, DT);
+        peak = Math.max(peak, car.driftAngle);
+      }
+      return { peak, settled: car.driftAngle };
+    };
+
+    const drift = flick('drift');
+    const traffic = flick('traffic');
+    expect(traffic.peak).toBeLessThan(drift.peak);
+    expect(traffic.peak).toBeLessThan(DEG(30));
+    // Lo que de verdad define "plantado": soltando el volante se endereza solo.
+    expect(traffic.settled).toBeLessThan(DEG(4));
+  });
+
+  it('en tráfico el auto no se cruza solo yendo derecho a fondo', async () => {
+    const { HANDLING } = await import('./Handling');
+    const spec = getCar('kite_300zt').spec;
+    const car = createCarState(0, 0, 0);
+    car.velZ = 30;
+    car.speed = 30;
+    car.gear = 3;
+    car.rpm = 5000;
+    const input = createInput();
+    input.throttle = 1;
+    const c = ctx({ handling: HANDLING.traffic });
+    for (let f = 0; f < 1200; f++) stepCar(car, spec, input, c, DT);
+    expect(car.driftAngle).toBeLessThan(DEG(2));
+    expect(Math.abs(car.posX)).toBeLessThan(1);
+  });
+});

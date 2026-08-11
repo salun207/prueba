@@ -1,6 +1,6 @@
 # MEGA PROMPT — "NEON APEX" (working title)
 
-## Juego de drift arcade, cámara aérea, mapa ciudad, con capa tycoon de garage
+## Juego de manejo arcade: modo tráfico en autopista + modo drift en circuitos
 
 > **Cómo usar este documento:** esto es el brief completo para el developer (humano o
 > agente). Está escrito para poder ser pegado entero como prompt de implementación, o
@@ -38,7 +38,32 @@
 >   con juntas, pasto, tierra, fachadas con grilla de ventanas y UV escaladas por el
 >   tamaño real de cada instancia. Ver `src/render/Textures.ts`.
 >
-> El resto del documento (física, scoring, arquitectura) sigue vigente.
+> **Revisión 4 — el juego pasa a tener dos modos.** El feedback fue que el manejo de
+> drift se sentía raro y que lo que se quería jugar era un juego de tráfico. El drift no
+> se borró: pasó a ser una **opción del menú**, y el modo por defecto es **Tráfico**.
+>
+> - **§9-bis Mundo nuevo: la autopista infinita.** No hay mapa. El camino es una función
+>   analítica de la distancia, `centerX(z) = sin(z/620)·74 + sin(z/233 + 1.7)·21`, y la
+>   geometría se recicla por cinta transportadora alrededor del jugador (160 estaciones
+>   cada 10 m). Lo único sólido son los autos y los guardarraíles, así que la colisión es
+>   exacta y barata. Ver `src/sim/Highway.ts` y `src/render/HighwayView.ts`.
+> - **§8-bis Scoring de tráfico.** `puntos/metro = velocidad × riesgo × combo × 1.4`,
+>   donde velocidad no paga nada abajo de 55 km/h, el riesgo vale ×2.2 yendo de
+>   contramano, y el combo sube medio punto por cada pasada a menos de 1.3 m (tope ×10,
+>   ventana de 3 s). El run termina en el primer impacto fuerte o de frente.
+> - **§5-bis Perfiles de manejo.** El mismo modelo de física con dos juegos de constantes
+>   (`src/sim/Handling.ts`): en tráfico sube el grip trasero, se aplana la caída de la
+>   goma pasado el pico, se duplica la amortiguación de guiñada y se agrega un torque de
+>   **autoalineación** que apunta el morro hacia el vector velocidad. El signo de ese
+>   término importa: invertido, empuja el auto lejos de su velocidad y convierte cualquier
+>   resbalón en un trompo (pasó, ver §5.5).
+> - **§10 texturas y carrocerías.** La calzada es una sola textura con el marcado pintado
+>   adentro, calculada en metros. Las carrocerías pasaron a generarse por **lofting** de
+>   siluetas (`src/render/CarBody.ts`) en vez de apilar cajas.
+> - **§11 audio.** Capa de viento y rodadura que escala con la velocidad, barrido Doppler
+>   por cada auto que pasás y bocina con caída de tono al rozar.
+>
+> El resto del documento (física, scoring de drift, arquitectura) sigue vigente.
 >
 > **Regla legal innegociable:** el juego se inspira en el *feel* y en las ideas de diseño
 > de Drift Legends y CarX Drift Racing. **No se usa ni un solo asset, modelo, textura,
@@ -548,6 +573,23 @@ function stepPhysics(car: CarState, spec: CarSpec, input: Input, dt: number) {
 
 La forma de detectarlo: derrapá sin acelerador y mirá la velocidad. Tiene que bajar
 siempre. Un test automatizado que lo verifique vale más que diez horas de tuneo a ojo.
+
+**Tercera trampa, la del torque de autoalineación (§5-bis, modo tráfico).** Para que el
+auto vaya plantado a alta velocidad se agrega un torque que apunta el morro hacia el
+vector velocidad:
+
+```ts
+const align = car.driftAngleSigned * prof.selfAlign * spec.inertiaYaw
+            * Math.min(1, car.speed / 14);
+```
+
+`driftAngleSigned` es *(dirección de la velocidad − yaw)*, así que para alinear el morro
+con la velocidad el torque tiene que ir en el **mismo** sentido. Con el signo invertido
+hace exactamente lo contrario: empuja el auto lejos de su propia velocidad, y cualquier
+resbalón se realimenta hasta el trompo. Pasó, y el síntoma era desconcertante — el perfil
+"plantado" trompeaba **más** que el perfil de drift. El test que lo agarró compara el
+ángulo máximo de los dos perfiles ante el mismo latigazo de volante: si el de tráfico no
+es el menor de los dos, el signo está mal.
 
 ## 5.6 Motor y caja de cambios
 

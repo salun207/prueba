@@ -47,6 +47,9 @@ export function newSave(): SaveGame {
     challenges: [],
     dailyStreak: 0,
     lastDailyClaim: 0,
+    gameMode: 'traffic',
+    selectedRoute: 'autopista',
+    trafficRecords: {},
     selectedMap: 'apex',
     mapRecords: {},
     records: {
@@ -58,6 +61,10 @@ export function newSave(): SaveGame {
       totalCrashes: 0,
       totalDriftDistance: 0,
       totalCashEarned: 0,
+      bestTrafficScore: 0,
+      bestTrafficDistance: 0,
+      totalNearMisses: 0,
+      totalOvertakes: 0,
     },
     settings: defaultSettings(),
     tutorialDone: false,
@@ -76,6 +83,14 @@ type LegacySave = SaveGame & Record<string, unknown>;
  * progresión.
  */
 const MIGRATIONS: Record<number, (s: LegacySave) => LegacySave> = {
+  // 3 → 4: aparece el modo tráfico. Quien ya venía jugando arranca en el modo
+  // que conoce; el juego nuevo arranca en tráfico (ver newSave).
+  3: (s) => {
+    s.gameMode = 'drift';
+    s.selectedRoute = 'autopista';
+    s.trafficRecords = {};
+    return s;
+  },
   // 2 → 3: aparecen los mapas. Los saves viejos jugaban solo en la ciudad, así
   // que arrancan en el circuito nuevo y conservan la ciudad si ya tienen la
   // reputación para tenerla abierta.
@@ -154,6 +169,9 @@ function sanitize(s: SaveGame): SaveGame {
   if (!Array.isArray(s.challenges)) s.challenges = [];
   if (typeof s.selectedMap !== 'string') s.selectedMap = 'apex';
   if (!s.mapRecords || typeof s.mapRecords !== 'object') s.mapRecords = {};
+  if (s.gameMode !== 'drift' && s.gameMode !== 'traffic') s.gameMode = 'traffic';
+  if (typeof s.selectedRoute !== 'string') s.selectedRoute = 'autopista';
+  if (!s.trafficRecords || typeof s.trafficRecords !== 'object') s.trafficRecords = {};
   s.settings = { ...defaultSettings(), ...s.settings };
   s.records = { ...newSave().records, ...s.records };
   return s;

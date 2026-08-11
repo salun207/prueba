@@ -1,4 +1,14 @@
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
+
+/** Los dos modos de juego. El drift es el original; tráfico es el nuevo. */
+export type GameMode = 'traffic' | 'drift';
+
+export interface TrafficRecord {
+  bestScore: number;
+  bestDistance: number;
+  bestCash: number;
+  runs: number;
+}
 
 export interface CarCosmetics {
   paintColor: string;
@@ -54,6 +64,11 @@ export interface SaveGame {
   dailyStreak: number;
   lastDailyClaim: number;
 
+  /** Modo activo y ruta elegida en tráfico. */
+  gameMode: GameMode;
+  selectedRoute: string;
+  trafficRecords: Record<string, TrafficRecord>;
+
   /** Mapa elegido y récords por mapa. Se desbloquean con reputación. */
   selectedMap: string;
   mapRecords: Record<string, { bestScore: number; bestCash: number; runs: number }>;
@@ -67,6 +82,10 @@ export interface SaveGame {
     totalCrashes: number;
     totalDriftDistance: number;
     totalCashEarned: number;
+    bestTrafficScore: number;
+    bestTrafficDistance: number;
+    totalNearMisses: number;
+    totalOvertakes: number;
   };
 
   settings: Settings;

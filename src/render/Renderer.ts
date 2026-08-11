@@ -73,6 +73,21 @@ export class Renderer {
     this.scene.add(this.sun);
     this.scene.add(this.sun.target);
 
+    // Mapa de entorno sacado del propio cielo: los autos reflejan el atardecer
+    // en vez de verse planos. Se calcula una sola vez.
+    try {
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      const skyScene = new THREE.Scene();
+      const skyCopy = this.sky.mesh.clone();
+      skyCopy.scale.setScalar(400);
+      skyScene.add(skyCopy);
+      this.scene.environment = pmrem.fromScene(skyScene, 0, 1, 900).texture;
+      this.scene.environmentIntensity = 0.9;
+      pmrem.dispose();
+    } catch {
+      // Sin env map el juego sigue andando, solo con autos más mate.
+    }
+
     const w = Math.max(1, canvas.clientWidth || window.innerWidth);
     const h = Math.max(1, canvas.clientHeight || window.innerHeight);
     this.rig = new CameraRig(w / h);

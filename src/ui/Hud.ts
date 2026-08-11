@@ -7,6 +7,7 @@ import { fmt, fmtInt, fmtTime } from './format';
 const TIER_COLORS = ['#ffe9c0', '#ffb03a', '#ffb03a', '#7fd4c1', '#ff8a3d', '#ff4d3a', '#ff6f91', '#ffffff'];
 
 export interface HudModel {
+  mode: 'drift' | 'traffic';
   score: number;
   timeLeft: number;
   freeRoam: boolean;
@@ -19,6 +20,16 @@ export interface HudModel {
   zone: string | null;
   contractText: string | null;
   contractProgress: number;
+
+  // ── Solo modo tráfico ──
+  /** Metros recorridos en el run. */
+  distance: number;
+  combo: number;
+  comboTimer: number;
+  nearMisses: number;
+  overtakes: number;
+  /** Vas por la mano contraria: paga doble y es donde se muere. */
+  oncoming: boolean;
 }
 
 /**
@@ -40,6 +51,12 @@ export class Hud {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
+  }
+
+  /** El modo tráfico no tiene mapa: la autopista es infinita. */
+  clearMap(): void {
+    this.mapDef = null;
+    this.minimap = null;
   }
 
   setMap(def: MapDefinition): void {
@@ -99,7 +116,8 @@ export class Hud {
     this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
   }
 
-  draw(model: HudModel, score: ScoreSystem, car: CarState, dt: number): void {
+  /** `score` solo existe en modo drift. */
+  draw(model: HudModel, score: ScoreSystem | null, car: CarState, dt: number): void {
     const ctx = this.ctx;
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
@@ -127,7 +145,22 @@ export class Hud {
     ctx.fillStyle = '#9aa3b5';
     ctx.fillText('PUNTOS', w / 2, scoreY + 30 * s);
 
-    if (!model.freeRoam) {
+    if (model.mode === 'traffic') {
+      // En la autopista no hay reloj: se corre hasta que chocás. Lo que importa
+      // arriba a la izquierda es cuánto llevás recorrido.
+      ctx.textAlign = 'left';
+      ctx.font = `800 ${26 * s}px system-ui, sans-serif`;
+      ctx.fillStyle = '#ffe9c0';
+      ctx.fillText(
+        model.distance >= 1000
+          ? `${(model.distance / 1000).toFixed(2)} km`
+          : `${Math.round(model.distance)} m`,
+        24 * s, 36 * s,
+      );
+      ctx.font = `600 ${12 * s}px system-ui, sans-serif`;
+      ctx.fillStyle = '#9aa3b5';
+      ctx.fillText(`${model.overtakes} pasados · ${model.nearMisses} al ras`, 24 * s, 56 * s);
+    } else if (!model.freeRoam) {
       ctx.font = `800 ${26 * s}px system-ui, sans-serif`;
       ctx.fillStyle = model.timeLeft < 10 ? '#ff4d3a' : '#ffe9c0';
       ctx.textAlign = 'left';
@@ -150,7 +183,8 @@ export class Hud {
     ctx.fillText(`+$${fmt(model.cashLive)}`, 24 * s, h - 18 * s);
 
     // ── Combo ──
-    this.drawCombo(score, car, w, h, s);
+    if (model.mode === 'traffic') this.drawTrafficCombo(model, w, h, s);
+    else if (score) this.drawCombo(score, car, w, h, s);
 
     // ── Velocímetro ──
     this.drawSpeedo(model, w, h, s);
@@ -178,6 +212,53 @@ export class Hud {
       ctx.fillStyle = '#7fd4c1';
       ctx.fillRect(24 * s, 80 * s, bw * clamp(model.contractProgress, 0, 1), 4 * s);
     }
+  }
+
+  /**
+   * Combo del modo tráfico. Solo aparece cuando está vivo, y la barra es el
+   * tiempo que queda: mientras siga cargada, cada auto que pasás vale más.
+   */
+  private drawTrafficCombo(model: HudModel, w: number, h: number, s: number): void {
+    const ctx = this.ctx;
+
+    // Va bien abajo, no arriba: arriba está el cartel del tutorial y quedaban
+    // los dos textos encimados.
+    if (model.oncoming) {
+      ctx.textAlign = 'center';
+      ctx.font = `900 ${20 * s}px system-ui, sans-serif`;
+      ctx.fillStyle = '#ff4d3a';
+      ctx.shadowColor = '#ff4d3a';
+      ctx.shadowBlur = 14 * s;
+      ctx.fillText('CONTRAMANO ×2', w / 2, h - 92 * s);
+      ctx.shadowBlur = 0;
+    }
+
+    if (model.combo <= 1.01) return;
+
+    const cx = w / 2;
+    const cy = h * 0.72;
+    const t = clamp((model.combo - 1) / 9, 0, 1);
+    const color = t > 0.7 ? '#ff4d3a' : t > 0.35 ? '#ffb03a' : '#7fd4c1';
+    const pulse = 1 + easeOutBackClamped(this.tierPulse) * 0.3;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pulse, pulse);
+    ctx.textAlign = 'center';
+    ctx.font = `900 ${34 * s}px system-ui, sans-serif`;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 18 * s;
+    ctx.fillText(`×${model.combo.toFixed(1)}`, 0, 0);
+    ctx.shadowBlur = 0;
+
+    const bw = 130 * s;
+    const bh = 5 * s;
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(-bw / 2, 22 * s, bw, bh);
+    ctx.fillStyle = color;
+    ctx.fillRect(-bw / 2, 22 * s, bw * clamp(model.comboTimer / 3, 0, 1), bh);
+    ctx.restore();
   }
 
   private drawCombo(score: ScoreSystem, car: CarState, w: number, h: number, s: number): void {
