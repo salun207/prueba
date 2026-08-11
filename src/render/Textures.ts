@@ -417,6 +417,60 @@ export function highwayTexture(lanes: number, twoWay: boolean, laneWidth = 3.7):
   });
 }
 
+/**
+ * Pintura de auto. Base casi blanca para que el color del jugador se aplique
+ * multiplicando y no se ensucie, con escarcha metálica fina, una veladura suave
+ * y juntas de chapa cada medio metro. Sin esto la carrocería es un color plano
+ * y a la luz rasante del atardecer se lee como plástico.
+ *
+ * La UV va en metros (ver CarBody), así que el tile es de 1 m: las juntas caen
+ * cada 0.5 m reales en cualquier auto.
+ */
+export function carPaintTexture(): THREE.Texture {
+  return cached('carpaint', () => {
+    const S = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = S;
+    canvas.height = S;
+    const ctx = canvas.getContext('2d')!;
+
+    const img = ctx.createImageData(S, S);
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        // Veladura de laca: variación lenta, casi imperceptible de cerca
+        const n = fbm((x / S) * 5, (y / S) * 5, 3, 5, 71);
+        // Escarcha metálica: puntitos por píxel
+        const flake = (hash2(x, y, 913) - 0.5) * 14;
+        const i = (y * S + x) * 4;
+        // Albedo ~0.8, no 0.93: una chapa "blanca" que refleja casi todo se
+        // recorta en blanco puro apenas la luz pasa de 1 y el auto pierde forma.
+        const v = clamp255(204 + (n - 0.5) * 16 + flake);
+        img.data[i] = v;
+        img.data[i + 1] = v;
+        img.data[i + 2] = clamp255(v + 2);
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // Juntas de chapa: una línea oscura con un reflejo justo al lado
+    for (const at of [0.5, 1.0]) {
+      const p = Math.round(at * S) % S;
+      ctx.fillStyle = 'rgba(90,90,96,0.55)';
+      ctx.fillRect(0, p, S, 1.5);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(0, p + 1.5, S, 1);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
+  });
+}
+
 /** Rayas de obra para las barreras. */
 export function stripeTexture(): THREE.Texture {
   return cached('stripe', () => {

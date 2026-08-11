@@ -53,8 +53,35 @@ async function autopilot(ms) {
     await page.waitForTimeout(45);
   }
 }
-await autopilot(8000);
+await autopilot(6000);
+
+// Foto posada: pausamos la sim y ponemos el auto en su carril mirando al
+// camino. El piloto automático de arriba sirve para poblar la autopista, no
+// para manejar — a 3 FPS bajo SwiftShader se va al pasto en cada curva.
+await page.evaluate(() => {
+  const g = window.game, hw = g.highway, c = g.carState;
+  g.paused = true;
+  const lane = Math.floor((hw.cfg.lanes - 1) / 2);
+  c.posX = hw.laneCenter(c.posZ, lane);
+  c.yaw = hw.heading(c.posZ);
+  c.velX = 0; c.velZ = 48; c.speed = 48; c.yawRate = 0;
+  c.driftAngle = 0; c.driftAngleSigned = 0; c.visualRoll = 0; c.visualPitch = 0;
+  g.renderer.rig.reset(c);
+});
+await page.waitForTimeout(1500);
+console.log('POSE', JSON.stringify(await page.evaluate(() => {
+  const g = window.game, hw = g.highway, c = g.carState;
+  return {
+    lateral: +hw.lateral(c.posX, c.posZ).toFixed(2),
+    halfWidth: hw.halfWidth,
+    oncoming: hw.inOncoming(c.posX, c.posZ),
+    camYaw: +g.renderer.rig.camera.rotation.y.toFixed(2),
+    activos: hw.cars.filter((t) => t.active).length,
+    delante: hw.cars.filter((t) => t.active && t.z > c.posZ && t.z < c.posZ + 250).length,
+  };
+})));
 await page.screenshot({ path: dir + 's_traffic0.png' });
+await page.evaluate(() => { window.game.paused = false; });
 await autopilot(9000);
 await page.screenshot({ path: dir + 's_traffic.png' });
 const traffic = await page.evaluate(() => window.game.debug());

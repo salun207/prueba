@@ -26,9 +26,9 @@ export interface HighwayConfig {
 }
 
 export const TRAFFIC_PRESETS: Record<string, HighwayConfig> = {
-  autopista: { lanes: 3, laneWidth: 3.7, twoWay: true, density: 9, trafficKmh: 80, seed: 5150 },
-  hora_pico: { lanes: 4, laneWidth: 3.6, twoWay: true, density: 17, trafficKmh: 62, seed: 8020 },
-  ruta_libre: { lanes: 2, laneWidth: 3.9, twoWay: false, density: 6, trafficKmh: 95, seed: 3131 },
+  autopista: { lanes: 3, laneWidth: 3.7, twoWay: true, density: 18, trafficKmh: 80, seed: 5150 },
+  hora_pico: { lanes: 4, laneWidth: 3.6, twoWay: true, density: 30, trafficKmh: 62, seed: 8020 },
+  ruta_libre: { lanes: 2, laneWidth: 3.9, twoWay: false, density: 13, trafficKmh: 95, seed: 3131 },
 };
 
 export interface TrafficCar {
@@ -46,6 +46,8 @@ export interface TrafficCar {
   colorSeed: number;
   /** Ya se contó como sobrepaso. */
   passed: boolean;
+  /** Velocidad que querría llevar si no tuviera a nadie adelante. */
+  targetSpeed: number;
   /** Ya se contó el roce cercano. */
   nearMissed: boolean;
   /** Evita que un contacto sostenido dispare un choque por frame. */
@@ -55,6 +57,10 @@ export interface TrafficCar {
 
 const AHEAD = 560;
 const BEHIND = 140;
+/** Separación mínima entre dos autos que aparecen en el mismo carril. */
+const MIN_LANE_GAP = 26;
+/** Distancia de seguridad: dentro de esto, el de atrás se acopla al de adelante. */
+const HEADWAY = 16;
 
 export class HighwayWorld {
   readonly cfg: HighwayConfig;
@@ -62,6 +68,8 @@ export class HighwayWorld {
   private rng: Rng;
   private nextId = 0;
   private spawnCursor = 0;
+  /** Z de la última aparición en cada carril, para no encimar autos. */
+  private laneCursor = new Map<number, number>();
 
   constructor(cfg: HighwayConfig) {
     this.cfg = cfg;
@@ -135,13 +143,29 @@ export class HighwayWorld {
 
   // ─────────────────────────── tráfico ───────────────────────────
 
+  /** Todos los carriles con signo, tu mano primero. */
+  private laneList(): number[] {
+    const lanes: number[] = [];
+    for (let i = 0; i < this.cfg.lanes; i++) lanes.push(i);
+    if (this.cfg.twoWay) for (let i = 1; i <= this.cfg.lanes; i++) lanes.push(-i);
+    return lanes;
+  }
+
+  /**
+   * Mete un auto en `z`, en un carril que tenga lugar.
+   *
+   * Con densidad alta el hueco medio entre apariciones es más chico que un auto,
+   * así que elegir el carril al azar mete autos DENTRO de otros. Se lleva la
+   * cuenta de dónde apareció el último de cada carril y solo se usan los que
+   * tienen espacio; si no hay ninguno, no aparece nadie y listo.
+   */
   private spawnOne(z: number): void {
     const c = this.cfg;
-    const lanes: number[] = [];
-    for (let i = 0; i < c.lanes; i++) lanes.push(i);
-    if (c.twoWay) for (let i = 1; i <= c.lanes; i++) lanes.push(-i);
+    const free = this.laneList().filter((l) => z - (this.laneCursor.get(l) ?? -1e9) >= MIN_LANE_GAP);
+    if (free.length === 0) return;
 
-    const lane = this.rng.pick(lanes);
+    const lane = this.rng.pick(free);
+    this.laneCursor.set(lane, z);
     const dir = lane >= 0 ? 1 : -1;
     const kind = this.rng.int(0, 3);
     // Camiones: más largos, más lentos y siempre en los carriles de la derecha
@@ -154,7 +178,8 @@ export class HighwayWorld {
       car = {
         id: this.nextId++,
         lane, z, x: 0, speed: 0, dir, length: 4.6, width: 1.9,
-        kind, colorSeed: 0, passed: false, nearMissed: false, hitCooldown: 0, active: true,
+        kind, colorSeed: 0, targetSpeed: 0,
+        passed: false, nearMissed: false, hitCooldown: 0, active: true,
       };
       this.cars.push(car);
     }
@@ -162,6 +187,7 @@ export class HighwayWorld {
     car.dir = dir;
     car.z = z;
     car.speed = (speedKmh / 3.6) * dir;
+    car.targetSpeed = car.speed;
     car.kind = kind;
     car.length = truck ? this.rng.range(8.5, 12) : this.rng.range(4.2, 5.2);
     car.width = truck ? 2.5 : this.rng.range(1.75, 2.0);
@@ -176,6 +202,7 @@ export class HighwayWorld {
   reset(playerZ: number): void {
     this.rng = new Rng(this.cfg.seed);
     for (const c of this.cars) c.active = false;
+    this.laneCursor.clear();
     this.spawnCursor = playerZ + 60;
     // Poblamos el tramo visible de entrada
     while (this.spawnCursor < playerZ + AHEAD) {
@@ -196,7 +223,46 @@ export class HighwayWorld {
     return mean * this.rng.range(0.45, 1.75);
   }
 
+  /**
+   * Seguimiento: nadie atraviesa al de adelante de su carril.
+   *
+   * Cada auto sale con una velocidad propia, así que uno rápido alcanza al
+   * lento que tiene delante. Sin esto, con densidad alta se ven autos pasando
+   * uno a través del otro. La regla es la mínima que funciona: dentro de la
+   * distancia de seguridad, la velocidad se mezcla hacia la del de adelante
+   * hasta igualarla al tocarse. De regalo aparecen los pelotones, que es como
+   * se ve el tráfico de verdad.
+   */
+  private follow(): void {
+    for (const c of this.cars) {
+      if (!c.active) continue;
+      let gapAhead = Infinity;
+      let leadSpeed = 0;
+      for (const o of this.cars) {
+        if (o === c || !o.active || o.lane !== c.lane) continue;
+        // Distancia al de adelante medida en el sentido de marcha
+        const ahead = (o.z - c.z) * c.dir;
+        if (ahead <= 0 || ahead > 80) continue;
+        const gap = ahead - (c.length + o.length) * 0.5;
+        if (gap < gapAhead) {
+          gapAhead = gap;
+          leadSpeed = o.speed;
+        }
+      }
+      if (gapAhead >= HEADWAY) {
+        c.speed = c.targetSpeed;
+        continue;
+      }
+      const t = clamp(gapAhead / HEADWAY, 0, 1);
+      c.speed = leadSpeed + (c.targetSpeed - leadSpeed) * t;
+      // Si igual se metió encima, se lo empuja atrás: es preferible un salto
+      // de unos centímetros a dos autos ocupando el mismo lugar.
+      if (gapAhead < 0) c.z -= gapAhead * c.dir;
+    }
+  }
+
   update(playerZ: number, dt: number): void {
+    this.follow();
     for (const c of this.cars) {
       if (!c.active) continue;
       c.z += c.speed * dt;
@@ -209,7 +275,10 @@ export class HighwayWorld {
       this.spawnOne(this.spawnCursor);
       this.spawnCursor += this.spawnGap();
     }
-    if (this.spawnCursor < playerZ) this.spawnCursor = playerZ + 60;
+    if (this.spawnCursor < playerZ) {
+      this.spawnCursor = playerZ + 60;
+      this.laneCursor.clear();
+    }
   }
 
   obbOf(c: TrafficCar, out: Obb): Obb {

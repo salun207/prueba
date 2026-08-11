@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head><meta charset="utf8"><title>car inspect</title>
+<style>html,body{margin:0;background:#20242c}canvas{display:block}</style></head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { CarView } from '/src/render/CarView.ts';
+import { getCar } from '/src/data/cars.ts';
+import { studioEnvironment } from '/src/render/CarPreview.ts';
+
+const W = 1280, H = 720;
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x20242c);
+scene.environment = studioEnvironment(renderer);
+scene.environmentIntensity = 1.0;
+scene.add(new THREE.HemisphereLight(0xffe0c0, 0x35302c, 0.9));
+const key = new THREE.DirectionalLight(0xfff0d8, 1.05); key.position.set(4, 5, 6); scene.add(key);
+const fill = new THREE.DirectionalLight(0x9fc0ff, 0.35); fill.position.set(-4, 3, -5); scene.add(fill);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ color: 0x2a231d }));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -0.002; scene.add(floor);
+
+const id = new URLSearchParams(location.search).get('car') || 'kite_240';
+const def = getCar(id);
+const view = new CarView(def.body, {
+  paintColor: '#d8d4cc', paintType: 'metallic', wheelColor: '#25211d',
+  caliperColor: '#ff4d3a', bodyKit: 0, smokeColor: null,
+});
+scene.add(view.group);
+
+// ?mode=normal pinta las normales; ?mode=flat usa lambert plano
+const mode = new URLSearchParams(location.search).get('mode');
+if (mode) {
+  view.group.traverse((o) => {
+    if (!o.isMesh) return;
+    if (mode === 'normal') o.material = new THREE.MeshNormalMaterial({ side: o.material.side });
+    if (mode === 'flat') o.material = new THREE.MeshLambertMaterial({ color: 0x999999 });
+    if (mode === 'wire') o.material = new THREE.MeshBasicMaterial({ color: 0x8fd, wireframe: true });
+    if (mode === 'double') o.material = new THREE.MeshLambertMaterial({ color: 0x999999, side: THREE.DoubleSide });
+    // albedo: solo la textura y el color, sin luz. nomap: PBR sin textura.
+    if (mode === 'albedo' && o.material.map) {
+      o.material = new THREE.MeshBasicMaterial({ map: o.material.map, color: o.material.color });
+    }
+    if (mode === 'nomap' && o.material.map) o.material.map = null;
+    if (mode === 'noenv') o.material.envMapIntensity = 0;
+    if (mode === 'rough' && o.material.map) { o.material.roughness = 0.6; o.material.metalness = 0; }
+    if (mode === 'plain' && o.material.map) {
+      o.material = new THREE.MeshStandardMaterial({
+        map: o.material.map, color: o.material.color,
+        metalness: 0, roughness: 1, envMapIntensity: 0,
+      });
+    }
+    if (mode === 'nospec' && o.material.map) {
+      o.material = new THREE.MeshLambertMaterial({ map: o.material.map, color: o.material.color });
+    }
+  });
+}
+
+const cam = new THREE.PerspectiveCamera(32, W / H, 0.1, 100);
+const angles = [
+  [1.0, 0.45, 1.1],   // 3/4 delantero
+  [-1.1, 0.4, -1.0],  // 3/4 trasero
+  [0.02, 0.28, 1.5],  // frente
+  [1.6, 0.18, 0.05],  // perfil
+];
+let i = 0;
+function draw() {
+  const r = Math.max(def.body.length, def.body.width) * 1.35;
+  const a = angles[i];
+  cam.position.set(a[0] * r, a[1] * r, a[2] * r);
+  cam.lookAt(0, def.body.height * 0.45, 0);
+  renderer.render(scene, cam);
+}
+draw();
+window.shot = (n) => { i = n; draw(); };
+window.info = () => {
+  const out = [];
+  view.group.traverse((o) => {
+    if (!o.isMesh) return;
+    o.geometry.computeBoundingBox();
+    const b = o.geometry.boundingBox;
+    out.push({
+      mat: o.material.type + '/' + (o.material.color ? '#' + o.material.color.getHexString() : ''),
+      pos: [+o.position.x.toFixed(2), +o.position.y.toFixed(2), +o.position.z.toFixed(2)],
+      scale: [+o.scale.x.toFixed(2), +o.scale.y.toFixed(2), +o.scale.z.toFixed(2)],
+      bbox: [
+        [+b.min.x.toFixed(2), +b.min.y.toFixed(2), +b.min.z.toFixed(2)],
+        [+b.max.x.toFixed(2), +b.max.y.toFixed(2), +b.max.z.toFixed(2)],
+      ],
+      attrs: Object.keys(o.geometry.attributes),
+      tris: (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3,
+    });
+  });
+  return out;
+};
+</script>
+</body>
+</html>

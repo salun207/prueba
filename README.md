@@ -10,10 +10,14 @@ navegador, sin instalación y sin conexión.
 ```bash
 npm install
 npm run dev           # http://localhost:5173
-npm test              # 51 tests de física, autopista, economía, circuitos y saves
+npm test              # 53 tests de física, autopista, economía, circuitos y saves
 npm run build         # typecheck + bundle
 npm run build:single  # todo en un solo HTML autocontenido (dist-single/)
 npm run smoke         # prueba en Chromium headless (requiere playwright)
+
+# Diagnóstico: renderiza un auto solo, desde cuatro ángulos y a pantalla completa.
+# ?mode=normal|flat|albedo|nomap|noenv aísla geometría, textura y luz por separado.
+npx vite & node scripts/inspect-car.mjs kite_240
 ```
 
 ## Controles
@@ -53,9 +57,13 @@ Tres rutas, que se abren con reputación:
 
 | Ruta | Se abre con | Qué es |
 |---|---|---|
-| **Autopista Costera** | desde el arranque | 3 carriles por mano, doble mano, curvas largas. |
-| **Ruta Libre** | 120 ★ | 2 carriles, poco tráfico y muy rápido: el que viene de frente aparece de golpe. |
-| **Hora Pico** | 450 ★ | 4 carriles por mano y todos llenos, tráfico lento. La plata está en pasar entre medio. |
+| **Autopista Costera** | desde el arranque | 3 carriles por mano, doble mano, ~110 autos/km. |
+| **Ruta Libre** | 120 ★ | 2 carriles, más despejada y muy rápida: el que viene de frente aparece de golpe. |
+| **Hora Pico** | 450 ★ | 4 carriles por mano y todos llenos (~240 autos/km), tráfico lento. La plata está en pasar entre medio. |
+
+El tráfico **se sigue entre sí**: cada auto sale con su propia velocidad y, cuando
+alcanza al de adelante de su carril, se acopla a su velocidad en vez de atravesarlo.
+Salen pelotones solos, que es como se ve una autopista llena de verdad.
 
 En este modo el auto va **plantado**: el perfil de manejo sube el grip trasero, aplana la
 caída de la goma pasado el pico y agrega un torque de autoalineación que apunta el morro
@@ -174,12 +182,32 @@ Las **carrocerías** se generan por lofting: se define la silueta con estaciones
 del auto (ancho y altura del techo en cada punto) y se cose una superficie entre ellas.
 Salen capó, parabrisas inclinado, techo, luneta y baúl como una sola cáscara continua, en
 nueve siluetas distintas. Los camiones se arman aparte con cajas, porque estirar una
-silueta de auto a 10 metros da una gota deforme. Las fachadas usan un shader que escala las UV según el tamaño
+silueta de auto a 10 metros da una gota deforme.
+
+La sección transversal tiene **dieciocho puntos**, no seis. Con seis, el costado era una
+sola cara plana enorme: caía entera dentro del lóbulo especular y se encendía de golpe,
+tapando el auto con una mancha blanca. La chapa también lleva su textura — escarcha
+metálica, veladura de laca y juntas cada medio metro, con las UV en metros para que la
+densidad sea la misma en un utilitario y en un cupé. Las fachadas usan un shader que escala las UV según el tamaño
 real de cada edificio, para que las ventanas midan lo mismo en uno de 12 m y en uno de 40.
 
 Las **fotos de los autos** del garage son el mismo modelo 3D que manejás, renderizado en
 3/4 con luz de estudio a un render target y guardado como imagen. No hay fotos externas:
 la foto ES el auto, con tu color de pintura.
+
+## Luz
+
+El render usa **mapeo de tonos ACES** con exposición 1.25. Sin él, todo lo que pasaba de
+1.0 se recortaba a blanco puro y los costados de los autos y el guardarraíl salían como
+manchas planas sin forma.
+
+Dos decisiones que van en contra de lo que uno pondría por default:
+
+- **La pintura tiene `metalness` casi cero.** Es un dieléctrico con barniz, no un metal.
+  Con `metalness` alto el F0 se dispara y la chapa devuelve las luces como si fuera cromo.
+- **El environment map aporta poco (`environmentIntensity` 0.5).** El cielo lleva el disco
+  del sol dibujado adentro, y ese punto reflejado sobre un panel plano lo tapa entero. La
+  luz dura la da la direccional; el entorno solo tiñe.
 
 ## Estética
 

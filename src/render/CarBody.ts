@@ -132,18 +132,40 @@ const SHAPES: Record<Silhouette, Station[]> = {
 };
 
 const SILL = 0.26;
-const SHOULDER_FRAC = 0.55;
 
-/** Sección transversal: hexágono con panza, hombro y techo. */
-function ring(hw: number, topW: number, shoulderY: number, topY: number): [number, number][] {
-  return [
-    [hw * 0.86, SILL],
-    [hw, shoulderY],
-    [topW, topY],
-    [-topW, topY],
-    [-hw, shoulderY],
-    [-hw * 0.86, SILL],
-  ];
+/**
+ * Sección transversal.
+ *
+ * Con seis puntos (un hexágono) el costado era una sola cara PLANA enorme: al
+ * caer entera dentro del lóbulo especular se encendía de golpe y se veía como
+ * una mancha blanca sin forma pegada al auto. Con dieciocho puntos la sección
+ * es curva, la normal cambia a lo largo del flanco y el brillo se lee como un
+ * reflejo que corre por la chapa.
+ *
+ * Cada entrada es `[factor sobre el semiancho, factor sobre el ancho del techo,
+ * altura]`, con altura 0 en el zócalo y 1 en el techo. Los dos factores de
+ * ancho se suman: arriba manda `topW`, así el parante se cierra hacia el techo.
+ */
+const PROFILE: [number, number, number][] = [
+  // [x sobre hw, x sobre topW, altura: 0 = zócalo, 1 = techo]
+  [0.50, 0.00, -0.12], // panza
+  [0.82, 0.00, 0.00], // bajos
+  [0.96, 0.00, 0.14], // zócalo
+  [1.00, 0.00, 0.32], // cintura, el punto más ancho
+  [0.97, 0.00, 0.52], // hombro
+  [0.80, 0.18, 0.70], // quiebre hacia el techo
+  [0.42, 0.56, 0.86], // parante
+  [0.12, 0.84, 0.96], // borde del techo
+  [0.00, 0.62, 1.00], // techo
+];
+
+/** Sección transversal completa: lado derecho de abajo a arriba, después el izquierdo. */
+function ring(hw: number, topW: number, topY: number): [number, number][] {
+  const right: [number, number][] = PROFILE.map(([a, b, h]) => [
+    hw * a + topW * b,
+    SILL + (topY - SILL) * h,
+  ]);
+  return [...right, ...right.slice().reverse().map(([x, y]) => [-x, y] as [number, number])];
 }
 
 export interface CarMeshes {
@@ -153,6 +175,12 @@ export interface CarMeshes {
   roofY: number;
   cabinCenterZ: number;
 }
+
+/** Índices dentro del anillo (ver PROFILE). */
+const SHOULDER_R = 4;
+const ROOF_R = PROFILE.length - 1;
+const ROOF_L = PROFILE.length;
+const SHOULDER_L = PROFILE.length * 2 - 1 - SHOULDER_R;
 
 export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshes {
   const stations = SHAPES[silhouette] ?? SHAPES.coupe;
@@ -165,16 +193,28 @@ export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshe
     const z = (st.t - 0.5) * L;
     const hw = (W / 2) * st.w;
     const topY = st.top * scaleY;
-    const shoulderY = SILL + (topY - SILL) * SHOULDER_FRAC;
-    rings.push({ z, pts: ring(hw, hw * st.taper, shoulderY, topY), st });
+    rings.push({ z, pts: ring(hw, hw * st.taper, topY), st });
   }
 
   const pos: number[] = [];
+  const uv: number[] = [];
   const idx: number[] = [];
   const n = rings[0].pts.length;
 
-  const pushVert = (x: number, y: number, z: number): number => {
+  // UV: `u` recorre el contorno de la sección y `v` avanza a lo largo del auto,
+  // los dos medidos en METROS reales. Así la pintura tiene la misma densidad de
+  // textura en un utilitario y en un cupé, sin estirones.
+  const arc = (pts: [number, number][]): number[] => {
+    const out = [0];
+    for (let k = 1; k < pts.length; k++) {
+      out.push(out[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
+    }
+    return out;
+  };
+
+  const pushVert = (x: number, y: number, z: number, u: number, v: number): number => {
     pos.push(x, y, z);
+    uv.push(u, v);
     return pos.length / 3 - 1;
   };
 
@@ -182,7 +222,10 @@ export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshe
   const ringBase: number[] = [];
   for (const r of rings) {
     ringBase.push(pos.length / 3);
-    for (const [x, y] of r.pts) pushVert(x, y, r.z);
+    const a = arc(r.pts);
+    for (let k = 0; k < n; k++) {
+      pushVert(r.pts[k][0], r.pts[k][1], r.z, a[k] * 0.5, r.z * 0.5);
+    }
   }
 
   // Costura entre anillos consecutivos, incluida la panza (último → primero)
@@ -201,7 +244,7 @@ export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshe
   for (const [ri, flip] of capEnds) {
     const r = rings[ri];
     const cy = r.pts.reduce((s, p) => s + p[1], 0) / n;
-    const c = pushVert(0, cy, r.z);
+    const c = pushVert(0, cy, r.z, 0, r.z * 0.5);
     const base = ringBase[ri];
     for (let k = 0; k < n; k++) {
       const k2 = (k + 1) % n;
@@ -212,6 +255,7 @@ export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshe
 
   const bodyGeo = new THREE.BufferGeometry();
   bodyGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  bodyGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   bodyGeo.setIndex(idx);
   bodyGeo.computeVertexNormals();
 
@@ -231,8 +275,8 @@ export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshe
     const r0 = cabin[i];
     const r1 = cabin[i + 1];
     for (const side of [1, -1]) {
-      const s = side > 0 ? 1 : 4; // índice del hombro
-      const t = side > 0 ? 2 : 3; // índice del techo
+      const s = side > 0 ? SHOULDER_R : SHOULDER_L;
+      const t = side > 0 ? ROOF_R : ROOF_L;
       const e = 0.012 * side;
       const a = push(r0.pts[s][0] + e, r0.pts[s][1] + 0.02, r0.z);
       const b = push(r0.pts[t][0] + e, r0.pts[t][1] - 0.03, r0.z);
@@ -246,10 +290,10 @@ export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshe
   // Parabrisas y luneta: cierran las puntas de la cabina
   for (const [r, front] of [[cabin[cabin.length - 1], true], [cabin[0], false]] as [typeof cabin[0], boolean][]) {
     const dz = front ? 0.02 : -0.02;
-    const a = push(r.pts[1][0], r.pts[1][1] + 0.02, r.z + dz);
-    const b = push(r.pts[2][0], r.pts[2][1] - 0.03, r.z + dz);
-    const c = push(r.pts[3][0], r.pts[3][1] - 0.03, r.z + dz);
-    const d = push(r.pts[4][0], r.pts[4][1] + 0.02, r.z + dz);
+    const a = push(r.pts[SHOULDER_R][0], r.pts[SHOULDER_R][1] + 0.02, r.z + dz);
+    const b = push(r.pts[ROOF_R][0], r.pts[ROOF_R][1] - 0.03, r.z + dz);
+    const c = push(r.pts[ROOF_L][0], r.pts[ROOF_L][1] - 0.03, r.z + dz);
+    const d = push(r.pts[SHOULDER_L][0], r.pts[SHOULDER_L][1] + 0.02, r.z + dz);
     if (front) quad(a, b, c, d);
     else quad(d, c, b, a);
   }
@@ -259,7 +303,7 @@ export function buildCarBody(body: BodyParams, silhouette: Silhouette): CarMeshe
   glassGeo.setIndex(gi);
   glassGeo.computeVertexNormals();
 
-  const roof = cabin.reduce((m, r) => Math.max(m, r.pts[2][1]), 0);
+  const roof = cabin.reduce((m, r) => Math.max(m, r.pts[ROOF_R][1]), 0);
   const cz = cabin.reduce((s, r) => s + r.z, 0) / Math.max(1, cabin.length);
 
   return { body: bodyGeo, glass: glassGeo, roofY: roof, cabinCenterZ: cz };

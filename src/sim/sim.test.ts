@@ -374,6 +374,51 @@ describe('autopista (modo tráfico)', () => {
     expect(active.some((c) => c.z > z + 50)).toBe(true);
   });
 
+  it('con densidad alta no aparecen autos encimados en el mismo carril', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS } = await import('./Highway');
+    for (const cfg of Object.values(TRAFFIC_PRESETS)) {
+      const w = new HighwayWorld(cfg);
+      w.reset(0);
+      let z = 0;
+      for (let f = 0; f < 3000; f++) {
+        z += 55 * DT;
+        w.update(z, DT);
+
+        // Dos autos del mismo carril nunca pueden ocupar el mismo tramo
+        const byLane = new Map<number, { z: number; length: number }[]>();
+        for (const c of w.cars) {
+          if (!c.active) continue;
+          const list = byLane.get(c.lane) ?? [];
+          list.push({ z: c.z, length: c.length });
+          byLane.set(c.lane, list);
+        }
+        for (const list of byLane.values()) {
+          list.sort((a, b) => a.z - b.z);
+          for (let i = 1; i < list.length; i++) {
+            const gap = list[i].z - list[i - 1].z - (list[i].length + list[i - 1].length) * 0.5;
+            expect(gap).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  });
+
+  it('la densidad alcanza para tener siempre autos que esquivar adelante', async () => {
+    const { HighwayWorld, TRAFFIC_PRESETS } = await import('./Highway');
+    const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);
+    w.reset(0);
+    let z = 0;
+    let peor = Infinity;
+    for (let f = 0; f < 3000; f++) {
+      z += 55 * DT;
+      w.update(z, DT);
+      if (f % 60 !== 0) continue;
+      const delante = w.cars.filter((c) => c.active && c.z > z && c.z < z + 250).length;
+      peor = Math.min(peor, delante);
+    }
+    expect(peor).toBeGreaterThanOrEqual(6);
+  });
+
   it('el guardarraíl frena al auto en vez de dejarlo salir', async () => {
     const { HighwayWorld, TRAFFIC_PRESETS, resolveHighway } = await import('./Highway');
     const w = new HighwayWorld(TRAFFIC_PRESETS.autopista);

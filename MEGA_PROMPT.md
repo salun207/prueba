@@ -63,6 +63,30 @@
 > - **§11 audio.** Capa de viento y rodadura que escala con la velocidad, barrido Doppler
 >   por cada auto que pasás y bocina con caída de tono al rozar.
 >
+> **Revisión 4.1 — más tráfico y la carrocería arreglada.**
+>
+> - **§9-bis densidad.** `density` se interpreta como autos por kilómetro Y POR CARRIL,
+>   y el ritmo de aparición se multiplica por la cantidad de carriles. Con eso hay que
+>   esquivar de verdad. Aparecen dos reglas nuevas: separación mínima al aparecer en un
+>   mismo carril, y **seguimiento** — cuando un auto alcanza al de adelante de su carril
+>   se acopla a su velocidad en vez de atravesarlo. Sin eso, con densidad alta se veían
+>   autos pasando uno a través del otro.
+> - **§10 la trampa del panel plano.** La sección de la carrocería pasó de seis a
+>   dieciocho puntos. Con seis, el costado del auto era una **sola cara plana grande**:
+>   caía entera dentro del lóbulo especular y se encendía toda junta, tapando el auto con
+>   una mancha blanca uniforme. El síntoma parecía un bug de textura, y no lo era. Tres
+>   causas más, en el mismo lote:
+>   1. **Sin mapeo de tonos**, todo lo que pasa de 1.0 se recorta a blanco. Ahora ACES.
+>   2. **`metalness` alto en la pintura.** Es un dieléctrico con barniz; con metal, el F0
+>      se dispara y la chapa refleja las luces como cromo.
+>   3. **El environment map lleva el disco del sol adentro.** Reflejado sobre un panel
+>      plano lo tapa entero. `environmentIntensity` bajó a 0.5.
+>
+>   Para aislar cosas así hay un banco de pruebas: `dev-car.html` + `scripts/inspect-car.mjs`
+>   renderizan un auto solo, y `?mode=normal|flat|albedo|nomap|noenv` va apagando geometría,
+>   textura y luz por separado hasta que el artefacto desaparece. Fue lo único que separó
+>   "la malla está mal" de "la luz está mal".
+>
 > El resto del documento (física, scoring de drift, arquitectura) sigue vigente.
 >
 > **Regla legal innegociable:** el juego se inspira en el *feel* y en las ideas de diseño

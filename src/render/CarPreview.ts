@@ -13,19 +13,62 @@ const W = 320;
 const H = 200;
 const cache = new Map<string, string>();
 
-function studioScene(): THREE.Scene {
-  const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xffe0c0, 0x35302c, 2.2));
+let studioEnv: THREE.Texture | null = null;
 
-  const key = new THREE.DirectionalLight(0xfff0d8, 2.6);
+/**
+ * Cúpula de estudio para que la pintura metalizada tenga algo que reflejar.
+ *
+ * Sin environment map, un material con `metalness` alto no tiene difusa y lo
+ * único que devuelve es el brillo especular crudo de las luces: el costado
+ * plano del auto se quemaba en una franja blanca. Con la cúpula, el metal
+ * refleja un degradado y se lee como chapa pintada.
+ */
+export function studioEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
+  if (studioEnv) return studioEnv;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const scene = new THREE.Scene();
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(10, 24, 16),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      vertexShader: `
+        varying vec3 vP;
+        void main() {
+          vP = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        varying vec3 vP;
+        // Degradado suave y NADA de cenit brillante: un punto chico e intenso en
+        // la cúpula se refleja entero sobre el flanco del auto y lo tapa con una
+        // mancha blanca. La luz dura la ponen las direccionales, no el entorno.
+        void main() {
+          float h = normalize(vP).y * 0.5 + 0.5;
+          vec3 c = mix(vec3(0.05, 0.045, 0.05), vec3(0.34, 0.32, 0.30), smoothstep(0.3, 0.95, h));
+          gl_FragColor = vec4(c, 1.0);
+        }`,
+    }),
+  ));
+  studioEnv = pmrem.fromScene(scene, 0, 0.1, 20).texture;
+  pmrem.dispose();
+  return studioEnv;
+}
+
+function studioScene(renderer: THREE.WebGLRenderer): THREE.Scene {
+  const scene = new THREE.Scene();
+  scene.environment = studioEnvironment(renderer);
+  scene.environmentIntensity = 1.0;
+  scene.add(new THREE.HemisphereLight(0xffe0c0, 0x35302c, 0.9));
+
+  const key = new THREE.DirectionalLight(0xfff0d8, 1.05);
   key.position.set(4, 5, 6);
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(0xffa860, 2.0);
+  const rim = new THREE.DirectionalLight(0xffa860, 0.7);
   rim.position.set(-5, 3, -4);
   scene.add(rim);
 
-  const fill = new THREE.DirectionalLight(0x9fc0ff, 0.8);
+  const fill = new THREE.DirectionalLight(0x9fc0ff, 0.35);
   fill.position.set(-3, 2, 5);
   scene.add(fill);
 
@@ -66,7 +109,7 @@ export function renderCarPreview(
   if (hit) return hit;
 
   const def = getCar(carId);
-  const scene = studioScene();
+  const scene = studioScene(renderer);
   const view = new CarView(def.body, cosmeticsFor(paint ?? def.defaultPaint));
   scene.add(view.group);
 

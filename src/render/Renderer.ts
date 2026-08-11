@@ -48,6 +48,11 @@ export class Renderer {
     });
     this.renderer.setClearColor(0x2e2a5c, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Sin mapeo de tonos, todo lo que pasa de 1.0 se recorta a blanco puro: los
+    // costados de los autos y el guardarraíl salían como manchas planas sin
+    // forma. ACES comprime las luces altas y deja ver el modelado.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.25;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -82,7 +87,10 @@ export class Renderer {
       skyCopy.scale.setScalar(400);
       skyScene.add(skyCopy);
       this.scene.environment = pmrem.fromScene(skyScene, 0, 1, 900).texture;
-      this.scene.environmentIntensity = 0.9;
+      // Bajo a propósito: el cielo lleva el disco del sol dibujado adentro y ese
+      // punto, reflejado sobre un panel plano del auto, lo tapa entero con una
+      // mancha blanca. La luz dura la da `this.sun`; el entorno solo tiñe.
+      this.scene.environmentIntensity = 0.5;
       pmrem.dispose();
     } catch {
       // Sin env map el juego sigue andando, solo con autos más mate.
