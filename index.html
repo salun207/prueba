@@ -514,9 +514,21 @@
           </button>
         </form>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-primary" id="openAmplia" type="button" style="height:38px;padding:9px 18px;font-size:13px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+            Búsqueda amplia
+          </button>
           <button class="btn-ghost" id="openImport" type="button">Importar mi propia lista</button>
           <button class="btn-ghost" id="diagBtn" type="button">Probar conexión</button>
-          <span class="camp-hintline">Si ya tenés contactos, pegalos y la app les arma el mensaje igual.</span>
+          <span class="camp-hintline">Varios rubros y varios barrios de una sola vez.</span>
+        </div>
+        <div id="ampliaBox" style="display:none;margin-top:14px;border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;background:var(--page)">
+          <div class="scan-status" style="margin-bottom:8px"><span class="spinner"></span><span id="ampliaMsg">Preparando…</span></div>
+          <div class="scan-bar"><div id="ampliaBar" style="width:0%"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap">
+            <span style="font-size:12.5px;color:var(--ink-2)" id="ampliaCount">0 negocios encontrados</span>
+            <button class="btn-ghost" id="ampliaStop" type="button" style="height:34px;padding:7px 14px;font-size:12.5px">Detener y ver lo que hay</button>
+          </div>
         </div>
         <div id="diagOut" style="display:none;margin-top:12px;font-size:12.5px;line-height:1.7;border:1px solid var(--hairline);border-radius:10px;padding:12px 14px;background:var(--page)"></div>
         <div id="previewWarn" style="display:none;margin-top:14px;border:1px solid var(--warning);border-radius:10px;padding:12px 14px;background:var(--page)">
@@ -1134,6 +1146,36 @@
       <button class="btn-ghost" id="mVariant">Otra variante</button>
       <button class="btn-ghost" id="mSave">Guardar lead</button>
       <a class="btn-ghost" id="mCall" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Llamar</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal de búsqueda amplia ══ -->
+<div class="modal-back" id="ampliaBack">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ampTitle">
+    <div class="modal-head">
+      <h3 id="ampTitle">Búsqueda amplia</h3>
+      <button class="modal-close" id="ampClose" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="modal-sub">Elegí varios rubros y varias zonas: la app las recorre una por una y va juntando todo en una sola lista.</p>
+
+    <h4>Zonas <span style="color:var(--muted);font-weight:400">(una por línea, o separadas por coma)</span></h4>
+    <textarea id="ampZonas" spellcheck="false" style="min-height:96px"
+      placeholder="Palermo&#10;Belgrano&#10;Recoleta&#10;Caballito&#10;Villa Urquiza"></textarea>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px" id="ampZonaChips"></div>
+
+    <h4 style="margin-top:16px">Rubros</h4>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn-ghost" id="ampTodos" type="button" style="height:32px;padding:6px 12px;font-size:12px">Marcar todos</button>
+      <button class="btn-ghost" id="ampNinguno" type="button" style="height:32px;padding:6px 12px;font-size:12px">Desmarcar todos</button>
+      <button class="btn-ghost" id="ampBuenos" type="button" style="height:32px;padding:6px 12px;font-size:12px">Solo los mejor cargados</button>
+    </div>
+    <div id="ampRubros" style="max-height:230px;overflow-y:auto;border:1px solid var(--hairline);border-radius:10px;padding:10px 12px;background:var(--page)"></div>
+
+    <p class="camp-hintline" id="ampResumen" style="margin-top:12px">—</p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="ampBuscar" type="button">Buscar todo</button>
+      <button class="btn-ghost" id="ampCancel" type="button">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3773,6 +3815,176 @@ document.getElementById("diagBtn").addEventListener("click", async () => {
     document.getElementById("previewWarn").style.display = "block";
   }
 })();
+
+/* ══ Búsqueda amplia ══════════════════════════
+   Recorre cada combinación de rubro y zona de a una —Overpass no
+   tolera bien las ráfagas— y va acumulando en una sola lista, sin
+   repetir negocios entre búsquedas. */
+const ZONAS_SUGERIDAS = [
+  ["CABA (barrios grandes)", ["Palermo", "Belgrano", "Recoleta", "Caballito", "Villa Urquiza", "Flores", "Almagro", "Villa Crespo"]],
+  ["Zona norte GBA", ["Vicente López", "San Isidro", "Olivos", "Martínez", "Tigre", "San Fernando"]],
+  ["Zona oeste GBA", ["Morón", "Ramos Mejía", "Castelar", "Ituzaingó", "Haedo"]],
+  ["Zona sur GBA", ["Avellaneda", "Lomas de Zamora", "Quilmes", "Lanús", "Banfield"]],
+  ["Interior", ["Rosario", "Córdoba", "Mendoza", "La Plata", "Mar del Plata", "Tucumán"]],
+];
+
+let ampliaCancelar = false;
+const ampliaBack = document.getElementById("ampliaBack");
+
+document.getElementById("openAmplia").addEventListener("click", () => {
+  if (settings.source !== "osm") {
+    toast("La búsqueda amplia usa OpenStreetMap: elegí esa fuente en Ajustes");
+    return;
+  }
+  // Rubros del perfil activo, con la cobertura a la vista
+  const cont = document.getElementById("ampRubros");
+  const permitidos = perfilActual().rubros || Object.keys(NICHOS);
+  cont.innerHTML = permitidos.filter(k => NICHOS[k] && OSM_TAGS[k]).map(k => {
+    const cob = OSM_COBERTURA[k] || "media";
+    const color = cob === "alta" ? "var(--good-text)" : cob === "baja" ? "var(--muted)" : "var(--ink-2)";
+    return `<label class="chk" style="display:flex;align-items:center;gap:8px;padding:5px 0;min-height:32px">
+      <input type="checkbox" class="ampR" value="${k}" ${cob === "alta" ? "checked" : ""}>
+      <span>${esc(NICHOS[k].label)}</span>
+      <span style="font-size:11px;color:${color};margin-left:auto">${cob === "alta" ? "muchos" : cob === "baja" ? "pocos" : "medio"}</span>
+    </label>`;
+  }).join("");
+
+  // Atajos de zonas
+  document.getElementById("ampZonaChips").innerHTML = ZONAS_SUGERIDAS.map(([n], i) =>
+    `<button class="btn-ghost ampZ" data-i="${i}" type="button" style="height:30px;padding:5px 11px;font-size:11.5px">${esc(n)}</button>`).join("");
+  document.querySelectorAll(".ampZ").forEach(b => b.addEventListener("click", () => {
+    const ta = document.getElementById("ampZonas");
+    const previas = ta.value.split(/[\n,]/).map(x => x.trim()).filter(Boolean);
+    const nuevas = ZONAS_SUGERIDAS[Number(b.dataset.i)][1];
+    ta.value = [...new Set([...previas, ...nuevas])].join("\n");
+    actualizarResumenAmplia();
+  }));
+
+  if (!document.getElementById("ampZonas").value.trim()) {
+    document.getElementById("ampZonas").value = document.getElementById("ciudad").value.trim();
+  }
+  cont.querySelectorAll(".ampR").forEach(c => c.addEventListener("change", actualizarResumenAmplia));
+  document.getElementById("ampZonas").addEventListener("input", actualizarResumenAmplia);
+  actualizarResumenAmplia();
+  ampliaBack.classList.add("on");
+});
+
+function zonasElegidas() {
+  return [...new Set(document.getElementById("ampZonas").value
+    .split(/[\n,]/).map(x => x.trim()).filter(Boolean))];
+}
+function rubrosElegidos() {
+  return [...document.querySelectorAll(".ampR:checked")].map(c => c.value);
+}
+function actualizarResumenAmplia() {
+  const z = zonasElegidas().length, r = rubrosElegidos().length;
+  const total = z * r;
+  const el = document.getElementById("ampResumen");
+  if (!total) { el.textContent = "Elegí al menos una zona y un rubro."; return; }
+  const mins = Math.max(1, Math.round(total * 7 / 60));
+  const tiempo = mins === 1 ? "alrededor de un minuto" : `unos ${mins} minutos`;
+  el.textContent = `${r} rubro${r === 1 ? "" : "s"} × ${z} zona${z === 1 ? "" : "s"} = ${total} búsqueda${total === 1 ? "" : "s"}. ` +
+    `Va a tardar ${tiempo}; podés cortarla cuando quieras y te quedás con lo encontrado.`;
+}
+
+function cerrarAmplia() { ampliaBack.classList.remove("on"); }
+document.getElementById("ampClose").addEventListener("click", cerrarAmplia);
+document.getElementById("ampCancel").addEventListener("click", cerrarAmplia);
+ampliaBack.addEventListener("click", e => { if (e.target === ampliaBack) cerrarAmplia(); });
+document.getElementById("ampTodos").addEventListener("click", () => {
+  document.querySelectorAll(".ampR").forEach(c => c.checked = true); actualizarResumenAmplia();
+});
+document.getElementById("ampNinguno").addEventListener("click", () => {
+  document.querySelectorAll(".ampR").forEach(c => c.checked = false); actualizarResumenAmplia();
+});
+document.getElementById("ampBuenos").addEventListener("click", () => {
+  document.querySelectorAll(".ampR").forEach(c => c.checked = OSM_COBERTURA[c.value] === "alta");
+  actualizarResumenAmplia();
+});
+document.getElementById("ampliaStop").addEventListener("click", () => { ampliaCancelar = true; });
+
+document.getElementById("ampBuscar").addEventListener("click", async () => {
+  const zonas = zonasElegidas(), rubros = rubrosElegidos();
+  if (!zonas.length || !rubros.length) { toast("Elegí al menos una zona y un rubro"); return; }
+  cerrarAmplia();
+
+  const box = document.getElementById("ampliaBox");
+  const bar = document.getElementById("ampliaBar");
+  const msg = document.getElementById("ampliaMsg");
+  const cnt = document.getElementById("ampliaCount");
+  const btn = document.getElementById("searchBtn");
+  document.getElementById("searchError").style.display = "none";
+  box.style.display = "block";
+  btn.disabled = true;
+  ampliaCancelar = false;
+
+  const acumulado = [];
+  const vistos = new Set();
+  const fallidas = [];
+  const total = zonas.length * rubros.length;
+  let hechas = 0;
+
+  for (const zona of zonas) {
+    for (const rubro of rubros) {
+      if (ampliaCancelar) break;
+      hechas++;
+      msg.textContent = `${NICHOS[rubro].label} en ${zona} — ${hechas} de ${total}`;
+      bar.style.width = `${(hechas / total) * 100}%`;
+      try {
+        const lista = await fetchOSM(rubro, zona);
+        for (const b of lista) {
+          // Un mismo local puede aparecer en dos rubros o zonas vecinas
+          const clave = b.id || (b.name + b.phone);
+          if (vistos.has(clave)) continue;
+          vistos.add(clave);
+          acumulado.push(b);
+        }
+        cnt.textContent = `${acumulado.length} negocios encontrados · ${acumulado.filter(b => waDigits(b.phone)).length} con teléfono`;
+      } catch (e) {
+        fallidas.push(`${NICHOS[rubro].label} en ${zona}`);
+      }
+      // Un respiro entre consultas: el servidor es gratuito y compartido
+      if (!ampliaCancelar) await new Promise(r => setTimeout(r, 700));
+    }
+    if (ampliaCancelar) break;
+  }
+
+  box.style.display = "none";
+  btn.disabled = false;
+
+  if (!acumulado.length) {
+    mostrarErrorBusqueda("los rubros elegidos", zonas.join(", "), "osm",
+      "Ninguna de las búsquedas devolvió resultados. Probá con otros rubros o zonas.");
+    return;
+  }
+
+  acumulado.sort((a, b) => (waDigits(b.phone) ? 1 : 0) - (waDigits(a.phone) ? 1 : 0) || b.score - a.score);
+  results = acumulado;
+  lastQuery = {
+    nicho: rubros[0], ciudad: zonas.length > 1 ? `${zonas.length} zonas` : zonas[0],
+    label: rubros.length > 1 ? `${rubros.length} rubros` : NICHOS[rubros[0]].label,
+    real: true, fuente: "osm", amplia: true,
+  };
+  zonaResuelta = zonas.join(" · ");
+  searchesUsed += hechas;
+  save(LS.searches, searchesUsed);
+  save(LS.last, { query: lastQuery, results });
+  history.unshift({
+    fecha: new Date().toISOString(),
+    nicho: lastQuery.label, ciudad: lastQuery.ciudad,
+    total: results.length,
+    altas: results.filter(b => b.score >= 70).length,
+    perdidas: results.reduce((a, b) => a + b.perdidas, 0),
+  });
+  history = history.slice(0, 20);
+  save(LS.history, history);
+  renderAll();
+
+  const conTel = acumulado.filter(b => waDigits(b.phone)).length;
+  toast(`${acumulado.length} negocios (${conTel} con teléfono)` +
+    (ampliaCancelar ? ", búsqueda detenida" : "") +
+    (fallidas.length ? ` · ${fallidas.length} búsqueda${fallidas.length === 1 ? "" : "s"} sin respuesta` : ""));
+});
 
 /* ══ Importar lista propia ════════════════════
    Para trabajar sin depender de ninguna API: se pega la lista y la app
